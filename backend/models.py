@@ -326,6 +326,8 @@ class InvoiceItem(models.Model):
     taxable_value = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
     cgst = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
     sgst = models.DecimalField(max_digits=10, decimal_places=2,editable=False, default=0)
+    igst = models.DecimalField(max_digits=10, decimal_places=2,editable=False, default=0)
+    is_igst = models.BooleanField(default=False, verbose_name="Apply IGST")
     total = models.IntegerField(editable=False,blank=True, null=True)
 
     def save(self, *args, **kwargs):
@@ -345,8 +347,10 @@ class InvoiceItem(models.Model):
 
             self.taxable_value = rate_val * qty_val
             self.gst=self.taxable_value * self.gst_rate / 100
+   
             self.cgst = self.gst / 2
             self.sgst = self.gst / 2
+            self.igst = self.gst
             self.total = self.taxable_value + (self.taxable_value * self.gst_rate / 100)
 
 

@@ -73,7 +73,7 @@ class CustomerOrderAdmin(admin.ModelAdmin):
   
 @admin.register(InvoiceItem)
 class InvoiceItemAdmin(admin.ModelAdmin):
-    list_display = ('id', 'date','order','name','product', 'rate','qty','taxable_value','gst_rate','cgst','sgst', 'total')
+    list_display = ('id', 'date','order','name','product', 'rate','qty','taxable_value','gst_rate','cgst','sgst','igst','total')
 
     class Media:
         # Yeh line batati hai ki admin page par kaunsi JS file load karni hai
