@@ -360,6 +360,9 @@ class InvoiceItem(models.Model):
                 verbose_name = "09. Create Invoice"
                 verbose_name_plural = "09. Create Invoice"
 
+# invoice items create section
+
+
 
 # payment section
 
