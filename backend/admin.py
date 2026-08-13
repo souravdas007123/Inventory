@@ -25,7 +25,7 @@ class PaymentAdmin(admin.ModelAdmin):
     
 @admin.register(Product)
 class ProductAdmin(ImportExportModelAdmin):
-    list_display = ('id', 'name','hsn_code', 'category', 'brand','sku','cost_price', 'gst_rate', 'stock_qty','stock_status', 'is_active' )
+    list_display = ('id', 'name','brand','hsn_code','sku', 'category', 'cost_price', 'gst_rate', 'stock_qty','stock_status', 'is_active' )
 
     def stock_status(self, obj):
         low_stock_threshold = 5
@@ -51,7 +51,7 @@ class ProductAdmin(ImportExportModelAdmin):
                 '✅ In Stock'
             )
         
-    stock_status.short_description = 'Stock Warning'
+    stock_status.short_description = 'Status'
 
 @admin.register(Godown)
 class GodownAdmin(ImportExportModelAdmin):
