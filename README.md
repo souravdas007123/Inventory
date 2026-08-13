@@ -1,1 +1,1 @@
-1.pip install django-import-export
+1.pip install -r requirements.txt

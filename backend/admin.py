@@ -17,7 +17,7 @@ class BrandAdmin(ImportExportModelAdmin):
 
 @admin.register(Supplier)
 class SupplierAdmin(ImportExportModelAdmin):
-    list_display = ('id', 'company','address','state','gstin', 'pan', 'opening_balance', 'created_at', 'updated_at','is_active')
+    list_display = ('id', 'company','address','state','gstin', 'pan', 'opening_balance', 'created_at','is_active')
     
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
