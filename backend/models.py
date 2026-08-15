@@ -238,29 +238,12 @@ class Purchase(models.Model):
 # sales section
 
 class Sale(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    godown = models.ForeignKey(Godown, on_delete=models.CASCADE)
-    purchase_order = models.OneToOneField(Purchase, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE,editable=False)
     
     # Jaise-jaise customer orders fulfill honge, ye value kam hoti jayegi
-    qty = models.IntegerField() 
-    purchase_price = models.DecimalField(max_digits=10, decimal_places=2)
+    qty = models.IntegerField(editable=False) 
+    sale_price = models.DecimalField(max_digits=10, decimal_places=2,editable=False)
     
-    def save(self, *args, **kwargs):
-        is_new = self.pk is None
-        
-        # Agar nayi sale ho rahi hai, toh pehle check karo ki stock available hai ya nahi
-        if is_new:
-            if self.product.stock_qty < self.qty:
-                raise ValidationError(f"Stock available nahi hai! Current stock {self.product.stock_qty} hai.")
-                
-        # Pehle Sale entry ko save karte hain
-        super().save(*args, **kwargs)
-        
-        # Agar nayi entry thi, toh Product ka stock minus (-) kar do
-        if is_new:
-            self.product.stock_qty -= self.qty
-            self.product.save()
 
     def __str__(self):
         return f"Sale: {self.product.name} - Qty: {self.qty}"
@@ -332,6 +315,8 @@ class InvoiceItem(models.Model):
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None
+        
+
         if self.invoice_mode == 'online' and self.order:
             # Customer Order se data auto-fill karein
             self.name = self.order.customers_name
@@ -347,14 +332,28 @@ class InvoiceItem(models.Model):
 
             self.taxable_value = rate_val * qty_val
             self.gst=self.taxable_value * self.gst_rate / 100
-   
-            self.cgst = self.gst / 2
-            self.sgst = self.gst / 2
-            self.igst = self.gst
+
+            if self.is_igst:
+                self.cgst = 0
+                self.sgst = 0
+                self.igst = self.gst
+            else:
+            # Agar IGST checked nahi hai, toh IGST 0 hoga
+                self.igst =0
+                self.cgst = self.gst / 2
+                self.sgst = self.gst / 2   
             self.total = self.taxable_value + (self.taxable_value * self.gst_rate / 100)
 
+        is_new_invoice = self.pk is None
 
-        super().save(*args, **kwargs)
+        super(InvoiceItem, self).save(*args, **kwargs)
+
+        if is_new_invoice:
+            Sale.objects.create(
+                product=self.product,
+                sale_price=self.total,
+                qty=self.qty
+            )
 
         if is_new:
             self.product.stock_qty -= self.qty

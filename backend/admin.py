@@ -64,7 +64,7 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
 
 @admin.register(Sale)
 class InventoryBatchAdmin(admin.ModelAdmin):
-    list_display = ('id', 'product', 'godown', 'purchase_order','qty', 'purchase_price')
+    list_display = ('id', 'product', 'qty', 'sale_price')
 
 @admin.register(Order)
 class CustomerOrderAdmin(admin.ModelAdmin):
