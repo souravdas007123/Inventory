@@ -106,9 +106,7 @@ def generate_unique_sku_id():
 class Product(models.Model):
     GST_CHOICES = (  
         (5.00, '5%'),
-        (12.00, '12%'),
         (18.00, '18%'),
-        (28.00, '28%'),
     )
     name = models.CharField(max_length=255)
     hsn_code = models.CharField(max_length=10, blank=True, null=True)
