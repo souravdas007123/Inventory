@@ -5,6 +5,7 @@ from import_export.admin import ImportExportModelAdmin
 from .models import Supplier,Product,Godown,Purchase,Sale,Order,InvoiceItem,Category,Brand,Payment
 
 
+
 @admin.register(Category)
 class CategoryAdmin(ImportExportModelAdmin):
     list_display = ('id', 'name')
@@ -64,7 +65,7 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
 
 @admin.register(Sale)
 class InventoryBatchAdmin(admin.ModelAdmin):
-    list_display = ('id', 'product', 'qty', 'sale_price')
+    list_display = ('id', 'date', 'name', 'taxable_value','gst','sale_price')
 
 @admin.register(Order)
 class CustomerOrderAdmin(admin.ModelAdmin):

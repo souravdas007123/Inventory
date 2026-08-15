@@ -238,15 +238,15 @@ class Purchase(models.Model):
 # sales section
 
 class Sale(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE,editable=False)
-    
-    # Jaise-jaise customer orders fulfill honge, ye value kam hoti jayegi
-    qty = models.IntegerField(editable=False) 
-    sale_price = models.DecimalField(max_digits=10, decimal_places=2,editable=False)
+    date = models.DateField(auto_now_add=True,blank=True, null=True)
+    name = models.CharField(max_length=100,editable=False)
+    taxable_value = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
+    gst = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0) 
+    sale_price= models.IntegerField(editable=False,blank=True, null=True)
     
 
     def __str__(self):
-        return f"Sale: {self.product.name} - Qty: {self.qty}"
+        return self.name
 
     class Meta:
             verbose_name = "07. Sales"
@@ -350,9 +350,11 @@ class InvoiceItem(models.Model):
 
         if is_new_invoice:
             Sale.objects.create(
-                product=self.product,
-                sale_price=self.total,
-                qty=self.qty
+                date=self.date,
+                name=self.name,
+                taxable_value=self.taxable_value,
+                gst=self.gst,
+                sale_price=self.total
             )
 
         if is_new:
