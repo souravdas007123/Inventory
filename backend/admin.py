@@ -70,7 +70,7 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
 
 @admin.register(Sale)
 class InventoryBatchAdmin(admin.ModelAdmin):
-    list_display = ('id', 'product', 'qty','unit', 'sale_price')
+    list_display = ('id', 'product', 'qty','unit','gst','sale_price')
     
 @admin.register(Order)
 class CustomerOrderAdmin(admin.ModelAdmin):

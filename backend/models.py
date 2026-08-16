@@ -255,6 +255,7 @@ class Sale(models.Model):
     product = models.CharField(max_length=255,editable=False,blank=True,null=True)
     qty = models.IntegerField(editable=False,blank=True,null=True)
     unit = models.CharField(max_length=255,blank=True, editable=False,null=True)
+    gst=models.IntegerField(blank=True, editable=False,null=True)
     sale_price = models.IntegerField(editable=False,blank=True,null=True)
     
 
