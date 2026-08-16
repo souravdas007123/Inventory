@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.db.models import Q
 from import_export.admin import ImportExportModelAdmin
-from .models import Supplier,Product,Godown,Purchase,Sale,Order,InvoiceItem,Category,Brand,Payment
+from .models import Supplier,Product,Godown,Purchase,Sale,Order,InvoiceItem,Category,Brand,Payment,Unit
 
 
 
@@ -16,6 +16,11 @@ class BrandAdmin(ImportExportModelAdmin):
     list_display = ('id', 'name')
 
 
+@admin.register(Unit)
+class UnitAdmin(ImportExportModelAdmin):
+    list_display = ('id', 'name')
+
+
 @admin.register(Supplier)
 class SupplierAdmin(ImportExportModelAdmin):
     list_display = ('id', 'company','address','state','gstin', 'pan', 'opening_balance', 'created_at','is_active')
@@ -26,7 +31,7 @@ class PaymentAdmin(admin.ModelAdmin):
     
 @admin.register(Product)
 class ProductAdmin(ImportExportModelAdmin):
-    list_display = ('id', 'name','brand','hsn_code','sku', 'category', 'cost_price', 'gst_rate', 'stock_qty','stock_status', 'is_active' )
+    list_display = ('id', 'name','brand','hsn_code','sku', 'category', 'cost_price', 'gst_rate', 'stock_qty','unit', 'stock_status', 'is_active' )
 
     def stock_status(self, obj):
         low_stock_threshold = 5
@@ -61,11 +66,15 @@ class GodownAdmin(ImportExportModelAdmin):
 
 @admin.register(Purchase)
 class PurchaseOrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'order_date','supplier', 'godown','product', 'rate','qty','tax','gst_rate','cgst','sgst','purchase_price' )
+    list_display = ('id', 'order_date','supplier', 'godown','product', 'rate','qty','unit','tax','gst_rate','cgst','sgst','purchase_price' )
 
 @admin.register(Sale)
 class InventoryBatchAdmin(admin.ModelAdmin):
+<<<<<<< HEAD
     list_display = ('id', 'date', 'name', 'taxable_value','gst','sale_price')
+=======
+    list_display = ('id', 'product', 'qty','unit', 'sale_price')
+>>>>>>> test
 
 @admin.register(Order)
 class CustomerOrderAdmin(admin.ModelAdmin):
@@ -74,7 +83,7 @@ class CustomerOrderAdmin(admin.ModelAdmin):
   
 @admin.register(InvoiceItem)
 class InvoiceItemAdmin(admin.ModelAdmin):
-    list_display = ('id', 'date','order','name','product', 'rate','qty','taxable_value','gst_rate','cgst','sgst','igst','total')
+    list_display = ('id', 'date','order','name','product', 'rate','qty','unit','taxable_value','gst_rate','cgst','sgst','igst','total')
 
     class Media:
         # Yeh line batati hai ki admin page par kaunsi JS file load karni hai
