@@ -252,10 +252,10 @@ class Purchase(models.Model):
 # sales section
 
 class Sale(models.Model):
-    product = models.CharField(editable=False)
-    qty = models.IntegerField(editable=False)
-    unit = models.CharField(blank=True, editable=False)
-    sale_price = models.IntegerField(editable=False)
+    product = models.CharField(max_length=255,editable=False,blank=True,null=True)
+    qty = models.IntegerField(editable=False,blank=True,null=True)
+    unit = models.CharField(max_length=255,blank=True, editable=False,null=True)
+    sale_price = models.IntegerField(editable=False,blank=True,null=True)
     
 
     def __str__(self):
