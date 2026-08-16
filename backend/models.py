@@ -46,6 +46,20 @@ class Brand(models.Model):
     class Meta:
             verbose_name = "02. Brand"
             verbose_name_plural = "02. Brand"
+
+# unit section
+
+
+class Unit(models.Model):
+    name = models.CharField(max_length=255)
+
+    def __str__(self):
+            return self.name
+
+    class Meta:
+            verbose_name = "03. Unit"
+            verbose_name_plural = "03. Unit"
+                
     
 # vendor section
 
@@ -91,8 +105,8 @@ class Supplier(models.Model):
         return self.company
 
     class Meta:
-            verbose_name = "03. Supplier"
-            verbose_name_plural = "03. Supplier"
+            verbose_name = "04. Supplier"
+            verbose_name_plural = "04. Supplier"
 
 # product section    
 #         
@@ -117,6 +131,7 @@ class Product(models.Model):
     gst_rate = models.DecimalField(max_digits=4, decimal_places=2, default=18.00,choices=GST_CHOICES)  # GST rate in percentage
     # Ye threshold "Low stock Reorder Retail purchase" loop ko trigger karega
     stock_qty = models.PositiveIntegerField(editable=False,default=0)
+    unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True)
     reorder_level = models.PositiveIntegerField(default=5)
     is_active = models.BooleanField(default=True,blank=True, null=True)
 
@@ -141,8 +156,8 @@ class Product(models.Model):
         return f"{self.name} - Stock: {self.stock_qty}"
 
     class Meta:
-            verbose_name = "04. Product"
-            verbose_name_plural = "04. Product"
+            verbose_name = "05. Product"
+            verbose_name_plural = "05. Product"
 
 # product show section
 
@@ -163,8 +178,8 @@ class Godown(models.Model):
         return self.name
 
     class Meta:
-            verbose_name = "05. Godown"
-            verbose_name_plural = "05. Godown"   
+            verbose_name = "06. Godown"
+            verbose_name_plural = "06. Godown"   
 
 # purchase section           
 
@@ -173,6 +188,7 @@ class Purchase(models.Model):
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE,blank=True, null=True)
     godown = models.ForeignKey(Godown, on_delete=models.CASCADE)
     qty = models.IntegerField()
+    unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True)
     purchase_price = models.IntegerField(default=0.00,blank=True, null=True)
     rate = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
     tax = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
@@ -230,25 +246,24 @@ class Purchase(models.Model):
         return f"Purchase: {self.product.name} - Qty: {self.qty}"
     
     class Meta:
-            verbose_name = "06. Purchase "
-            verbose_name_plural = "06. Purchase "
+            verbose_name = "07. Purchase "
+            verbose_name_plural = "07. Purchase "
 
 # sales section
 
 class Sale(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE,editable=False)
-    
-    # Jaise-jaise customer orders fulfill honge, ye value kam hoti jayegi
-    qty = models.IntegerField(editable=False) 
-    sale_price = models.DecimalField(max_digits=10, decimal_places=2,editable=False)
+    product = models.CharField(editable=False)
+    qty = models.IntegerField(editable=False)
+    unit = models.CharField(blank=True, editable=False)
+    sale_price = models.IntegerField(editable=False)
     
 
     def __str__(self):
-        return f"Sale: {self.product.name} - Qty: {self.qty}"
+        return self.product 
 
     class Meta:
-            verbose_name = "07. Sales"
-            verbose_name_plural = "07. Sales"
+            verbose_name = "08. Sales"
+            verbose_name_plural = "08. Sales"
 
 # customer order section
 #  
@@ -282,8 +297,8 @@ class Order(models.Model):
         super().save(*args, **kwargs)
 
     class Meta:
-                verbose_name = "08. Order "
-                verbose_name_plural = "08. Orders"
+                verbose_name = "09. Order "
+                verbose_name_plural = "09. Orders"
 
     def __str__(self):
             return f"{self.order_id} "            
@@ -303,6 +318,7 @@ class InvoiceItem(models.Model):
     gst_rate = models.IntegerField(default=0, editable=False)
     rate = models.DecimalField(max_digits=10, decimal_places=2,default=0, blank=True, null=True)
     qty = models.IntegerField( blank=True, null=True)
+    unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True)
     gst = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
     taxable_value = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
     cgst = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
@@ -350,7 +366,8 @@ class InvoiceItem(models.Model):
             Sale.objects.create(
                 product=self.product,
                 sale_price=self.total,
-                qty=self.qty
+                qty=self.qty,
+                unit=self.unit
             )
 
         if is_new:
@@ -358,8 +375,8 @@ class InvoiceItem(models.Model):
             self.product.save()
 
     class Meta:
-                verbose_name = "09. Create Invoice"
-                verbose_name_plural = "09. Create Invoice"
+                verbose_name = "10. Create Invoice"
+                verbose_name_plural = "10. Create Invoice"
 
 # invoice items create section
 
@@ -399,8 +416,8 @@ class Payment(models.Model):
                 self.supplier.save(update_fields=['opening_balance'])
     
     class Meta:
-                verbose_name = "10. Payment"
-                verbose_name_plural = "10. Payment"
+                verbose_name = "11. Payment"
+                verbose_name_plural = "11. Payment"
 
   
 
