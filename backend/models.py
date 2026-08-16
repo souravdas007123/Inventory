@@ -364,9 +364,9 @@ class InvoiceItem(models.Model):
 
         if is_new_invoice:
             Sale.objects.create(
-                date=self.date,
-                name=self.name,
-                taxable_value=self.taxable_value,
+                product=self.product,
+                qty=self.qty,
+                unit=self.unit,
                 gst=self.gst,
                 sale_price=self.total
             )
