@@ -252,17 +252,6 @@ class Purchase(models.Model):
 # sales section
 
 class Sale(models.Model):
-<<<<<<< HEAD
-    date = models.DateField(auto_now_add=True,blank=True, null=True)
-    name = models.CharField(max_length=100,editable=False)
-    taxable_value = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
-    gst = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0) 
-    sale_price= models.IntegerField(editable=False,blank=True, null=True)
-    
-
-    def __str__(self):
-        return self.name
-=======
     product = models.CharField(editable=False)
     qty = models.IntegerField(editable=False)
     unit = models.CharField(blank=True, editable=False)
@@ -270,8 +259,7 @@ class Sale(models.Model):
     
 
     def __str__(self):
-        return self.product 
->>>>>>> test
+            return self.product 
 
     class Meta:
             verbose_name = "08. Sales"
@@ -376,18 +364,11 @@ class InvoiceItem(models.Model):
 
         if is_new_invoice:
             Sale.objects.create(
-<<<<<<< HEAD
                 date=self.date,
                 name=self.name,
                 taxable_value=self.taxable_value,
                 gst=self.gst,
                 sale_price=self.total
-=======
-                product=self.product,
-                sale_price=self.total,
-                qty=self.qty,
-                unit=self.unit
->>>>>>> test
             )
 
         if is_new:
