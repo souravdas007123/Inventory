@@ -70,12 +70,8 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
 
 @admin.register(Sale)
 class InventoryBatchAdmin(admin.ModelAdmin):
-<<<<<<< HEAD
-    list_display = ('id', 'date', 'name', 'taxable_value','gst','sale_price')
-=======
     list_display = ('id', 'product', 'qty','unit', 'sale_price')
->>>>>>> test
-
+    
 @admin.register(Order)
 class CustomerOrderAdmin(admin.ModelAdmin):
     list_display = ('id', 'order_date','order_id','customers_name', 'customer_product', 'customer_rate','customer_qty')
