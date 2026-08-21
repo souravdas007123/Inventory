@@ -34,7 +34,7 @@ class Category(models.Model):
             verbose_name = "01. Category"
             verbose_name_plural = "01. Category"
     
-# Category section
+# brand section
 
 
 class Brand(models.Model):
@@ -80,6 +80,8 @@ class Supplier(models.Model):
 
 
     def clean(self):
+        if self.gstin == "":
+            self.gstin = None
         # Validation: Ensure GSTIN is exactly 15 characters
         if self.gstin and len(self.gstin) != 15:
             raise ValidationError({'gstin': 'GSTIN 15 characters ka hona chahiye.'})
@@ -122,14 +124,14 @@ class Product(models.Model):
         (5.00, '5%'),
         (18.00, '18%'),
     )
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255,blank=True, null=True)
     hsn_code = models.CharField(max_length=10, blank=True, null=True)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
+    batch=models.CharField(editable=False,blank=True,null=True)
     brand = models.ForeignKey(Brand, on_delete=models.SET_NULL, null=True, blank=True)
     sku = models.CharField(max_length=50, unique=True,editable=False,blank=True, null=True)
     cost_price = models.DecimalField(max_digits=10, decimal_places=2,blank=True, null=True)
     gst_rate = models.DecimalField(max_digits=4, decimal_places=2, default=18.00,choices=GST_CHOICES)  # GST rate in percentage
-    # Ye threshold "Low stock Reorder Retail purchase" loop ko trigger karega
     stock_qty = models.PositiveIntegerField(editable=False,default=0)
     unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True)
     reorder_level = models.PositiveIntegerField(default=5)
@@ -166,8 +168,27 @@ class Productshow(Product):
             proxy=True
 
         def __str__(self):
-            return self.name
-        
+            return self.name       
+
+
+# batch section
+
+class Batch(models.Model):
+    product=models.CharField(editable=False,blank=True,null=True)
+    supplier=models.CharField(editable=False,blank=True,null=True)
+    qty = models.IntegerField(editable=False,blank=True,null=True)
+    unit=models.CharField(editable=False,blank=True,null=True)
+    batch_number=models.CharField(editable=False)
+    manufacture_date=models.DateField(editable=False)
+    expire_date=models.DateField(editable=False)
+
+    def __str__(self):
+            return self.batch_number 
+
+    class Meta:
+                verbose_name = "12. Batch"
+                verbose_name_plural = "12. Batch"
+
 # godown section
 
 class Godown(models.Model):
@@ -182,21 +203,29 @@ class Godown(models.Model):
             verbose_name_plural = "06. Godown"   
 
 # purchase section           
+def generate_unique_order_id():
+    # 6 character ka random string banayega (A-Z aur 0-9 mila kar)
+    length = 6
+    chars = string.ascii_uppercase + string.digits
+    random_str = ''.join(random.choice(chars) for _ in range(length))
+    return f"SOFY-{random_str}"
 
 class Purchase(models.Model):
-    product = models.ForeignKey(Productshow, on_delete=models.CASCADE)
+    product = models.ForeignKey(Productshow, on_delete=models.CASCADE,blank=True, null=True)
+    batch=models.CharField(max_length=255,blank=True, null=True,editable=False)
+    manufacture_date=models.DateField(blank=True, null=True)
+    expire_date=models.DateField(blank=True, null=True)
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE,blank=True, null=True)
     godown = models.ForeignKey(Godown, on_delete=models.CASCADE)
     qty = models.IntegerField()
     unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True)
-    purchase_price = models.IntegerField(default=0.00,blank=True, null=True)
+    purchase_price = models.IntegerField(blank=True, null=True)
     rate = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
     tax = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
     gst = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
     cgst = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
     sgst = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
-    gst_rate = models.IntegerField(editable=False, default=0)  # GST will be calculated as rate * qty
-      # GST will be calculated as rate * qty
+    gst_rate = models.IntegerField(editable=False, default=0) 
     order_date = models.DateField(auto_now_add=True)
 
 
@@ -227,13 +256,34 @@ class Purchase(models.Model):
             self.tax = Decimal('0.00')
             self.rate = Decimal('0.00')
 
-        
+        if not self.batch:
+                    new_id = generate_unique_order_id()
+                    while Order.objects.filter(order_id=new_id).exists():
+                        new_id = generate_unique_order_id()
+                        
+                    self.batch = new_id
+
+        is_new_batch = self.pk is None
+
         # Pehle Purchase entry ko save karte hain
         super().save(*args, **kwargs)
-        
+
+        if is_new_batch:
+            Batch.objects.create(
+                product=self.product,
+                supplier=self.supplier,
+                qty=self.qty,
+                unit=self.unit,
+                batch_number=self.batch,
+                manufacture_date=self.manufacture_date,
+                expire_date=self.expire_date
+                
+            )
+           
         # Agar nayi entry hai, toh Product ka stock add (+) kar do
         if is_new:
             self.product.stock_qty += self.qty
+            self.product.batch = self.batch
             self.product.save()
 
         if self.supplier and amount_diff != Decimal('0.00'):
@@ -252,15 +302,15 @@ class Purchase(models.Model):
 # sales section
 
 class Sale(models.Model):
-    product = models.CharField(max_length=255,editable=False,blank=True,null=True)
-    qty = models.IntegerField(editable=False,blank=True,null=True)
-    unit = models.CharField(max_length=255,blank=True, editable=False,null=True)
+    name = models.CharField(editable=False,null=True)
+    invoice_mode = models.CharField(editable=False)
+    taxable_value = models.IntegerField(blank=True, editable=False,null=True)
     gst=models.IntegerField(blank=True, editable=False,null=True)
-    sale_price = models.IntegerField(editable=False,blank=True,null=True)
+    total = models.IntegerField(editable=False)
     
 
     def __str__(self):
-            return self.product 
+        return self.name 
 
     class Meta:
             verbose_name = "08. Sales"
@@ -365,11 +415,11 @@ class InvoiceItem(models.Model):
 
         if is_new_invoice:
             Sale.objects.create(
-                product=self.product,
-                qty=self.qty,
-                unit=self.unit,
+                name=self.name,
+                invoice_mode=self.invoice_mode,
+                taxable_value=self.taxable_value,
                 gst=self.gst,
-                sale_price=self.total
+                total=self.total
             )
 
         if is_new:

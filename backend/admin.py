@@ -2,8 +2,9 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.db.models import Q
 from import_export.admin import ImportExportModelAdmin
-from .models import Supplier,Product,Godown,Purchase,Sale,Order,InvoiceItem,Category,Brand,Payment,Unit
-
+from import_export import resources, fields
+from import_export.widgets import ForeignKeyWidget
+from .models import Supplier,Product,Godown,Purchase,Sale,Order,InvoiceItem,Category,Brand,Payment,Unit,Batch
 
 
 @admin.register(Category)
@@ -23,15 +24,40 @@ class UnitAdmin(ImportExportModelAdmin):
 
 @admin.register(Supplier)
 class SupplierAdmin(ImportExportModelAdmin):
-    list_display = ('id', 'company','address','state','gstin', 'pan', 'opening_balance', 'created_at','is_active')
+    list_display = ('id', 'company','address','gstin','state', 'pan', 'opening_balance', 'created_at','is_active')
     
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
     list_display = ('id', 'supplier', 'amount', 'payment_mode', 'payment_date')
+
+
+class ProductResource(resources.ModelResource):
+    
+    category = fields.Field(
+        column_name='category',
+        attribute='category',
+        widget=ForeignKeyWidget(Category, field='name') 
+    )
+    
+    brand = fields.Field(
+        column_name='brand',
+        attribute='brand',
+        widget=ForeignKeyWidget(Brand, field='name') 
+    )
+
+    unit = fields.Field(
+            column_name='unit',
+            attribute='unit',
+            widget=ForeignKeyWidget(Unit, field='name') 
+        )
+
+    class Meta:
+        model = Product   
     
 @admin.register(Product)
 class ProductAdmin(ImportExportModelAdmin):
-    list_display = ('id', 'name','brand','hsn_code','sku', 'category', 'cost_price', 'gst_rate', 'stock_qty','unit', 'stock_status', 'is_active' )
+    resource_classes = [ProductResource]
+    list_display = ('id', 'name','brand','hsn_code','sku', 'category', 'batch','cost_price', 'gst_rate', 'stock_qty','unit', 'stock_status', 'is_active' )
 
     def stock_status(self, obj):
         low_stock_threshold = 5
@@ -59,6 +85,12 @@ class ProductAdmin(ImportExportModelAdmin):
         
     stock_status.short_description = 'Status'
 
+
+@admin.register(Batch)
+class BatchAdmin(admin.ModelAdmin):
+    list_display = ('id', 'product','supplier','qty','unit','batch_number', 'manufacture_date','expire_date')
+
+
 @admin.register(Godown)
 class GodownAdmin(ImportExportModelAdmin):
     list_display = ('id', 'name', 'location')
@@ -66,12 +98,12 @@ class GodownAdmin(ImportExportModelAdmin):
 
 @admin.register(Purchase)
 class PurchaseOrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'order_date','supplier', 'godown','product', 'rate','qty','unit','tax','gst_rate','cgst','sgst','purchase_price' )
+    list_display = ('id', 'order_date','supplier', 'godown','product','batch','manufacture_date','expire_date','rate','qty','unit','tax','gst_rate','cgst','sgst','purchase_price' )
 
 @admin.register(Sale)
 class InventoryBatchAdmin(admin.ModelAdmin):
-    list_display = ('id', 'product', 'qty','unit','gst','sale_price')
-    
+    list_display = ('id', 'name', 'invoice_mode','taxable_value', 'gst','total')
+
 @admin.register(Order)
 class CustomerOrderAdmin(admin.ModelAdmin):
     list_display = ('id', 'order_date','order_id','customers_name', 'customer_product', 'customer_rate','customer_qty')
