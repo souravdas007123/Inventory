@@ -28,7 +28,7 @@ class SupplierAdmin(ImportExportModelAdmin):
     
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'supplier', 'amount', 'payment_mode', 'payment_date')
+    list_display = ('id', 'supplier', 'amount','due', 'payment_mode', 'payment_date')
 
 
 class ProductResource(resources.ModelResource):
@@ -57,7 +57,7 @@ class ProductResource(resources.ModelResource):
 @admin.register(Product)
 class ProductAdmin(ImportExportModelAdmin):
     resource_classes = [ProductResource]
-    list_display = ('id', 'name','brand','hsn_code','sku', 'category', 'batch','cost_price', 'gst_rate', 'stock_qty','unit', 'stock_status', 'is_active' )
+    list_display = ('id', 'name','brand','hsn_code','sku', 'category', 'batch','cost_price','unit', 'gst_rate', 'stock_qty', 'stock_status', 'is_active' )
 
     def stock_status(self, obj):
         low_stock_threshold = 5
@@ -88,7 +88,30 @@ class ProductAdmin(ImportExportModelAdmin):
 
 @admin.register(Batch)
 class BatchAdmin(admin.ModelAdmin):
-    list_display = ('id', 'product','supplier','qty','unit','batch_number', 'manufacture_date','expire_date')
+    list_display = ('id', 'product','supplier','qty','unit','batch_number', 'manufacture_date','expire_date','get_expiry_status')
+
+    def get_expiry_status(self, obj):
+        status = obj.expiry_status
+        
+        # Status ke basis par color define karein
+        if status == "Safe":
+            color = "#51D916"
+        elif status == "Expiring Soon":
+            # Yellow white background par padhne mein dikkat karta hai, isliye dark yellow/amber use kar rahe hain
+            color = "#D4AC0D" 
+        elif status == "Expired":
+            color = "red"
+        else:
+            color = "black"
+
+        # HTML render karna
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color, status
+        )
+    
+    # Admin panel ki column heading ka naam set karne ke liye
+    get_expiry_status.short_description = 'Status'
 
 
 @admin.register(Godown)

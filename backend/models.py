@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 import random
 import string
+from datetime import date, timedelta
 from django.utils.translation import gettext_lazy as _
 
 GST_STATE_CODES = {
@@ -181,6 +182,22 @@ class Batch(models.Model):
     batch_number=models.CharField(editable=False)
     manufacture_date=models.DateField(editable=False)
     expire_date=models.DateField(editable=False)
+
+    @property
+    def expiry_status(self):
+        if not self.expire_date:
+            return "No Date"
+            
+        today = date.today()
+        alert_date = today + timedelta(days=30) # 30 din ka alert period
+        
+        if self.expire_date < today:
+            return "Expired"
+        elif self.expire_date <= alert_date:
+            return "Expiring Soon"
+        else:
+            return "Safe"
+
 
     def __str__(self):
             return self.batch_number 
@@ -443,21 +460,25 @@ class Payment(models.Model):
     )
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='payments')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
+    due=models.DecimalField(max_digits=12, decimal_places=2,editable=False,blank=True,null=True)
     payment_mode = models.CharField(max_length=50, choices=TRANSACTION_TYPES,blank=True, null=True)
     payment_date = models.DateField(auto_now_add=True)
 
 
     def save(self, *args, **kwargs):
             # Yeh check karta hai ki yeh nayi entry ban rahi hai ya purani edit ho rahi hai
-            is_new = self.pk is None 
-    
+            is_new = self.pk is None
             amount_diff = 0
             if not is_new:
                 old_payment = Payment.objects.get(pk=self.pk)
                 amount_diff = float(self.amount) - float(old_payment.amount)
             else:
                 amount_diff = float(self.amount)
-                
+
+            new_due_balance = float(str(self.supplier.opening_balance)) - amount_diff
+
+            # Payment model ke 'due' field mein Supplier ka baki bacha paise (new_due_balance) set karein
+            self.due = new_due_balance 
             
             # Pehle Purchase entry ko save karte hain
             super().save(*args, **kwargs)
@@ -465,6 +486,7 @@ class Payment(models.Model):
             # Agar nayi entry hai, toh Product ka stock add (+) kar do
             if self.supplier and amount_diff != 0:
                 self.supplier.opening_balance = float(self.supplier.opening_balance) - amount_diff
+                self.supplier.opening_balance = new_due_balance
                 self.supplier.save(update_fields=['opening_balance'])
     
     class Meta:
