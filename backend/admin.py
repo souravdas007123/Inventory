@@ -10,25 +10,33 @@ from .models import Supplier,Product,Godown,Purchase,Sale,Order,InvoiceItem,Cate
 @admin.register(Category)
 class CategoryAdmin(ImportExportModelAdmin):
     list_display = ('id', 'name')
+    list_per_page = 12
 
 
 @admin.register(Brand)
 class BrandAdmin(ImportExportModelAdmin):
     list_display = ('id', 'name')
+    list_per_page = 12
 
 
 @admin.register(Unit)
 class UnitAdmin(ImportExportModelAdmin):
     list_display = ('id', 'name')
+    list_per_page = 12
 
 
 @admin.register(Supplier)
 class SupplierAdmin(ImportExportModelAdmin):
     list_display = ('id', 'company','address','gstin','state', 'pan', 'opening_balance', 'created_at','is_active')
+    list_per_page = 12
     
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
     list_display = ('id', 'supplier', 'amount','due', 'payment_mode', 'payment_date')
+    list_per_page = 12
+    def delete_queryset(self, request, queryset):
+            for obj in queryset:
+                obj.delete()
 
 
 class ProductResource(resources.ModelResource):
@@ -58,6 +66,7 @@ class ProductResource(resources.ModelResource):
 class ProductAdmin(ImportExportModelAdmin):
     resource_classes = [ProductResource]
     list_display = ('id', 'name','brand','hsn_code','sku', 'category', 'batch','cost_price','unit', 'gst_rate', 'stock_qty', 'stock_status', 'is_active' )
+    list_per_page = 12
 
     def stock_status(self, obj):
         low_stock_threshold = 5
@@ -73,13 +82,13 @@ class ProductAdmin(ImportExportModelAdmin):
         elif current_qty <= low_stock_threshold:
             # Ye pehle se theek tha kyunki isme 'current_qty' pass ho raha tha
             return format_html(
-                '<span style="color: orange; font-weight: bold;">⚠️ Low Stock ({} left)</span>',
+                '<span style="color: #D4AC0D; font-weight: bold;">⚠️ Low Stock ({} left)</span>',
                 current_qty
             )
         else:
             # FIX: Text ko {} ke through pass kiya gaya hai
             return format_html(
-                '<span style="color: green; font-weight: bold;">{}</span>',
+                '<span style="color: #51D916; font-weight: bold;">{}</span>',
                 '✅ In Stock'
             )
         
@@ -89,7 +98,7 @@ class ProductAdmin(ImportExportModelAdmin):
 @admin.register(Batch)
 class BatchAdmin(admin.ModelAdmin):
     list_display = ('id', 'product','supplier','qty','unit','batch_number', 'manufacture_date','expire_date','get_expiry_status')
-
+    list_per_page = 12
     def get_expiry_status(self, obj):
         status = obj.expiry_status
         
@@ -117,25 +126,36 @@ class BatchAdmin(admin.ModelAdmin):
 @admin.register(Godown)
 class GodownAdmin(ImportExportModelAdmin):
     list_display = ('id', 'name', 'location')
+    list_per_page = 12
 
 
 @admin.register(Purchase)
 class PurchaseOrderAdmin(admin.ModelAdmin):
     list_display = ('id', 'order_date','supplier', 'godown','product','batch','manufacture_date','expire_date','rate','qty','unit','tax','gst_rate','cgst','sgst','purchase_price' )
+    list_per_page = 12
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            obj.delete()
+
 
 @admin.register(Sale)
 class InventoryBatchAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'invoice_mode','taxable_value', 'gst','total')
+    list_per_page = 12
 
 @admin.register(Order)
 class CustomerOrderAdmin(admin.ModelAdmin):
     list_display = ('id', 'order_date','order_id','customers_name', 'customer_product', 'customer_rate','customer_qty')
+    list_per_page = 12
 
   
 @admin.register(InvoiceItem)
 class InvoiceItemAdmin(admin.ModelAdmin):
     list_display = ('id', 'date','order','name','product', 'rate','qty','unit','taxable_value','gst_rate','cgst','sgst','igst','total')
-
+    list_per_page = 12
+    def delete_queryset(self, request, queryset):
+            for obj in queryset:
+                obj.delete()
     class Media:
         # Yeh line batati hai ki admin page par kaunsi JS file load karni hai
         js = ('js/invoice_toggle.js',)

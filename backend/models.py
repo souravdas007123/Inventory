@@ -1,5 +1,5 @@
 from decimal import Decimal
-from django.db import models
+from django.db import models,transaction
 from django.contrib.auth.models import User
 from django.db.models.aggregates import Sum
 from django.utils import timezone
@@ -74,7 +74,7 @@ class Supplier(models.Model):
     state = models.CharField(max_length=50, editable=False, blank=True, null=True)
     gstin = models.CharField(max_length=15, unique=True, help_text="Enter 15 digit GSTIN",blank=True, null=True)
     pan = models.CharField(max_length=10, editable=False, blank=True, null=True)
-    opening_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00,editable=False)
+    opening_balance = models.IntegerField(editable=False,blank=True,null=True)
     created_at = models.DateField(auto_now=True,blank=True, null=True)
     updated_at = models.DateField(auto_now=True,blank=True, null=True)
     is_active = models.BooleanField(default=True, verbose_name="Active Status")
@@ -282,6 +282,25 @@ class Purchase(models.Model):
 
         is_new_batch = self.pk is None
 
+        with transaction.atomic():
+            if self.pk:
+                # 1. EDIT CASE: Agar Purchase id already hai, matlab edit ho raha hai
+                old_purchase = Purchase.objects.get(pk=self.pk)
+                
+                # Nayi quantity aur purani quantity ka difference nikalein
+                difference = self.qty - old_purchase.qty 
+                
+                # Product ke stock mein difference add karein
+                self.product.stock_qty += difference
+            else:
+                # 2. CREATE CASE: Nayi purchase ho rahi hai
+                self.product.stock_qty += self.qty
+                
+            # Product ka stock database mein save karein
+            self.product.batch = self.batch
+            self.product.save()
+            
+
         # Pehle Purchase entry ko save karte hain
         super().save(*args, **kwargs)
 
@@ -294,20 +313,29 @@ class Purchase(models.Model):
                 batch_number=self.batch,
                 manufacture_date=self.manufacture_date,
                 expire_date=self.expire_date
-                
+                        
             )
-           
+
+
         # Agar nayi entry hai, toh Product ka stock add (+) kar do
-        if is_new:
-            self.product.stock_qty += self.qty
-            self.product.batch = self.batch
-            self.product.save()
+        # if is_new:
+        #     self.product.stock_qty += self.qty
+        #     self.product.batch = self.batch
+        #     self.product.save()
 
         if self.supplier and amount_diff != Decimal('0.00'):
             # Opening balance ko bhi Decimal me handle karein
             supplier_bal = Decimal(str(self.supplier.opening_balance or 0))
             self.supplier.opening_balance = supplier_bal + amount_diff
             self.supplier.save(update_fields=['opening_balance'])
+
+    def delete(self, *args, **kwargs):
+            with transaction.atomic():
+                if self.product: 
+                    self.product.stock_qty -= self.qty
+                    self.product.save()
+            super().delete(*args, **kwargs)
+
 
     def __str__(self):
         return f"Purchase: {self.product.name} - Qty: {self.qty}"
@@ -428,6 +456,23 @@ class InvoiceItem(models.Model):
 
         is_new_invoice = self.pk is None
 
+        with transaction.atomic():
+            if self.pk:
+                # 1. EDIT CASE: Agar Purchase id already hai, matlab edit ho raha hai
+                old_purchase = InvoiceItem.objects.get(pk=self.pk)
+                        
+                # Nayi quantity aur purani quantity ka difference nikalein
+                difference = self.qty - old_purchase.qty 
+                        
+                # Product ke stock mein difference add karein
+                self.product.stock_qty -= difference
+            else:
+                # 2. CREATE CASE: Nayi purchase ho rahi hai
+                self.product.stock_qty -= self.qty
+                        
+            # Product ka stock database mein save karein
+            self.product.save()
+
         super(InvoiceItem, self).save(*args, **kwargs)
 
         if is_new_invoice:
@@ -439,9 +484,16 @@ class InvoiceItem(models.Model):
                 total=self.total
             )
 
-        if is_new:
-            self.product.stock_qty -= self.qty
-            self.product.save()
+        # if is_new:
+        #     self.product.stock_qty -= self.qty
+        #     self.product.save()
+
+    def delete(self, *args, **kwargs):
+            with transaction.atomic():
+                if self.product: 
+                    self.product.stock_qty += self.qty
+                    self.product.save()
+            super().delete(*args, **kwargs)
 
     class Meta:
                 verbose_name = "10. Create Invoice"
@@ -459,36 +511,64 @@ class Payment(models.Model):
         ('BANK', 'Bank'),
     )
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='payments')
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
-    due=models.DecimalField(max_digits=12, decimal_places=2,editable=False,blank=True,null=True)
+    amount = models.IntegerField()
+    due=models.IntegerField(editable=False,blank=True,null=True)
     payment_mode = models.CharField(max_length=50, choices=TRANSACTION_TYPES,blank=True, null=True)
     payment_date = models.DateField(auto_now_add=True)
 
 
     def save(self, *args, **kwargs):
-            # Yeh check karta hai ki yeh nayi entry ban rahi hai ya purani edit ho rahi hai
+           
+        
+        with transaction.atomic():
             is_new = self.pk is None
             amount_diff = 0
+
+            # Step 1: Naya amount aur purane amount ke beech ka difference nikalna
             if not is_new:
+                # Agar payment edit ho raha hai, toh purana payment data nikalein
                 old_payment = Payment.objects.get(pk=self.pk)
-                amount_diff = float(self.amount) - float(old_payment.amount)
+                # Naye amount aur purane amount ka difference.
+                # Example: Pehle 100 tha, ab 150 kiya, toh difference +50 hoga (supplier se 50 aur minus hoga)
+                amount_diff = self.amount - old_payment.amount
             else:
-                amount_diff = float(self.amount)
+                # Nayi payment hai toh difference pura amount hi hoga
+                amount_diff = self.amount
 
-            new_due_balance = float(str(self.supplier.opening_balance)) - amount_diff
+            # Step 2: Supplier ko database mein lock karke fetch karna taaki koi aur request isey ek sath update na kar de
+            supplier = Supplier.objects.select_for_update().get(pk=self.supplier.pk)
+            
+            # Agar supplier ka opening balance None hai (empty hai), toh usko 0 maan lein
+            current_balance = supplier.opening_balance if supplier.opening_balance is not None else 0
 
-            # Payment model ke 'due' field mein Supplier ka baki bacha paise (new_due_balance) set karein
-            self.due = new_due_balance 
+            # Step 3: Naya due balance calculate karein (Purana balance - jo difference aya hai)
+            new_due_balance = current_balance - amount_diff
+
+            # Step 4: Payment ke 'due' field mein current remaining balance update karein
+            self.due = new_due_balance
+
+            # Step 5: Supplier ke model mein naya balance save karein
+            supplier.opening_balance = new_due_balance
+            supplier.save(update_fields=['opening_balance'])
             
-            # Pehle Purchase entry ko save karte hain
-            super().save(*args, **kwargs)
+        super().save(*args, **kwargs)
+
             
-            # Agar nayi entry hai, toh Product ka stock add (+) kar do
-            if self.supplier and amount_diff != 0:
-                self.supplier.opening_balance = float(self.supplier.opening_balance) - amount_diff
-                self.supplier.opening_balance = new_due_balance
-                self.supplier.save(update_fields=['opening_balance'])
-    
+    def delete(self, *args, **kwargs):
+        # Jab payment delete ho, toh supplier ka balance wapas add hona chahiye
+        with transaction.atomic():
+            # Supplier ko fetch karein
+            supplier = Supplier.objects.select_for_update().get(pk=self.supplier.pk)
+            
+            current_balance = supplier.opening_balance if supplier.opening_balance is not None else 0
+            
+            # Jo amount delete ho raha hai, usko wapas supplier ke balance mein add kar dein
+            supplier.opening_balance = current_balance + self.amount
+            supplier.save(update_fields=['opening_balance'])
+
+            # Payment ko delete kar dein
+            super().delete(*args, **kwargs)
+            
     class Meta:
                 verbose_name = "11. Payment"
                 verbose_name_plural = "11. Payment"
