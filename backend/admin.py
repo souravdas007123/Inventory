@@ -4,7 +4,7 @@ from django.db.models import Q
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
-from .models import Supplier,Product,Godown,Purchase,Sale,Order,InvoiceItem,Category,Brand,Payment,Unit,Batch
+from .models import Supplier,Product,Godown,Purchase,Sale,Order,InvoiceItem,Category,Brand,Payment,Unit,Batch,Transaction
 
 
 @admin.register(Category)
@@ -38,6 +38,10 @@ class PaymentAdmin(admin.ModelAdmin):
             for obj in queryset:
                 obj.delete()
 
+@admin.register(Transaction)
+class TransactionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'purchase_date','supplier','purchase_amount','sale_date','customer','sale_amount')
+    list_per_page = 12
 
 class ProductResource(resources.ModelResource):
     
@@ -140,7 +144,7 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
 
 @admin.register(Sale)
 class InventoryBatchAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'invoice_mode','taxable_value', 'gst','total')
+    list_display = ('id','date', 'name', 'invoice_mode','taxable_value', 'gst','total')
     list_per_page = 12
 
 @admin.register(Order)

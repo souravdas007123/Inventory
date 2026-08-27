@@ -299,7 +299,9 @@ class Purchase(models.Model):
             # Product ka stock database mein save karein
             self.product.batch = self.batch
             self.product.save()
-            
+
+
+        is_new_trans = self.pk is None   
 
         # Pehle Purchase entry ko save karte hain
         super().save(*args, **kwargs)
@@ -315,6 +317,18 @@ class Purchase(models.Model):
                 expire_date=self.expire_date
                         
             )
+
+        if is_new_trans:
+            Transaction.objects.create(
+                purchase_date=self.order_date,
+                supplier=self.supplier,
+                purchase_amount=self.purchase_price,
+                sale_date=None,
+                customer=None,
+                sale_amount=None,
+                                
+            )    
+        
 
 
         # Agar nayi entry hai, toh Product ka stock add (+) kar do
@@ -347,12 +361,30 @@ class Purchase(models.Model):
 # sales section
 
 class Sale(models.Model):
+    date=models.DateField(auto_now_add=True,null=True)
     name = models.CharField(editable=False,null=True)
     invoice_mode = models.CharField(editable=False)
     taxable_value = models.IntegerField(blank=True, editable=False,null=True)
     gst=models.IntegerField(blank=True, editable=False,null=True)
     total = models.IntegerField(editable=False)
     
+    def save(self, *args, **kwargs):
+        
+        is_new_trans = self.pk is None
+        
+        # Pehle parent object ko save karein
+        super().save(*args, **kwargs)
+
+        if is_new_trans:
+            Transaction.objects.create(
+                purchase_date=None,
+                supplier=None,
+                purchase_amount=None,
+                sale_date=self.date,
+                customer=self.name,
+                sale_amount=self.total,
+                                        
+            )
 
     def __str__(self):
         return self.name 
@@ -484,9 +516,6 @@ class InvoiceItem(models.Model):
                 total=self.total
             )
 
-        # if is_new:
-        #     self.product.stock_qty -= self.qty
-        #     self.product.save()
 
     def delete(self, *args, **kwargs):
             with transaction.atomic():
@@ -498,8 +527,6 @@ class InvoiceItem(models.Model):
     class Meta:
                 verbose_name = "10. Create Invoice"
                 verbose_name_plural = "10. Create Invoice"
-
-# invoice items create section
 
 
 
@@ -519,7 +546,6 @@ class Payment(models.Model):
 
     def save(self, *args, **kwargs):
            
-        
         with transaction.atomic():
             is_new = self.pk is None
             amount_diff = 0
@@ -552,7 +578,7 @@ class Payment(models.Model):
             supplier.save(update_fields=['opening_balance'])
             
         super().save(*args, **kwargs)
-
+            
             
     def delete(self, *args, **kwargs):
         # Jab payment delete ho, toh supplier ka balance wapas add hona chahiye
@@ -573,6 +599,21 @@ class Payment(models.Model):
                 verbose_name = "11. Payment"
                 verbose_name_plural = "11. Payment"
 
-  
+
+# transaction section
+
+class Transaction(models.Model):
+    purchase_date = models.DateField(editable=False,blank=True,null=True)
+    supplier = models.CharField(max_length=255,editable=False,blank=True,null=True)
+    purchase_amount=models.IntegerField(editable=False,blank=True,null=True)
+    sale_date = models.DateField(editable=False,blank=True,null=True)
+    customer = models.CharField(max_length=255,editable=False,blank=True,null=True)
+    sale_amount=models.IntegerField(editable=False,blank=True,null=True)
+
+
+    class Meta:
+            verbose_name = "13. Transaction"
+            verbose_name_plural = "13. Transaction"
+    
 
                                   
