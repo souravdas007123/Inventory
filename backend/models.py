@@ -429,7 +429,57 @@ class Order(models.Model):
                 verbose_name_plural = "09. Orders"
 
     def __str__(self):
-            return f"{self.order_id} "            
+            return f"{self.order_id} "  
+
+# bill section 
+
+class Bill(models.Model):                        
+    customer_name = models.CharField(max_length=255, default="Cash")
+    date = models.DateField(blank=True, null=True)
+
+    def delete(self, *args, **kwargs):
+        # Bill delete hone se pehle, uske andar ke har item ko manual delete karein
+        # Taaki InvoiceItem ka apna delete() function properly run ho aur stock wapas jaye
+        with transaction.atomic():
+            # 'items' wahi related_name hai jo aapne InvoiceItem me bill field me diya tha
+            for item in self.items.all():
+                item.delete() 
+                
+        # Phir bill ko delete kar dein
+        super(Bill, self).delete(*args, **kwargs)
+
+    def __str__(self):
+            return f"Bill #{self.id} - {self.customer_name}"
+
+    @property
+    def total(self):
+        # 'items' related_name hai jo aapne InvoiceItem mein define kiya tha
+        total = self.items.aggregate(total_sum=Sum('total'))['total_sum']
+        return total if total else 0
+
+    @property
+    def taxable(self):
+        total = self.items.aggregate(total_sum=Sum('taxable_value'))['total_sum']
+        return total if total else 0
+
+    @property
+    def cgst(self):
+        total = self.items.aggregate(total_sum=Sum('cgst'))['total_sum']
+        return total if total else 0
+
+    @property
+    def sgst(self):
+        total = self.items.aggregate(total_sum=Sum('sgst'))['total_sum']
+        return total if total else 0
+
+    @property
+    def igst(self):
+        total = self.items.aggregate(total_sum=Sum('igst'))['total_sum']
+        return total if total else 0
+
+    class Meta:
+            verbose_name = "10. Bills"
+            verbose_name_plural = "10. Bills"
 
 # InvoiceItem section
 
@@ -438,11 +488,11 @@ class InvoiceItem(models.Model):
         ('online', 'Online'),
         ('offline', 'Offline'),
     )
+    bill = models.ForeignKey(Bill, related_name='items', on_delete=models.CASCADE,blank=True, null=True)
     invoice_mode = models.CharField(max_length=10, choices=MODE_CHOICES, default='offline')
-    date = models.DateField(auto_now_add=True,blank=True, null=True)
     order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, blank=True)
-    name = models.CharField(max_length=255, default="Cash")
     product = models.ForeignKey(Productshow, on_delete=models.CASCADE, blank=True, null=True)
+    batch_history = models.JSONField(default=dict, blank=True, null=True)
     gst_rate = models.IntegerField(default=0, editable=False)
     rate = models.DecimalField(max_digits=10, decimal_places=2,default=0, blank=True, null=True)
     qty = models.IntegerField( blank=True, null=True)
@@ -498,9 +548,15 @@ class InvoiceItem(models.Model):
                         
                 # Product ke stock mein difference add karein
                 self.product.stock_qty -= difference
+                # Batch update logic
+                if difference > 0:
+                    self._deduct_from_batches(difference)
+                elif difference < 0:
+                    self._add_to_batches(abs(difference))
             else:
                 # 2. CREATE CASE: Nayi purchase ho rahi hai
                 self.product.stock_qty -= self.qty
+                self._deduct_from_batches(self.qty)
                         
             # Product ka stock database mein save karein
             self.product.save()
@@ -509,7 +565,7 @@ class InvoiceItem(models.Model):
 
         if is_new_invoice:
             Sale.objects.create(
-                name=self.name,
+                name=self.bill.customer_name,
                 invoice_mode=self.invoice_mode,
                 taxable_value=self.taxable_value,
                 gst=self.gst,
@@ -519,15 +575,88 @@ class InvoiceItem(models.Model):
 
     def delete(self, *args, **kwargs):
             with transaction.atomic():
-                if self.product: 
+                if self.product and self.qty: 
                     self.product.stock_qty += self.qty
                     self.product.save()
+                    self._restore_to_exact_batches()
+
+                else:
+                    print("ERROR: Product ya Qty missing hai, isliye update nahi hua!")    
             super().delete(*args, **kwargs)
+            print("--- INVOICE ITEM DELETED SUCCESSFULLY ---\n")
 
-    class Meta:
-                verbose_name = "10. Create Invoice"
-                verbose_name_plural = "10. Create Invoice"
+    # --- FEFO LOGIC FUNCTIONS ---
 
+    def _deduct_from_batches(self, required_qty):
+        """ FEFO ke according batches se quantity minus karega """
+        # NOTE: Agar Batch model me product ek string (CharField) hai, 
+        # toh yahan self.product.name ya jo bhi string match kare wo likhein.
+        product_identifier = str(self.product.name) # Ya self.product.name (depends on how you save it in Batch)
+        
+        # Order by 'expire_date' (Jo pehle expire hoga, wo pehle aayega)
+        batches = Batch.objects.filter(
+            product=product_identifier, 
+            qty__gt=0
+        ).order_by('expire_date')
+
+        remaining_qty = required_qty
+        history = self.batch_history or {}
+
+        for batch in batches:
+            if remaining_qty <= 0:
+                break
+
+            batch_id_str = str(batch.id)
+                
+            if batch.qty >= remaining_qty:
+                batch.qty -= remaining_qty
+                history[batch_id_str] = history.get(batch_id_str, 0) + remaining_qty
+                batch.save()
+                remaining_qty = 0
+            else:
+                history[batch_id_str] = history.get(batch_id_str, 0) + batch.qty
+                remaining_qty -= batch.qty
+                batch.qty = 0
+                batch.save()
+
+        # Agar saare batches check karne ke baad bhi qty bach jaye
+        if remaining_qty > 0:
+            raise ValidationError(f"Stock me itni quantity (Batches me) available nahi hai. Short by: {remaining_qty}")
+        self.batch_history = history
+
+    def _restore_to_exact_batches(self):
+        """ Delete/Edit hone par record padhkar wapas USI batch mein daalega """
+        history = self.batch_history or {}
+        
+        if history:
+            for batch_id_str, deducted_qty in history.items():
+                try:
+                    batch = Batch.objects.get(id=int(batch_id_str))
+                    batch.qty += deducted_qty
+                    batch.save()
+                    print(f"RESTORED: {deducted_qty} qty added back to Batch ID {batch.id}")
+                except Batch.DoesNotExist:
+                    print(f"WARNING: Batch ID {batch_id_str} ab database mein exist nahi karta!")
+            
+            # Restore ke baad history clear
+            self.batch_history = {}
+            
+        # AGAR HISTORY KHALI HAI (Purane Invoices ke liye jisme record nahi tha)
+        else:
+            print("No batch history! Running fallback logic...")
+            product_identifier = str(self.product.name) # ya id, jo aap pehle use kar rahe the
+            
+            # Latest expire hone wale batch mein wapas daal do (Fallback)
+            batch = Batch.objects.filter(product=product_identifier).order_by('-expire_date').first()
+            if batch:
+                batch.qty += self.qty
+                batch.save()
+                print(f"FALLBACK RESTORED: {self.qty} qty added to Batch {batch.batch_number}")
+            else:
+                print("ERROR: Koi purana batch nahi mila fallback ke liye!")        
+
+    def __str__(self):
+            return f"{self.product} x {self.qty}"
 
 
 # payment section

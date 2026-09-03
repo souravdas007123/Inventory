@@ -4,7 +4,7 @@ from django.db.models import Q
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
-from .models import Supplier,Product,Godown,Purchase,Sale,Order,InvoiceItem,Category,Brand,Payment,Unit,Batch,Transaction
+from .models import Supplier,Product,Godown,Purchase,Sale,Order,InvoiceItem,Category,Brand,Payment,Unit,Batch,Transaction,Bill
 
 
 @admin.register(Category)
@@ -153,13 +153,17 @@ class CustomerOrderAdmin(admin.ModelAdmin):
     list_per_page = 12
 
   
-@admin.register(InvoiceItem)
-class InvoiceItemAdmin(admin.ModelAdmin):
-    list_display = ('id', 'date','order','name','product', 'rate','qty','unit','taxable_value','gst_rate','cgst','sgst','igst','total')
+class InvoiceItemInline(admin.TabularInline):
+    model = InvoiceItem
+    extra = 0  # Default kitni blank rows dikhani hain 
+    # list_display = ('id', 'order','product', 'rate','qty','unit','taxable_value','gst_rate','cgst','sgst','igst','total')
+    readonly_fields = ('taxable_value', 'cgst', 'sgst', 'igst', 'total')
     list_per_page = 12
+    
     def delete_queryset(self, request, queryset):
             for obj in queryset:
                 obj.delete()
+                
     class Media:
         # Yeh line batati hai ki admin page par kaunsi JS file load karni hai
         js = ('js/invoice_toggle.js',)
@@ -196,7 +200,14 @@ class InvoiceItemAdmin(admin.ModelAdmin):
                 kwargs["queryset"] = Order.objects.filter(invoiceitem__isnull=True)
                 
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
-   
+
+
+@admin.register(Bill)
+class BillAdmin(admin.ModelAdmin):
+    list_display = ('id', 'customer_name', 'date','taxable','cgst','sgst','igst','total')
+    inlines = [InvoiceItemInline] # Items ko bill ke niche attach karne ke liye
+
+    
 
 
 
