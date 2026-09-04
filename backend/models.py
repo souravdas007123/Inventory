@@ -1,7 +1,7 @@
 from decimal import Decimal
 from django.db import models,transaction
 from django.contrib.auth.models import User
-from django.db.models.aggregates import Sum
+from django.db.models.aggregates import Count, Sum
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 import random
@@ -131,7 +131,6 @@ class Product(models.Model):
     batch=models.CharField(editable=False,blank=True,null=True)
     brand = models.ForeignKey(Brand, on_delete=models.SET_NULL, null=True, blank=True)
     sku = models.CharField(max_length=50, unique=True,editable=False,blank=True, null=True)
-    cost_price = models.DecimalField(max_digits=10, decimal_places=2,blank=True, null=True)
     gst_rate = models.DecimalField(max_digits=4, decimal_places=2, default=18.00,choices=GST_CHOICES)  # GST rate in percentage
     stock_qty = models.PositiveIntegerField(editable=False,default=0)
     unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True)
@@ -203,21 +202,9 @@ class Batch(models.Model):
             return self.batch_number 
 
     class Meta:
-                verbose_name = "12. Batch"
-                verbose_name_plural = "12. Batch"
+                verbose_name = "07. Batch"
+                verbose_name_plural = "07. Batch"
 
-# godown section
-
-class Godown(models.Model):
-    name = models.CharField(max_length=255) # e.g., "Stock/Godown 1"
-    location = models.CharField(max_length=255, blank=True, null=True)
-
-    def __str__(self):
-        return self.name
-
-    class Meta:
-            verbose_name = "06. Godown"
-            verbose_name_plural = "06. Godown"   
 
 # purchase section           
 def generate_unique_order_id():
@@ -233,7 +220,6 @@ class Purchase(models.Model):
     manufacture_date=models.DateField(blank=True, null=True)
     expire_date=models.DateField(blank=True, null=True)
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE,blank=True, null=True)
-    godown = models.ForeignKey(Godown, on_delete=models.CASCADE)
     qty = models.IntegerField()
     unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True)
     purchase_price = models.IntegerField(blank=True, null=True)
@@ -328,14 +314,6 @@ class Purchase(models.Model):
                 sale_amount=None,
                                 
             )    
-        
-
-
-        # Agar nayi entry hai, toh Product ka stock add (+) kar do
-        # if is_new:
-        #     self.product.stock_qty += self.qty
-        #     self.product.batch = self.batch
-        #     self.product.save()
 
         if self.supplier and amount_diff != Decimal('0.00'):
             # Opening balance ko bhi Decimal me handle karein
@@ -348,6 +326,22 @@ class Purchase(models.Model):
                 if self.product: 
                     self.product.stock_qty -= self.qty
                     self.product.save()
+
+                if self.supplier and self.purchase_price:
+                    # Purana balance lijiye (agar None hai toh 0 set karein)
+                    supplier_bal = Decimal(str(self.supplier.opening_balance or 0))
+                    purchase_amt = Decimal(str(self.purchase_price or 0))
+                
+                    # Balance minus karein
+                    self.supplier.opening_balance = supplier_bal - purchase_amt
+                
+                    # Sirf opening_balance field ko database mein update karein
+                    self.supplier.save(update_fields=['opening_balance'])
+
+                if self.batch:
+                # Is purchase ke batch number wala Batch dhund kar delete karega
+                    Batch.objects.filter(batch_number=self.batch).delete()  
+
             super().delete(*args, **kwargs)
 
 
@@ -355,8 +349,8 @@ class Purchase(models.Model):
         return f"Purchase: {self.product.name} - Qty: {self.qty}"
     
     class Meta:
-            verbose_name = "07. Purchase "
-            verbose_name_plural = "07. Purchase "
+            verbose_name = "06. Purchase "
+            verbose_name_plural = "06. Purchase "
 
 # sales section
 
@@ -390,8 +384,8 @@ class Sale(models.Model):
         return self.name 
 
     class Meta:
-            verbose_name = "08. Sales"
-            verbose_name_plural = "08. Sales"
+            verbose_name = "10. Sales"
+            verbose_name_plural = "10. Sales"
 
 # customer order section
 #  
@@ -425,8 +419,8 @@ class Order(models.Model):
         super().save(*args, **kwargs)
 
     class Meta:
-                verbose_name = "09. Order "
-                verbose_name_plural = "09. Orders"
+                verbose_name = "08. Order "
+                verbose_name_plural = "08. Orders"
 
     def __str__(self):
             return f"{self.order_id} "  
@@ -458,6 +452,10 @@ class Bill(models.Model):
         return total if total else 0
 
     @property
+    def total_items(self):
+        return self.items.count()
+
+    @property
     def taxable(self):
         total = self.items.aggregate(total_sum=Sum('taxable_value'))['total_sum']
         return total if total else 0
@@ -478,8 +476,8 @@ class Bill(models.Model):
         return total if total else 0
 
     class Meta:
-            verbose_name = "10. Bills"
-            verbose_name_plural = "10. Bills"
+            verbose_name = "09. Bills"
+            verbose_name_plural = "09. Bills"
 
 # InvoiceItem section
 

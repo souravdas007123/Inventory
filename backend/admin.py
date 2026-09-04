@@ -4,36 +4,41 @@ from django.db.models import Q
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
-from .models import Supplier,Product,Godown,Purchase,Sale,Order,InvoiceItem,Category,Brand,Payment,Unit,Batch,Transaction,Bill
+from .models import Supplier,Product,Purchase,Sale,Order,InvoiceItem,Category,Brand,Payment,Unit,Batch,Transaction,Bill
 
 
 @admin.register(Category)
 class CategoryAdmin(ImportExportModelAdmin):
     list_display = ('id', 'name')
-    list_per_page = 12
+    search_fields = ['name']
+    list_per_page = 10
 
 
 @admin.register(Brand)
 class BrandAdmin(ImportExportModelAdmin):
     list_display = ('id', 'name')
-    list_per_page = 12
+    search_fields = ['name']
+    list_per_page = 10
 
 
 @admin.register(Unit)
 class UnitAdmin(ImportExportModelAdmin):
     list_display = ('id', 'name')
-    list_per_page = 12
+    search_fields = ['name']
+    list_per_page = 10
 
 
 @admin.register(Supplier)
 class SupplierAdmin(ImportExportModelAdmin):
     list_display = ('id', 'company','address','gstin','state', 'pan', 'opening_balance', 'created_at','is_active')
-    list_per_page = 12
+    search_fields = ['company', 'gstin']
+    list_per_page = 10
     
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
     list_display = ('id', 'supplier', 'amount','due', 'payment_mode', 'payment_date')
-    list_per_page = 12
+    search_fields = ['supplier']
+    list_per_page = 10
     def delete_queryset(self, request, queryset):
             for obj in queryset:
                 obj.delete()
@@ -41,7 +46,8 @@ class PaymentAdmin(admin.ModelAdmin):
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):
     list_display = ('id', 'purchase_date','supplier','purchase_amount','sale_date','customer','sale_amount')
-    list_per_page = 12
+    search_fields = ['supplier', 'customer']
+    list_per_page = 10
 
 class ProductResource(resources.ModelResource):
     
@@ -69,8 +75,9 @@ class ProductResource(resources.ModelResource):
 @admin.register(Product)
 class ProductAdmin(ImportExportModelAdmin):
     resource_classes = [ProductResource]
-    list_display = ('id', 'name','brand','hsn_code','sku', 'category', 'batch','cost_price','unit', 'gst_rate', 'stock_qty', 'stock_status', 'is_active' )
-    list_per_page = 12
+    list_display = ('id', 'name','brand','hsn_code','sku', 'category', 'batch','unit', 'gst_rate', 'stock_qty', 'stock_status', 'is_active' )
+    search_fields = ['name', 'sku']
+    list_per_page = 10
 
     def stock_status(self, obj):
         low_stock_threshold = 5
@@ -102,7 +109,8 @@ class ProductAdmin(ImportExportModelAdmin):
 @admin.register(Batch)
 class BatchAdmin(admin.ModelAdmin):
     list_display = ('id', 'product','supplier','qty','unit','batch_number', 'manufacture_date','expire_date','get_expiry_status')
-    list_per_page = 12
+    search_fields = ['product', 'supplier']
+    list_per_page = 10
     def get_expiry_status(self, obj):
         status = obj.expiry_status
         
@@ -127,16 +135,11 @@ class BatchAdmin(admin.ModelAdmin):
     get_expiry_status.short_description = 'Status'
 
 
-@admin.register(Godown)
-class GodownAdmin(ImportExportModelAdmin):
-    list_display = ('id', 'name', 'location')
-    list_per_page = 12
-
-
 @admin.register(Purchase)
 class PurchaseOrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'order_date','supplier', 'godown','product','batch','manufacture_date','expire_date','rate','qty','unit','tax','gst_rate','cgst','sgst','purchase_price' )
-    list_per_page = 12
+    list_display = ('id', 'order_date','supplier','product','batch','manufacture_date','expire_date','rate','qty','unit','tax','gst_rate','cgst','sgst','purchase_price' )
+    search_fields = ['supplier', 'product']
+    list_per_page = 10
     def delete_queryset(self, request, queryset):
         for obj in queryset:
             obj.delete()
@@ -145,20 +148,22 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
 @admin.register(Sale)
 class InventoryBatchAdmin(admin.ModelAdmin):
     list_display = ('id','date', 'name', 'invoice_mode','taxable_value', 'gst','total')
-    list_per_page = 12
+    search_fields = ['name']
+    list_per_page = 10
 
 @admin.register(Order)
 class CustomerOrderAdmin(admin.ModelAdmin):
     list_display = ('id', 'order_date','order_id','customers_name', 'customer_product', 'customer_rate','customer_qty')
-    list_per_page = 12
+    search_fields = ['customers_name']
+    list_per_page = 10
 
   
 class InvoiceItemInline(admin.TabularInline):
     model = InvoiceItem
     extra = 0  # Default kitni blank rows dikhani hain 
-    # list_display = ('id', 'order','product', 'rate','qty','unit','taxable_value','gst_rate','cgst','sgst','igst','total')
     readonly_fields = ('taxable_value', 'cgst', 'sgst', 'igst', 'total')
-    list_per_page = 12
+    exclude = ['batch_history']
+    list_per_page = 10
     
     def delete_queryset(self, request, queryset):
             for obj in queryset:
@@ -204,8 +209,9 @@ class InvoiceItemInline(admin.TabularInline):
 
 @admin.register(Bill)
 class BillAdmin(admin.ModelAdmin):
-    list_display = ('id', 'customer_name', 'date','taxable','cgst','sgst','igst','total')
+    list_display = ('id', 'customer_name', 'date','total_items','taxable','cgst','sgst','igst','total')
     inlines = [InvoiceItemInline] # Items ko bill ke niche attach karne ke liye
+    list_per_page = 10
 
     
 
