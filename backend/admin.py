@@ -165,53 +165,48 @@ class InvoiceItemInline(admin.TabularInline):
     exclude = ['batch_history']
     list_per_page = 10
     
-    def delete_queryset(self, request, queryset):
-            for obj in queryset:
-                obj.delete()
-                
-    class Media:
-        # Yeh line batati hai ki admin page par kaunsi JS file load karni hai
-        js = ('js/invoice_toggle.js',)
-
-    # Aapka purana formfield_for_foreignkey wala function yahan rahega
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        # ... (purana code jo order id hide karne ke liye likha tha)
-        pass
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "order":
-            # Check karte hain ki user naya invoice bana raha hai ya purana edit kar raha hai
-            object_id = request.resolver_match.kwargs.get('object_id')
-            
-            if object_id:
-                # EDIT MODE: 
-                # Hum current invoice ka data nikalenge
-                try:
-                    current_invoice = InvoiceItem.objects.get(pk=object_id)
-                    if current_invoice.order:
-                        # Sirf wo orders dikhayein jo abhi tak use nahi huye hain (isnull=True) 
-                        # YA FIR (Q) jo is current invoice ka order hai
-                        kwargs["queryset"] = Order.objects.filter(
-                            Q(invoiceitem__isnull=True) | Q(id=current_invoice.order.id)
-                        )
-                    else:
-                        kwargs["queryset"] = Order.objects.filter(invoiceitem__isnull=True)
-                except InvoiceItem.DoesNotExist:
-                    kwargs["queryset"] = Order.objects.filter(invoiceitem__isnull=True)
-            
-            else:
-                # ADD MODE (Naya Invoice): 
-                # Sirf wo orders dikhayein jinse abhi tak koi InvoiceItem link nahi hua hai
-                kwargs["queryset"] = Order.objects.filter(invoiceitem__isnull=True)
-                
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
-
+    
 
 @admin.register(Bill)
 class BillAdmin(admin.ModelAdmin):
-    list_display = ('id', 'customer_name', 'date','total_items','taxable','cgst','sgst','igst','total')
+    list_display = ('id', 'customer_name', 'invoice_mode', 'order','date','total_items','taxable','cgst','sgst','igst','total')
     inlines = [InvoiceItemInline] # Items ko bill ke niche attach karne ke liye
     list_per_page = 10
+
+
+    class Media:
+        js = ('js/invoice_toggle.js',)
+
+    def delete_queryset(self, request, queryset):
+        """
+        Jab bulk delete action trigger ho, toh direct SQL delete ki jagah 
+        har bill par loop chalakar uska apna delete() function call karein.
+        """
+        for bill in queryset:
+            bill.delete()    
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "order":
+            object_id = request.resolver_match.kwargs.get('object_id')
+            
+            if object_id:
+                # EDIT MODE
+                try:
+                    current_bill = Bill.objects.get(pk=object_id)
+                    if current_bill.order:
+                        # Q(bill__isnull=True) check karta hai ki order kisi aur bill se attached na ho
+                        kwargs["queryset"] = Order.objects.filter(
+                            Q(bill__isnull=True) | Q(id=current_bill.order.id)
+                        )
+                    else:
+                        kwargs["queryset"] = Order.objects.filter(bill__isnull=True)
+                except Bill.DoesNotExist:
+                    kwargs["queryset"] = Order.objects.filter(bill__isnull=True)
+            else:
+                # ADD MODE (Naya Invoice)
+                kwargs["queryset"] = Order.objects.filter(bill__isnull=True)
+                
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     
 

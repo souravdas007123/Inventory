@@ -400,7 +400,7 @@ class Order(models.Model):
     order_id = models.CharField(max_length=20, unique=True,null=True,editable=False,blank=True)
     customers_name = models.CharField(max_length=100,blank=True, null=True)
     customer_product = models.ForeignKey(Productshow, on_delete=models.CASCADE,blank=True, null=True)
-    customer_rate = models.DecimalField(max_digits=10, decimal_places=2,blank=True, null=True)
+    customer_rate = models.IntegerField(blank=True, null=True)
     customer_qty = models.IntegerField(blank=True, null=True)
     order_date = models.DateField(blank=True, null=True)
 
@@ -427,9 +427,46 @@ class Order(models.Model):
 
 # bill section 
 
-class Bill(models.Model):                        
+class Bill(models.Model):  
+    MODE_CHOICES = (
+        ('online', 'Online'),
+        ('offline', 'Offline'),
+    )                      
     customer_name = models.CharField(max_length=255, default="Cash")
     date = models.DateField(blank=True, null=True)
+    invoice_mode = models.CharField(max_length=10, choices=MODE_CHOICES, default='offline')
+    order = models.ForeignKey('Order', on_delete=models.SET_NULL, null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        # 1. Customer Name Auto-fill: Agar cash likha hai, toh Order wale customer ka naam dal do
+        if self.invoice_mode == 'online' and self.order:
+            if self.customer_name == "Cash" and self.order.customers_name:
+                self.customer_name = self.order.customers_name
+
+            if not self.date and self.order.order_date:
+                self.date = self.order.order_date    
+
+        # Pehle Bill ko save karna zaroori hai, taaki iski ID generate ho jaye
+        super(Bill, self).save(*args, **kwargs)
+
+        # 2. InvoiceItem Auto-create Logic
+        if self.invoice_mode == 'online' and self.order:
+            # Check karein ki is bill me pehle se items toh nahi hain 
+            # (Taaki edit karne par duplicate items na bane)
+            if not self.items.exists():
+                # Yahan hum InvoiceItem model ko import kar rahe hain (circular import se bachne ke liye)
+                from .models import InvoiceItem 
+                
+                # Order ka data use karke InvoiceItem auto-create kar rahe hain
+                InvoiceItem.objects.create(
+                    bill=self,
+                    product=self.order.customer_product,
+                    rate=self.order.customer_rate,
+                    qty=self.order.customer_qty,
+
+                )
+                # Note: InvoiceItem.objects.create() chalne par InvoiceItem ka apna save() 
+                # function chalega aur saari calculation (GST, Total, Stock) khud ba khud ho jayegi.
 
     def delete(self, *args, **kwargs):
         # Bill delete hone se pehle, uske andar ke har item ko manual delete karein
@@ -482,14 +519,8 @@ class Bill(models.Model):
 # InvoiceItem section
 
 class InvoiceItem(models.Model):
-    MODE_CHOICES = (
-        ('online', 'Online'),
-        ('offline', 'Offline'),
-    )
     bill = models.ForeignKey(Bill, related_name='items', on_delete=models.CASCADE,blank=True, null=True)
-    invoice_mode = models.CharField(max_length=10, choices=MODE_CHOICES, default='offline')
-    order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, blank=True)
-    product = models.ForeignKey(Productshow, on_delete=models.CASCADE, blank=True, null=True)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, blank=True, null=True)
     batch_history = models.JSONField(default=dict, blank=True, null=True)
     gst_rate = models.IntegerField(default=0, editable=False)
     rate = models.DecimalField(max_digits=10, decimal_places=2,default=0, blank=True, null=True)
@@ -507,12 +538,17 @@ class InvoiceItem(models.Model):
         is_new = self.pk is None
         
 
-        if self.invoice_mode == 'online' and self.order:
-            # Customer Order se data auto-fill karein
-            self.name = self.order.customers_name
-            self.product = self.order.customer_product
-            self.rate = self.order.customer_rate
-            self.qty = self.order.customer_qty 
+        if self.bill and self.bill.invoice_mode == 'online' and self.bill.order:
+            # Pura data order se uthayenge
+            self.product = self.bill.order.customer_product
+            self.rate = self.bill.order.customer_rate
+            self.qty = self.bill.order.customer_qty 
+            
+            # Note: Aapke purane code me self.name tha jo is model me exist nahi karta. 
+            # Agar order ka customer name bill me dalna hai, toh aap ye kar sakte hain:
+            if self.bill.customer_name == "Cash": # Agar default hai
+                self.bill.customer_name = self.bill.order.customers_name
+                self.bill.save() # Bill ko update kar denge 
 
         if self.product:
             self.gst_rate = self.product.gst_rate
@@ -564,7 +600,7 @@ class InvoiceItem(models.Model):
         if is_new_invoice:
             Sale.objects.create(
                 name=self.bill.customer_name,
-                invoice_mode=self.invoice_mode,
+                invoice_mode=self.bill.invoice_mode,
                 taxable_value=self.taxable_value,
                 gst=self.gst,
                 total=self.total
