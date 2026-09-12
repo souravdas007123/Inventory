@@ -74,7 +74,7 @@ class Supplier(models.Model):
     state = models.CharField(max_length=50, editable=False, blank=True, null=True)
     gstin = models.CharField(max_length=15, unique=True, help_text="Enter 15 digit GSTIN",blank=True, null=True)
     pan = models.CharField(max_length=10, editable=False, blank=True, null=True)
-    opening_balance = models.IntegerField(editable=False,blank=True,null=True)
+    opening_balance = models.IntegerField(editable=False,blank=True,null=True,verbose_name="Balance")
     created_at = models.DateField(auto_now=True,blank=True, null=True)
     updated_at = models.DateField(auto_now=True,blank=True, null=True)
     is_active = models.BooleanField(default=True, verbose_name="Active Status")
@@ -126,13 +126,13 @@ class Product(models.Model):
         (18.00, '18%'),
     )
     name = models.CharField(max_length=255,blank=True, null=True)
-    hsn_code = models.CharField(max_length=10, blank=True, null=True)
+    hsn_code = models.CharField(max_length=10, blank=True, null=True,verbose_name="HSN / SAC")
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
     batch=models.CharField(editable=False,blank=True,null=True)
     brand = models.ForeignKey(Brand, on_delete=models.SET_NULL, null=True, blank=True)
     sku = models.CharField(max_length=50, unique=True,editable=False,blank=True, null=True)
-    gst_rate = models.DecimalField(max_digits=4, decimal_places=2, default=18.00,choices=GST_CHOICES)  # GST rate in percentage
-    stock_qty = models.PositiveIntegerField(editable=False,default=0)
+    gst_rate = models.DecimalField(max_digits=4, decimal_places=2, default=18.00,choices=GST_CHOICES,verbose_name="GST (%)")  # GST rate in percentage
+    stock_qty = models.PositiveIntegerField(editable=False,default=0,verbose_name="Stock")
     unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True)
     reorder_level = models.PositiveIntegerField(default=5)
     is_active = models.BooleanField(default=True,blank=True, null=True)
@@ -178,9 +178,9 @@ class Batch(models.Model):
     supplier=models.CharField(editable=False,blank=True,null=True)
     qty = models.IntegerField(editable=False,blank=True,null=True)
     unit=models.CharField(editable=False,blank=True,null=True)
-    batch_number=models.CharField(editable=False)
-    manufacture_date=models.DateField(editable=False)
-    expire_date=models.DateField(editable=False)
+    batch_number=models.CharField(editable=False,verbose_name="Batch")
+    manufacture_date=models.DateField(editable=False,verbose_name="MFG Date")
+    expire_date=models.DateField(editable=False,verbose_name="EXP Date")
 
     @property
     def expiry_status(self):
@@ -217,18 +217,18 @@ def generate_unique_order_id():
 class Purchase(models.Model):
     product = models.ForeignKey(Productshow, on_delete=models.CASCADE,blank=True, null=True)
     batch=models.CharField(max_length=255,blank=True, null=True,editable=False)
-    manufacture_date=models.DateField(blank=True, null=True)
-    expire_date=models.DateField(blank=True, null=True)
+    manufacture_date=models.DateField(blank=True, null=True,verbose_name="MFG Date")
+    expire_date=models.DateField(blank=True, null=True,verbose_name="EXP Date")
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE,blank=True, null=True)
     qty = models.IntegerField()
     unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True)
     purchase_price = models.IntegerField(blank=True, null=True)
     rate = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
-    tax = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
+    tax = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0,verbose_name="Taxable Value")
     gst = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
     cgst = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
     sgst = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
-    gst_rate = models.IntegerField(editable=False, default=0) 
+    gst_rate = models.IntegerField(editable=False, default=0,verbose_name="GST (%)") 
     order_date = models.DateField(auto_now_add=True)
 
 
@@ -361,13 +361,15 @@ class Sale(models.Model):
     taxable_value = models.IntegerField(blank=True, editable=False,null=True)
     gst=models.IntegerField(blank=True, editable=False,null=True)
     total = models.IntegerField(editable=False)
+    invoice_item = models.OneToOneField('InvoiceItem', on_delete=models.CASCADE, null=True, blank=True)
     
     def save(self, *args, **kwargs):
         
         is_new_trans = self.pk is None
-        
+
+        with transaction.atomic():
         # Pehle parent object ko save karein
-        super().save(*args, **kwargs)
+            super().save(*args, **kwargs)
 
         if is_new_trans:
             Transaction.objects.create(
@@ -486,7 +488,7 @@ class Bill(models.Model):
     def total(self):
         # 'items' related_name hai jo aapne InvoiceItem mein define kiya tha
         total = self.items.aggregate(total_sum=Sum('total'))['total_sum']
-        return total if total else 0
+        return round(total, 2) if total else 0
 
     @property
     def total_items(self):
@@ -495,22 +497,22 @@ class Bill(models.Model):
     @property
     def taxable(self):
         total = self.items.aggregate(total_sum=Sum('taxable_value'))['total_sum']
-        return total if total else 0
+        return round(total, 2) if total else 0.00
 
     @property
     def cgst(self):
         total = self.items.aggregate(total_sum=Sum('cgst'))['total_sum']
-        return total if total else 0
+        return round(total, 2) if total else 0.00
 
     @property
     def sgst(self):
         total = self.items.aggregate(total_sum=Sum('sgst'))['total_sum']
-        return total if total else 0
+        return round(total, 2) if total else 0.00
 
     @property
     def igst(self):
         total = self.items.aggregate(total_sum=Sum('igst'))['total_sum']
-        return total if total else 0
+        return round(total, 2) if total else 0.00
 
     class Meta:
             verbose_name = "09. Bills"
@@ -522,10 +524,12 @@ class InvoiceItem(models.Model):
     bill = models.ForeignKey(Bill, related_name='items', on_delete=models.CASCADE,blank=True, null=True)
     product = models.ForeignKey(Product, on_delete=models.CASCADE, blank=True, null=True)
     batch_history = models.JSONField(default=dict, blank=True, null=True)
-    gst_rate = models.IntegerField(default=0, editable=False)
-    rate = models.DecimalField(max_digits=10, decimal_places=2,default=0, blank=True, null=True)
+    rate = models.DecimalField(max_digits=10, decimal_places=2,blank=True, null=True)
     qty = models.IntegerField( blank=True, null=True)
     unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True)
+    discount_percent = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, verbose_name="Discount (%)")
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, verbose_name="Discount (Flat)")
+    gst_rate = models.IntegerField(default=0, editable=False)
     gst = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
     taxable_value = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
     cgst = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
@@ -543,8 +547,7 @@ class InvoiceItem(models.Model):
             self.product = self.bill.order.customer_product
             self.rate = self.bill.order.customer_rate
             self.qty = self.bill.order.customer_qty 
-            
-            # Note: Aapke purane code me self.name tha jo is model me exist nahi karta. 
+             
             # Agar order ka customer name bill me dalna hai, toh aap ye kar sakte hain:
             if self.bill.customer_name == "Cash": # Agar default hai
                 self.bill.customer_name = self.bill.order.customers_name
@@ -553,22 +556,37 @@ class InvoiceItem(models.Model):
         if self.product:
             self.gst_rate = self.product.gst_rate
 
-            rate_val = self.rate or 0
-            qty_val = self.qty or 0
+            rate_val = Decimal(str(self.rate or 0))
+            qty_val = Decimal(str(self.qty or 0))
 
-            self.taxable_value = rate_val * qty_val
-            self.gst=self.taxable_value * self.gst_rate / 100
+            gross_amount = rate_val * qty_val
+
+            disc_percent_val = Decimal(str(self.discount_percent or 0))
+            disc_flat_val = Decimal(str(self.discount_amount or 0))
+
+            calculated_percent_discount = gross_amount * (disc_percent_val / Decimal('100'))
+            total_discount = calculated_percent_discount + disc_flat_val
+
+            #Taxable Value (Gross Amount - Discount)
+            self.taxable_value = gross_amount - total_discount
+
+            if self.taxable_value < Decimal('0'):
+                self.taxable_value = Decimal('0')
+
+            gst_rate_dec = Decimal(str(self.gst_rate or 0))
+            self.gst = self.taxable_value * (gst_rate_dec / Decimal('100'))  
 
             if self.is_igst:
-                self.cgst = 0
-                self.sgst = 0
+                self.cgst = Decimal('0')
+                self.sgst = Decimal('0')
                 self.igst = self.gst
             else:
             # Agar IGST checked nahi hai, toh IGST 0 hoga
-                self.igst =0
-                self.cgst = self.gst / 2
-                self.sgst = self.gst / 2   
-            self.total = self.taxable_value + (self.taxable_value * self.gst_rate / 100)
+                self.igst = Decimal('0')
+                self.cgst = self.gst / Decimal('2')
+                self.sgst = self.gst / Decimal('2')
+
+            self.total = int(self.taxable_value + self.gst)
 
         is_new_invoice = self.pk is None
 
@@ -599,6 +617,7 @@ class InvoiceItem(models.Model):
 
         if is_new_invoice:
             Sale.objects.create(
+                invoice_item=self,
                 name=self.bill.customer_name,
                 invoice_mode=self.bill.invoice_mode,
                 taxable_value=self.taxable_value,
