@@ -135,6 +135,9 @@ class Product(models.Model):
     stock_qty = models.PositiveIntegerField(editable=False,default=0,verbose_name="Stock")
     unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True)
     reorder_level = models.PositiveIntegerField(default=5)
+    location = models.CharField(max_length=100, blank=True, null=True, verbose_name="Location/Godown")
+    rack = models.CharField(max_length=50, blank=True, null=True, verbose_name="Rack No.")
+    row = models.CharField(max_length=50, blank=True, null=True, verbose_name="Row No.")
     is_active = models.BooleanField(default=True,blank=True, null=True)
 
     @property
@@ -155,8 +158,25 @@ class Product(models.Model):
     
 
     def __str__(self):
-        return f"{self.name} - Stock: {self.stock_qty}"
-
+        loc_info = ""
+        if self.rack or self.row:
+            r = self.rack if self.rack else "N/A"
+            ro = self.row if self.row else "N/A"
+            lo = self.location if self.location else "N/A"
+            loc_info = f" | [Rack: {r}, Row: {ro}, Location: {lo}]"
+            
+        from .models import Batch
+        next_expiring_batch = Batch.objects.filter(
+            product=str(self.name), 
+            qty__gt=0
+        ).order_by('expire_date').first()
+        batch_info = ""
+        if next_expiring_batch and next_expiring_batch.expire_date:
+            # Date ko thoda clean format (e.g., 12-Oct-2024) mein dikhane ke liye
+            formatted_date = next_expiring_batch.expire_date.strftime('%d-%b-%Y')
+            batch_info = f" | 🟢 Pick Batch: {next_expiring_batch.batch_number} (Exp: {formatted_date})"    
+        return f"{self.name} - Stock: {self.stock_qty}{loc_info}{batch_info}"
+    
     class Meta:
             verbose_name = "05. Product"
             verbose_name_plural = "05. Product"
@@ -181,6 +201,9 @@ class Batch(models.Model):
     batch_number=models.CharField(editable=False,verbose_name="Batch")
     manufacture_date=models.DateField(editable=False,verbose_name="MFG Date")
     expire_date=models.DateField(editable=False,verbose_name="EXP Date")
+    rack = models.CharField(max_length=50, editable=False, blank=True, null=True)
+    row = models.CharField(max_length=50, editable=False, blank=True, null=True)
+    location = models.CharField(max_length=100, editable=False, blank=True, null=True)
 
     @property
     def expiry_status(self):
@@ -229,6 +252,9 @@ class Purchase(models.Model):
     cgst = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
     sgst = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
     gst_rate = models.IntegerField(editable=False, default=0,verbose_name="GST (%)") 
+    rack = models.CharField(max_length=50, blank=True, null=True, verbose_name="Rack No.")
+    row = models.CharField(max_length=50, blank=True, null=True, verbose_name="Row No.")
+    location = models.CharField(max_length=100, blank=True, null=True, verbose_name="Location")
     order_date = models.DateField(auto_now_add=True)
 
 
@@ -284,6 +310,11 @@ class Purchase(models.Model):
                 
             # Product ka stock database mein save karein
             self.product.batch = self.batch
+
+            if self.rack: self.product.rack = self.rack
+            if self.row: self.product.row = self.row
+            if self.location: self.product.location = self.location
+
             self.product.save()
 
 
@@ -300,7 +331,10 @@ class Purchase(models.Model):
                 unit=self.unit,
                 batch_number=self.batch,
                 manufacture_date=self.manufacture_date,
-                expire_date=self.expire_date
+                expire_date=self.expire_date,
+                rack=self.rack,
+                row=self.row,
+                location=self.location
                         
             )
 
