@@ -75,7 +75,7 @@ class ProductResource(resources.ModelResource):
 @admin.register(Product)
 class ProductAdmin(ImportExportModelAdmin):
     resource_classes = [ProductResource]
-    list_display = ('id', 'name','brand','hsn_code','sku', 'category', 'batch','rack', 'row','unit', 'gst_rate', 'stock_qty', 'stock_status', 'is_active' )
+    list_display = ('id', 'name','composition','brand','hsn_code','sku', 'category', 'batch','rack', 'row','unit', 'gst_rate', 'stock_qty', 'stock_status' )
     search_fields = ['name', 'sku', 'rack']
     list_per_page = 10
 
@@ -137,8 +137,8 @@ class BatchAdmin(admin.ModelAdmin):
 
 @admin.register(Purchase)
 class PurchaseOrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'order_date','supplier','product','batch','rack', 'row','location', 'manufacture_date','expire_date','rate','qty','unit','tax','gst_rate','cgst','sgst','purchase_price' )
-    search_fields = ['supplier', 'product__name', 'rack']
+    list_display = ('id', 'order_date','supplier','product','composition','batch','rack', 'row','location', 'manufacture_date','expire_date','rate','qty','unit','tax','gst_rate','cgst','sgst','purchase_price' )
+    search_fields = ['supplier', 'product__name', 'rack','composition']
     list_per_page = 10
     def delete_queryset(self, request, queryset):
         for obj in queryset:

@@ -126,6 +126,7 @@ class Product(models.Model):
         (18.00, '18%'),
     )
     name = models.CharField(max_length=255,blank=True, null=True)
+    composition = models.CharField(max_length=255, blank=True, null=True, help_text="Example: Paracetamol 500mg")
     hsn_code = models.CharField(max_length=10, blank=True, null=True,verbose_name="HSN / SAC")
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
     batch=models.CharField(editable=False,blank=True,null=True)
@@ -164,18 +165,44 @@ class Product(models.Model):
             ro = self.row if self.row else "N/A"
             lo = self.location if self.location else "N/A"
             loc_info = f" | [Rack: {r}, Row: {ro}, Location: {lo}]"
-            
+
+        # 2. Composition (Hamesha dikhane ke liye)
+        comp_info = ""
+        if self.composition:
+            comp_info = f" | Comp: {self.composition}"
+
         from .models import Batch
         next_expiring_batch = Batch.objects.filter(
             product=str(self.name), 
             qty__gt=0
         ).order_by('expire_date').first()
+
         batch_info = ""
         if next_expiring_batch and next_expiring_batch.expire_date:
             # Date ko thoda clean format (e.g., 12-Oct-2024) mein dikhane ke liye
             formatted_date = next_expiring_batch.expire_date.strftime('%d-%b-%Y')
-            batch_info = f" | 🟢 Pick Batch: {next_expiring_batch.batch_number} (Exp: {formatted_date})"    
-        return f"{self.name} - Stock: {self.stock_qty}{loc_info}{batch_info}"
+            batch_info = f" | 🟢 Pick Batch: {next_expiring_batch.batch_number} (Exp: {formatted_date})" 
+
+        # 4. Alternative Logic (Sirf tab jab stock 0 ho)
+        alt_info = ""
+        if self.stock_qty <= 0 and self.composition:
+            alternatives = Product.objects.filter(
+                composition__iexact=self.composition,
+                stock_qty__gt=0
+            ).exclude(id=self.id)
+            
+            if alternatives.exists():
+                alt_names = ", ".join([f"{alt.name} (Stock: {alt.stock_qty})" for alt in alternatives[:2]])
+                
+                if self.stock_qty <= 0:
+                    alt_info = f" | 🚨 OUT OF STOCK! 🔄 GIVE ALTERNATIVE: {alt_names}"
+                else:
+                    # Agar stock hai, tab bhi alternatives dikhaye taaki customer ko option de sakein
+                    alt_info = f" | 🔄 ALSO AVAILABLE: {alt_names}"
+            elif self.stock_qty <= 0:
+                alt_info = " | ❌ NO ALTERNATIVE"
+
+        return f"{self.name} - Stock: {self.stock_qty}{comp_info}{loc_info}{batch_info}{alt_info}"
     
     class Meta:
             verbose_name = "05. Product"
@@ -255,6 +282,7 @@ class Purchase(models.Model):
     rack = models.CharField(max_length=50, blank=True, null=True, verbose_name="Rack No.")
     row = models.CharField(max_length=50, blank=True, null=True, verbose_name="Row No.")
     location = models.CharField(max_length=100, blank=True, null=True, verbose_name="Location")
+    composition = models.CharField(max_length=255, blank=True, null=True, help_text="Example: Paracetamol 500mg")
     order_date = models.DateField(auto_now_add=True)
 
 
@@ -315,6 +343,9 @@ class Purchase(models.Model):
             if self.row: self.product.row = self.row
             if self.location: self.product.location = self.location
 
+            if self.composition:
+                self.product.composition = self.composition
+
             self.product.save()
 
 
@@ -358,7 +389,12 @@ class Purchase(models.Model):
     def delete(self, *args, **kwargs):
             with transaction.atomic():
                 if self.product: 
-                    self.product.stock_qty -= self.qty
+                    # self.product.stock_qty -= self.qty
+                    remaining_stock = self.product.stock_qty - self.qty
+                    if remaining_stock < 0:
+                        self.product.stock_qty = 0  # Agar minus mein ja raha hai toh 0 kar do
+                    else:
+                        self.product.stock_qty = remaining_stock
                     self.product.save()
 
                 if self.supplier and self.purchase_price:
