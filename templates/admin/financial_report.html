@@ -1,0 +1,42 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div style="background: #232020; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 600px;">
+
+    <table style="width: 100%; font-size: 16px; text-align: left; border-collapse: collapse;">
+        <!-- SALES -->
+        <tr style="background-color: #212122;">
+            <td style="padding: 12px; border-bottom: 1px solid #0909098a;"><strong>Total Income (Sales)</strong></td>
+            <td style="padding: 12px; border-bottom: 1px solid #121212; color: rgb(18, 227, 18); text-align: right;"><strong>₹{{ sales }}</strong></td>
+        </tr>
+
+        <!-- PURCHASES -->
+        <tr>
+            <td style="padding: 12px; border-bottom: 1px solid #ddd;">Less: Stock Purchases</td>
+            <td style="padding: 12px; border-bottom: 1px solid #ddd; color: red; text-align: right;">- ₹{{ purchases }}</td>
+        </tr>
+
+        <!-- GROSS PROFIT -->
+        <tr style="background-color: #212222;">
+            <td style="padding: 12px; border-bottom: 1px solid #ddd;"><strong>Gross Profit</strong></td>
+            <td style="padding: 12px; border-bottom: 1px solid #ddd; text-align: right;"><strong>₹{{ gross_profit }}</strong></td>
+        </tr>
+
+        <!-- EXPENSES -->
+        <tr>
+            <td style="padding: 12px; border-bottom: 1px solid #2c2b2b;">Less: Other Expenses (Rent, etc.)</td>
+            <td style="padding: 12px; border-bottom: 1px solid #ddd; color: red; text-align: right;">- ₹{{ expenses }}</td>
+        </tr>
+
+        <!-- NET PROFIT -->
+        <tr style="background-color: {% if net_profit >= 0 %}#2c2b2b{% else %}#2c2b2b{% endif %}; font-size: 18px;">
+            <td style="padding: 15px;"><strong>Net Profit / Loss</strong></td>
+            <td style="padding: 15px; text-align: right;">
+                <strong style="color: {% if net_profit >= 0 %}rgb(18, 227, 18){% else %}red{% endif %};">
+                    ₹{{ net_profit }}
+                </strong>
+            </td>
+        </tr>
+    </table>
+</div>
+{% endblock %}
