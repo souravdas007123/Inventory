@@ -4,7 +4,10 @@ from django.db.models import Q
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
-from .models import Supplier,Product,Purchase,Sale,Order,InvoiceItem,Category,Brand,Payment,Unit,Batch,Transaction,Bill
+from django.template.response import TemplateResponse
+from django.db.models import Sum
+from datetime import date
+from .models import Supplier,Product,Purchase,Sale,Order,InvoiceItem,Category,Brand,Payment,Unit,Batch,Transaction,Bill,Expense, FinancialReport,PurchaseOrder, PurchaseOrderItem
 
 
 @admin.register(Category)
@@ -208,8 +211,79 @@ class BillAdmin(admin.ModelAdmin):
                 
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
+
+
+@admin.register(Expense)
+class ExpenseAdmin(admin.ModelAdmin):
+    list_display = ['name', 'amount', 'date']
+
+# Report Button ka logic
+@admin.register(FinancialReport)
+class FinancialReportAdmin(admin.ModelAdmin):
+    
+    # Jab admin mein 'P&L Report' par click hoga, tab yeh function chalega
+    def changelist_view(self, request, extra_context=None):
+        current_month = date.today().month
+        current_year = date.today().year
+
+        # 1. Total Income (Iss mahine ki saari Sales)
+        sales = Sale.objects.filter(
+            date__month=current_month, date__year=current_year
+        ).aggregate(Sum('total'))['total__sum'] or 0
+
+        # 2. Total Direct Expense (Iss mahine ka saara Purchase)
+        purchases = Purchase.objects.filter(
+            order_date__month=current_month, order_date__year=current_year
+        ).aggregate(Sum('purchase_price'))['purchase_price__sum'] or 0
+
+        # 3. Total Indirect Expense (Rent, light bill, etc.)
+        expenses = Expense.objects.filter(
+            date__month=current_month, date__year=current_year
+        ).aggregate(Sum('amount'))['amount__sum'] or 0
+
+        # Calculation
+        gross_profit = sales - purchases
+        net_profit = gross_profit - expenses
+
+        # Template ke liye data bhejna
+        context = dict(
+            self.admin_site.each_context(request),
+            title=f"Profit & Loss Report ({date.today().strftime('%B %Y')})",
+            sales=sales,
+            purchases=purchases,
+            expenses=expenses,
+            gross_profit=gross_profit,
+            net_profit=net_profit,
+        )
+        
+        # Yeh HTML design file ko load karega (jo hum step 3 mein banayenge)
+        return TemplateResponse(request, "admin/financial_report.html", context)
     
 
+class PurchaseOrderItemInline(admin.TabularInline):
+    model = PurchaseOrderItem
+    extra = 0  # Faltu ke khali rows na dikhaye
+    fields = ('product', 'order_qty')
+    
+# Main Purchase Order ka Admin panel
+@admin.register(PurchaseOrder)
+class PurchaseOrderAdmin(admin.ModelAdmin):
+    list_display = ('po_number', 'supplier', 'date_created', 'status')
+    list_filter = ('status', 'date_created', 'supplier')
+    search_fields = ('po_number', 'supplier__company')
+    readonly_fields = ('po_number', 'date_created')
+    inlines = [PurchaseOrderItemInline]  # Items ko PO ke andar dikhane ke liye
+    
+    # Status change karne ke liye ek shortcut action (Optional)
+    actions = ['mark_as_sent', 'mark_as_completed']
+
+    def mark_as_sent(self, request, queryset):
+        queryset.update(status='SENT')
+    mark_as_sent.short_description = "Mark selected POs as SENT"
+
+    def mark_as_completed(self, request, queryset):
+        queryset.update(status='COMPLETED')
+    mark_as_completed.short_description = "Mark selected POs as COMPLETED"
 
 
   

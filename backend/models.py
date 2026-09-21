@@ -136,6 +136,7 @@ class Product(models.Model):
     stock_qty = models.PositiveIntegerField(editable=False,default=0,verbose_name="Stock")
     unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True)
     reorder_level = models.PositiveIntegerField(default=5)
+    default_supplier = models.ForeignKey('Supplier', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Default Supplier for PO")
     location = models.CharField(max_length=100, blank=True, null=True, verbose_name="Location/Godown")
     rack = models.CharField(max_length=50, blank=True, null=True, verbose_name="Rack No.")
     row = models.CharField(max_length=50, blank=True, null=True, verbose_name="Row No.")
@@ -156,7 +157,7 @@ class Product(models.Model):
                 self.sku = new_sku_id
                 
             super().save(*args, **kwargs)
-    
+
 
     def __str__(self):
         loc_info = ""
@@ -215,7 +216,8 @@ class Productshow(Product):
             proxy=True
 
         def __str__(self):
-            return self.name       
+        # Agar name None hai, toh "Unnamed Product" dikhayega
+            return str(self.name) if self.name else "Unnamed Product"       
 
 
 # batch section
@@ -249,7 +251,7 @@ class Batch(models.Model):
 
 
     def __str__(self):
-            return self.batch_number 
+        return str(self.batch_number) if self.batch_number else "No Batch" 
 
     class Meta:
                 verbose_name = "07. Batch"
@@ -323,30 +325,31 @@ class Purchase(models.Model):
         is_new_batch = self.pk is None
 
         with transaction.atomic():
-            if self.pk:
+            if self.product:
+                if self.pk:
                 # 1. EDIT CASE: Agar Purchase id already hai, matlab edit ho raha hai
-                old_purchase = Purchase.objects.get(pk=self.pk)
+                    old_purchase = Purchase.objects.get(pk=self.pk)
                 
                 # Nayi quantity aur purani quantity ka difference nikalein
-                difference = self.qty - old_purchase.qty 
+                    difference = self.qty - old_purchase.qty 
                 
                 # Product ke stock mein difference add karein
-                self.product.stock_qty += difference
-            else:
+                    self.product.stock_qty += difference
+                else:
                 # 2. CREATE CASE: Nayi purchase ho rahi hai
-                self.product.stock_qty += self.qty
+                    self.product.stock_qty += self.qty
                 
             # Product ka stock database mein save karein
-            self.product.batch = self.batch
+                self.product.batch = self.batch
 
-            if self.rack: self.product.rack = self.rack
-            if self.row: self.product.row = self.row
-            if self.location: self.product.location = self.location
+                if self.rack: self.product.rack = self.rack
+                if self.row: self.product.row = self.row
+                if self.location: self.product.location = self.location
 
-            if self.composition:
-                self.product.composition = self.composition
+                if self.composition:
+                    self.product.composition = self.composition
 
-            self.product.save()
+                self.product.save()
 
 
         is_new_trans = self.pk is None   
@@ -453,7 +456,7 @@ class Sale(models.Model):
             )
 
     def __str__(self):
-        return self.name 
+        return str(self.name) if self.name else f"Sale #{self.id}"
 
     class Meta:
             verbose_name = "10. Sales"
@@ -685,6 +688,46 @@ class InvoiceItem(models.Model):
 
         super(InvoiceItem, self).save(*args, **kwargs)
 
+        # ==========================================
+        # === NEW AUTO PO GENERATION LOGIC ===
+        # ==========================================
+        if self.product and self.product.stock_qty <= self.product.reorder_level:
+            # 1. Pehle dekhein ki kya default supplier set hai
+            po_supplier = getattr(self.product, 'default_supplier', None)
+            
+            # 2. Agar default supplier nahi hai, toh pichli Purchase se automatically dhoondhein
+            if not po_supplier:
+                from .models import Purchase
+                # Is product ki sabse latest purchase nikalenge
+                last_purchase = Purchase.objects.filter(product__name=self.product.name).order_by('-id').first()
+                if last_purchase and last_purchase.supplier:
+                    po_supplier = last_purchase.supplier
+            
+            # 3. Agar supplier mil gaya (kisi bhi tarike se), toh PO banayein
+            if po_supplier:
+                from .models import PurchaseOrder, PurchaseOrderItem
+                
+                # Check karein ki is product ka pehle se PENDING PO toh nahi hai
+                pending_po_exists = PurchaseOrderItem.objects.filter(
+                    product=self.product,
+                    purchase_order__status='PENDING'
+                ).exists()
+                
+                if not pending_po_exists:
+                    po, created = PurchaseOrder.objects.get_or_create(
+                        supplier=po_supplier,
+                        status='PENDING',
+                        defaults={'po_number': generate_po_number()}
+                    )
+                    
+                    order_quantity = max(10, self.product.reorder_level * 2) 
+                    
+                    PurchaseOrderItem.objects.create(
+                        purchase_order=po,
+                        product=self.product,
+                        order_qty=order_quantity
+                    )
+
         if is_new_invoice:
             Sale.objects.create(
                 invoice_item=self,
@@ -868,4 +911,66 @@ class Transaction(models.Model):
             verbose_name_plural = "13. Transaction"
     
 
-                                  
+
+class Expense(models.Model):
+    EXPENSES_TYPES = (
+            ('RENT', 'Rent'),
+            ('SALARY', 'Salary'),
+            ('SALARY', 'Salary'),
+            ('ELECTRICITY', 'Electricity'),
+            ('WATER', 'Water'),
+            ('MAINTENANCE', 'Maintenance'),
+            ('OTHER', 'Other'),
+        )
+    date = models.DateField(auto_now_add=True)
+    name = models.CharField(max_length=255, help_text="e.g., Rent, Salary, Electricity", choices=EXPENSES_TYPES)
+    amount = models.IntegerField()
+
+    def __str__(self):
+        return f"{self.name} - ₹{self.amount}"
+
+    class Meta:
+        verbose_name = "14. Expense"
+        verbose_name_plural = "14. Expenses"
+
+
+class FinancialReport(models.Model):
+    class Meta:
+        managed = False  # Iska database mein koi table nahi banega
+        verbose_name = "15. Profit & Loss Report"
+        verbose_name_plural = "15. Profit & Loss Reports"  
+
+
+def generate_po_number():
+    length = 6
+    chars = string.ascii_uppercase + string.digits
+    random_str = ''.join(random.choice(chars) for _ in range(length))
+    return f"PO-{random_str}"
+
+class PurchaseOrder(models.Model):
+    STATUS_CHOICES = (
+        ('PENDING', 'Pending (Not Sent)'),
+        ('SENT', 'Sent to Supplier'),
+        ('COMPLETED', 'Received/Completed'),
+        ('CANCELLED', 'Cancelled'),
+    )
+    po_number = models.CharField(max_length=20, unique=True, default=generate_po_number, editable=False)
+    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE)
+    date_created = models.DateField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    
+    def __str__(self):
+        return f"{self.po_number} - {self.supplier.company}"
+
+    class Meta:
+        verbose_name = "16. Purchase Order"
+        verbose_name_plural = "16. Purchase Orders"
+
+
+class PurchaseOrderItem(models.Model):
+    purchase_order = models.ForeignKey(PurchaseOrder, related_name='items', on_delete=models.CASCADE)
+    product = models.ForeignKey('Product', on_delete=models.CASCADE)
+    order_qty = models.PositiveIntegerField(default=10, help_text="Default order quantity")
+    
+    def __str__(self):
+        return f"{self.product.name} (Qty: {self.order_qty})"                                       
