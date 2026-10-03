@@ -1,0 +1,55 @@
+{% extends "app/base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="head"><h1>{{ title }}</h1><a class="btn ghost" href="{% url 'list' key %}">← Back</a></div>
+<form method="post" class="card">{% csrf_token %}
+  {% if note %}<div class="msg success">{{ note }}</div>{% endif %}
+  {{ form.non_field_errors }}
+  {% for h in form.hidden_fields %}{{ h }}{% endfor %}
+  <div class="grid">
+    {% for f in form.visible_fields %}<div class="fld"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}
+      {% if f.help_text %}<small>{{ f.help_text }}</small>{% endif %}{{ f.errors }}</div>{% endfor %}
+  </div>
+
+  {% if fs %}
+  <div id="items-sec">
+  <h3>{{ inline_title }}</h3>
+  {{ fs.management_form }}{{ fs.non_form_errors }}
+  <div class="tw"><table class="t">
+    <thead><tr>{% for f in fs.empty_form.visible_fields %}<th>{{ f.label }}</th>{% endfor %}</tr></thead>
+    <tbody id="rows">
+      {% for r in fs %}<tr>{% for h in r.hidden_fields %}{{ h }}{% endfor %}{{ r.non_field_errors }}
+        {% for f in r.visible_fields %}<td>{{ f }}{{ f.errors }}</td>{% endfor %}</tr>{% endfor %}
+    </tbody>
+  </table></div>
+  <button type="button" class="btn ghost" id="add" style="margin-top:10px">+ Add row</button>
+  <template id="tpl"><tr>{% for h in fs.empty_form.hidden_fields %}{{ h }}{% endfor %}
+    {% for f in fs.empty_form.visible_fields %}<td>{{ f }}</td>{% endfor %}</tr></template>
+  </div>
+  {% endif %}
+
+  <div class="bar"><button class="btn">💾 Save</button><a class="btn ghost" href="{% url 'list' key %}">Cancel</a></div>
+</form>
+{% endblock %}
+
+{% block scripts %}{% if key == 'bills' %}
+<script>
+const mode = document.getElementById('id_invoice_mode'), orderBox = document.getElementById('id_order'),
+      itemsSec = document.getElementById('items-sec');
+function toggleMode() {
+  const online = mode.value === 'online';
+  orderBox.closest('.fld').style.display = online ? '' : 'none';
+  itemsSec.style.display = online ? 'none' : '';
+  if (!online) orderBox.value = '';
+}
+mode.onchange = toggleMode; toggleMode();
+</script>{% endif %}{% if fs %}
+<script>
+const total = document.getElementById('id_{{ fs.prefix }}-TOTAL_FORMS');
+document.getElementById('add').onclick = () => {
+  const n = +total.value;
+  document.getElementById('rows').insertAdjacentHTML('beforeend',
+    document.getElementById('tpl').innerHTML.replace(/__prefix__/g, n));
+  total.value = n + 1;
+};
+</script>{% endif %}{% endblock %}

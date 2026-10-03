@@ -1,0 +1,36 @@
+{% extends "app/base.html" %}
+{% block title %}{{ cfg.title }}{% endblock %}
+{% block content %}
+<div class="head"><h1>{{ cfg.title }}</h1>
+  {% if not cfg.readonly %}<a class="btn" href="{% url 'new' key %}">+ New {{ cfg.one }}</a>{% endif %}</div>
+<div class="card">
+  <form class="search" method="get">
+    <input name="q" value="{{ q }}" placeholder="Search...">
+    <select name="per" style="width:auto" onchange="this.form.submit()">
+      {% for n in per_opts %}<option value="{{ n }}" {% if n == per %}selected{% endif %}>{{ n }} / page</option>{% endfor %}
+    </select>
+    <button class="btn ghost">Search</button>
+  </form>
+  <div class="tw"><table class="t">
+    <thead><tr>{% for h in heads %}<th>{{ h }}</th>{% endfor %}{% if not cfg.readonly %}<th></th>{% endif %}</tr></thead>
+    <tbody>
+    {% for pk, cells, act in rows %}<tr>
+      {% for c in cells %}<td>{{ c }}</td>{% endfor %}
+      {% if not cfg.readonly %}<td style="white-space:nowrap">
+        {% if act %}<a class="btn sm" href="{{ act }}">{{ cfg.action_label }}</a>{% endif %}
+        <a class="btn ghost sm" href="{% url 'edit' key pk %}">Edit</a>
+        <form method="post" action="{% url 'delete' key pk %}" style="display:inline" onsubmit="return confirm('Pakka delete karna hai?')">{% csrf_token %}<button class="btn red sm">Delete</button></form>
+      </td>{% endif %}
+    </tr>{% empty %}<tr><td class="empty" colspan="9">Abhi kuch nahi mila.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+  <div class="pager">
+    <span>{{ page.start_index }}–{{ page.end_index }} of {{ total }}</span>
+    {% if page.paginator.num_pages > 1 %}
+      {% if page.has_previous %}<a class="btn ghost sm" href="?{{ base }}&page=1">«</a><a class="btn ghost sm" href="?{{ base }}&page={{ page.previous_page_number }}">‹ Prev</a>{% endif %}
+      <b>Page {{ page.number }} / {{ page.paginator.num_pages }}</b>
+      {% if page.has_next %}<a class="btn ghost sm" href="?{{ base }}&page={{ page.next_page_number }}">Next ›</a><a class="btn ghost sm" href="?{{ base }}&page={{ page.paginator.num_pages }}">»</a>{% endif %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

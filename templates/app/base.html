@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Vaultyfly{% endblock %}</title>
+<style>
+:root{--bg:#f1f7f6;--card:#fff;--ink:#14302d;--mute:#668079;--line:#dcebe8;--pri:#0f9d8a;--pri2:#0b7d6e;--soft:#e3f5f2;--red:#e11d48;--amber:#d97706;--green:#059669;--side:#0f2e2b;--sidetxt:#a8c9c3}
+@media(prefers-color-scheme:dark){:root{--bg:#09191a;--card:#112624;--ink:#e6f4f1;--mute:#8fb0aa;--line:#1d3a37;--soft:#17403b;--side:#06130f}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+a{color:inherit;text-decoration:none}
+.side{position:fixed;inset:0 auto 0 0;width:230px;background:var(--side);padding:18px 14px;overflow:auto;scrollbar-width:thin;z-index:20;transition:transform .2s;display:flex;flex-direction:column;gap:2px}
+.side h2{margin:0 6px 14px;font-size:19px;color:#fff}
+.side a{display:flex;gap:10px;padding:8px 12px;font-size:14px;border-radius:10px;color:var(--sidetxt);font-weight:500}
+.side a:hover{background:#ffffff14;color:#fff}
+.side a.on{background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;box-shadow:0 4px 14px #0f9d8a55}
+.side details summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:12px 12px 6px;color:#ffffff80;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.side details summary::-webkit-details-marker{display:none}
+.side details summary::after{content:"▾";transition:transform .2s}
+.side details:not([open]) summary::after{transform:rotate(-90deg)}
+.side details a{margin-left:6px}
+.side .me{margin-top:auto;position:sticky;bottom:-18px;background:var(--side);display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 6px 4px;border-top:1px solid #ffffff1f;color:var(--sidetxt);font-size:13px}
+.side .me .r{display:flex;align-items:center;gap:6px}.side .me a{padding:4px 8px}.side .me form{margin:0}
+.main{margin-left:230px;padding:22px;max-width:1200px}
+.top{display:none;align-items:center;gap:12px;margin-bottom:14px}
+.burger{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:6px 12px;font-size:18px}
+.head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+h1{margin:0;font-size:24px}h3{margin:20px 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 1px 3px #0f2e2b0d}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:18px}
+.stat small{color:var(--mute)}.stat b{display:block;font-size:26px;margin-top:2px;color:var(--pri)}a.stat:hover{border-color:var(--pri)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+.btn{display:inline-block;border:0;background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;padding:9px 16px;border-radius:10px;font:inherit;font-weight:600;cursor:pointer}
+.btn.ghost{background:var(--soft);color:var(--pri)}.btn.red{background:var(--red);color:#fff}.btn.sm{padding:5px 10px;font-size:13px}
+.tw{overflow-x:auto}
+
+table.t{width:100%;border-collapse:collapse}
+.t th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--mute);padding:10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.t td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+.t tr:hover td{background:var(--soft)}
+.badge{padding:2px 10px;border-radius:99px;font-size:12px;font-weight:600;white-space:nowrap}
+.badge.green{background:#05966922;color:var(--green)}.badge.red{background:#e11d4822;color:var(--red)}
+.badge.amber{background:#d9770622;color:var(--amber)}.badge.grey{background:var(--line);color:var(--mute)}.badge.blue{background:#2563eb22;color:#3b82f6}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--pri);outline-offset:0;border-color:var(--pri)}
+input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit}
+input[type=checkbox]{width:auto;transform:scale(1.2)}
+.t input,.t select{min-width:105px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.fld label{display:block;font-weight:600;font-size:13px;margin-bottom:4px}
+.fld small{color:var(--mute);display:block;margin-top:3px}
+.errorlist{list-style:none;margin:4px 0 0;padding:0;color:var(--red);font-size:13px}
+.bar{margin-top:20px;display:flex;gap:10px}
+.search{display:flex;gap:8px;margin-bottom:12px}.search input{max-width:340px}
+.msg{padding:11px 14px;border-radius:10px;margin-bottom:12px;font-weight:500}
+.msg.success{background:#05966922;color:var(--green)}.msg.error{background:#e11d4822;color:var(--red)}
+.pager{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);color:var(--mute);font-size:14px}
+.pager b{color:var(--ink)}
+.empty{text-align:center;color:var(--mute);padding:26px}
+@media(max-width:820px){.side{transform:translateX(-100%)}.side.open{transform:none;box-shadow:0 0 40px #0006}.main{margin-left:0;padding:14px}.top{display:flex}}
+</style>
+</head>
+<body>
+<aside class="side" id="side">
+  <h2>💊 Vaultyfly</h2>
+  {% regroup nav by group as groups %}
+  {% for g in groups %}
+    {% if g.grouper %}
+    <details{% for n in g.list %}{% if n.key == active %} open{% endif %}{% endfor %}>
+      <summary>{{ g.grouper }}</summary>
+      {% for n in g.list %}{% if not n.staff or user.is_staff %}<a href="{{ n.url }}" class="{% if n.key == active %}on{% endif %}"><span>{{ n.icon }}</span>{{ n.label }}</a>{% endif %}{% endfor %}
+    </details>
+    {% else %}
+      {% for n in g.list %}{% if not n.staff or user.is_staff %}<a href="{{ n.url }}" class="{% if n.key == active %}on{% endif %}"><span>{{ n.icon }}</span>{{ n.label }}</a>{% endif %}{% endfor %}
+    {% endif %}
+  {% endfor %}
+  <div class="me"><span>👤 {{ user.get_username }}</span>
+    <span class="r">{% if user.is_staff %}<a href="/admin/" title="Admin panel">⚙️</a>{% endif %}
+    <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn ghost sm">Logout</button></form></span>
+  </div>
+</aside>
+<main class="main">
+  <div class="top"><button class="burger" onclick="document.getElementById('side').classList.toggle('open')">☰</button><b>Vaultyfly</b></div>
+  {% for m in messages %}<div class="msg {{ m.tags }}">{{ m }}</div>{% endfor %}
+  {% block content %}{% endblock %}
+</main>
+{% block scripts %}{% endblock %}
+</body>
+</html>

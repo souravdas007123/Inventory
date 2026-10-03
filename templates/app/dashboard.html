@@ -1,0 +1,24 @@
+{% extends "app/base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="head"><h1>Dashboard</h1><a class="btn" href="/bills/new/">+ New Bill</a></div>
+<div class="stats">
+  <div class="card stat"><small>Sale</small><b>₹{{ today_sales|floatformat:2 }}</b></div>
+  <div class="card stat"><small>Monthly Sale</small><b>₹{{ month_sales|floatformat:2 }}</b></div>
+  <div class="card stat"><small>Supplier Due</small><b>₹{{ payable }}</b></div>
+  <a class="card stat" href="/products/"><small>Low Stock / Out of Stock</small><b>{{ low_count }} / {{ out_count }}</b></a>
+  <a class="card stat" href="/batches/"><small>Expiring (30 days) / Expired</small><b>{{ expiring_count }} / {{ expired_count }}</b></a>
+</div>
+<div class="two">
+  <div class="card"><h3 style="margin-top:0">⚠️ Low Stock</h3>
+    <div class="tw"><table class="t">
+      {% for n, s, b in low_rows %}<tr><td>{{ n }}</td><td>{{ s }}</td><td>{{ b }}</td></tr>
+      {% empty %}<tr><td class="empty">Sab kuch theek hai 👍</td></tr>{% endfor %}
+    </table></div></div>
+  <div class="card"><h3 style="margin-top:0">⏳ Expire Soon</h3>
+    <div class="tw"><table class="t">
+      {% for p, b, q, e in exp_rows %}<tr><td>{{ p }}</td><td>{{ b }}</td><td>{{ q }}</td><td>{{ e }}</td></tr>
+      {% empty %}<tr><td class="empty">Koi batch expire hone wala nahi 👍</td></tr>{% endfor %}
+    </table></div></div>
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login · Vaultyfly</title>
+<style>
+:root{--card:#fff;--ink:#14302d;--line:#dcebe8;--pri:#0f9d8a;--pri2:#0b7d6e;--red:#e11d48}
+@media(prefers-color-scheme:dark){:root{--card:#112624;--ink:#e6f4f1;--line:#1d3a37}}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;background:linear-gradient(135deg,#0f2e2b,#0f9d8a);color:var(--ink);font:15px system-ui,sans-serif}
+.box{width:100%;max-width:380px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:30px;box-shadow:0 20px 50px #0006}
+h1{margin:0 0 4px;font-size:24px}p{margin:0 0 18px;opacity:.65}
+label{display:block;font-weight:600;font-size:13px;margin:12px 0 4px}
+input{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit}
+button{width:100%;margin-top:20px;padding:12px;border:0;border-radius:10px;background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;font:inherit;font-weight:700;cursor:pointer}
+.err{background:#e11d4822;color:var(--red);padding:10px;border-radius:10px;margin-bottom:8px}
+</style></head>
+<body><form class="box" method="post">{% csrf_token %}
+<h1>💊 MedSync</h1><p>Apne account se login karein</p>
+{% if form.errors %}<div class="err">Username ya password galat hai.</div>{% endif %}
+<label>Username</label>{{ form.username }}
+<label>Password</label>{{ form.password }}
+<input type="hidden" name="next" value="{{ next }}">
+<button>Login</button></form></body></html>

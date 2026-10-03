@@ -1,0 +1,33 @@
+{% extends "app/base.html" %}
+{% block title %}Profit & Loss{% endblock %}
+{% block content %}
+<div class="head"><h1>📊 Profit &amp; Loss <small style="font-size:15px;color:var(--mute)">{{ month_name }} {{ year }}</small></h1>
+  <form method="get" class="search" style="margin:0">
+    <select name="month" style="width:auto">{% for n, name in months %}<option value="{{ n }}" {% if n == month %}selected{% endif %}>{{ name }}</option>{% endfor %}</select>
+    <select name="year" style="width:auto">{% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}</select>
+    <button class="btn">Show</button>
+  </form>
+</div>
+
+<div class="stats">
+  <div class="card stat"><small>Total Sales (GST ke bina)</small><b>₹{{ sales|floatformat:2 }}</b></div>
+  <div class="card stat"><small>Gross Profit</small><b>₹{{ gross|floatformat:2 }}</b></div>
+  <div class="card stat"><small>Expenses</small><b style="color:var(--red)">₹{{ expenses|floatformat:2 }}</b></div>
+  <div class="card stat"><small>Net Profit / Loss</small>
+    <b style="color:{% if net >= 0 %}var(--green){% else %}var(--red){% endif %}">₹{{ net|floatformat:2 }}</b></div>
+</div>
+
+<div class="card" style="max-width:640px">
+  <table class="t">
+    <tr><td>Total Income (Sales, GST ke bina)</td><td style="text-align:right;color:var(--green)"><b>₹{{ sales|floatformat:2 }}</b></td></tr>
+    <tr><td>Less: Cost of Goods Sold (bika hua maal)</td><td style="text-align:right;color:var(--red)">- ₹{{ cogs|floatformat:2 }}</td></tr>
+    <tr><td><b>Gross Profit</b></td><td style="text-align:right"><b>₹{{ gross|floatformat:2 }}</b></td></tr>
+    <tr><td>Less: Other Expenses (Rent, Salary, etc.)</td><td style="text-align:right;color:var(--red)">- ₹{{ expenses|floatformat:2 }}</td></tr>
+    <tr style="font-size:18px"><td><b>Net Profit / Loss</b></td>
+      <td style="text-align:right;color:{% if net >= 0 %}var(--green){% else %}var(--red){% endif %}"><b>₹{{ net|floatformat:2 }}</b></td></tr>
+  </table>
+  <p style="color:var(--mute);font-size:13px;margin:14px 0 0">
+    Info: is mahine ki total purchase (GST ke bina) ₹{{ purchases|floatformat:2 }} hai. Ye P&amp;L me nahi ginti, kyunki maal abhi stock me ho sakta hai.
+  </p>
+</div>
+{% endblock %}

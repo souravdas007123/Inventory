@@ -90,18 +90,53 @@ class TransactionAdmin(ReadOnlyLedgerMixin, admin.ModelAdmin):
 # PRODUCT
 # ======================================================
 
+# Excel me aksar short naam likhe hote hain. Ye unhe sahi Unit se jod deta hai.
+# Apne hisaab se yahan aur jod sakte ho:  'short naam (chhote akshar me)': 'Unit ka asli naam'
+UNIT_ALIASES = {
+    'pcs': 'Piece', 'pc': 'Piece', 'pieces': 'Piece', 'nos': 'Piece', 'no': 'Piece',
+    'tab': 'Tablet', 'tabs': 'Tablet', 'tablets': 'Tablet',
+    'cap': 'Capsule', 'caps': 'Capsule', 'capsules': 'Capsule',
+    'strips': 'Strip', 'stp': 'Strip',
+    'btl': 'Bottle', 'bottles': 'Bottle',
+    'boxes': 'Box', 'bx': 'Box',
+    'pkt': 'Pack', 'packs': 'Pack', 'packet': 'Pack',
+    'tubes': 'Tube', 'vials': 'Vial', 'sachets': 'Sachet',
+    'ml': 'ML', 'mls': 'ML',
+}
+
+
+class GetOrCreateFKWidget(ForeignKeyWidget):
+    """
+    Import me Category/Brand/Unit ka naam agar pehle se nahi hai to khud bana deta hai
+    (spelling/capital ka farak ignore karta hai), warna 'matching query does not exist' aata hai.
+    """
+
+    def clean(self, value, row=None, **kwargs):
+        if value is None:
+            return None
+        value = str(value).strip()
+        if not value:
+            return None
+        if self.model is Unit:
+            value = UNIT_ALIASES.get(value.lower(), value)
+        obj = self.model.objects.filter(**{f"{self.field}__iexact": value}).first()
+        if obj is None:
+            obj = self.model.objects.create(**{self.field: value})
+        return obj
+
+
 class ProductResource(resources.ModelResource):
     category = fields.Field(
         column_name='category', attribute='category',
-        widget=ForeignKeyWidget(Category, field='name'),
+        widget=GetOrCreateFKWidget(Category, field='name'),
     )
     brand = fields.Field(
         column_name='brand', attribute='brand',
-        widget=ForeignKeyWidget(Brand, field='name'),
+        widget=GetOrCreateFKWidget(Brand, field='name'),
     )
     unit = fields.Field(
         column_name='unit', attribute='unit',
-        widget=ForeignKeyWidget(Unit, field='name'),
+        widget=GetOrCreateFKWidget(Unit, field='name'),
     )
 
     class Meta:
