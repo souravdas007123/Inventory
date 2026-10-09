@@ -1,7 +1,7 @@
 import calendar
 from urllib.parse import urlencode
 from datetime import timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from django import forms
 from django.contrib import messages
@@ -20,7 +20,7 @@ from django.views.decorators.http import require_POST
 from .models import (
     Batch, Bill, Brand, Category, Expense, InvoiceItem, Order, Payment, Product,
     ProductUnit, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem, Sale,
-    Supplier, Transaction, Unit,
+    ShopProfile, Supplier, Transaction, Unit,
 )
 
 NAV = [
@@ -38,6 +38,7 @@ NAV = [
     {'key': 'expenses', 'url': '/expenses/', 'label': 'Expenses', 'icon': '💸', 'group': 'Accounts'},
     {'key': 'report', 'url': '/report/', 'label': 'Profit & Loss', 'icon': '📊', 'group': 'Accounts', 'staff': True},
     {'key': 'categories', 'url': '/categories/', 'label': 'Categories', 'icon': '🗂️', 'group': 'Master Data'},
+    {'key': 'shop', 'url': '/shop/', 'label': 'Shop Settings', 'icon': '🏪', 'group': 'Master Data', 'staff': True},
     {'key': 'brands', 'url': '/brands/', 'label': 'Brands', 'icon': '🏷️', 'group': 'Master Data'},
     {'key': 'units', 'url': '/units/', 'label': 'Units', 'icon': '📏', 'group': 'Master Data'},
 ]
@@ -63,6 +64,18 @@ def stock_badge(p):
     return badge('In stock', 'green')
 
 
+def pick_batch_txt(p):
+    b = p.get_next_batch()
+    return f"{b.batch_number} ({d(b.expire_date)})" if b else '-'
+
+
+def alt_txt(p):
+    if p.stock_qty > 0:
+        return '-'
+    alts = p.get_alternatives()
+    return ', '.join(f"{a.name} ({a.stock_qty})" for a in alts) if alts else 'No alternative'
+
+
 def expiry_badge(b):
     kind = {'Safe': 'green', 'Expiring Soon': 'amber', 'Expired': 'red'}.get(b.expiry_status, 'grey')
     return badge(b.expiry_status, kind)
@@ -73,10 +86,15 @@ PO_COLORS = {'PENDING': 'amber', 'SENT': 'blue', 'COMPLETED': 'green', 'CANCELLE
 CONFIG = {
     'products': dict(
         title='Products', one='Product', model=Product, order=['name'],
-        search=['name', 'composition', 'sku'],
+        related=['brand', 'category', 'unit'],
+        search=['name', 'composition', 'sku', 'hsn_code'],
         cols=[('Name', lambda o: o.name), ('Composition', lambda o: o.composition or '-'),
-              ('Stock', lambda o: o.stock_display()), ('GST', lambda o: f"{o.gst_rate}%"),
-              ('Status', stock_badge)],
+              ('Brand', lambda o: o.brand or '-'), ('Category', lambda o: o.category or '-'),
+              ('HSN', lambda o: o.hsn_code or '-'), ('SKU', lambda o: o.sku or '-'),
+              ('Rack / Row', lambda o: f"{o.rack or '-'} / {o.row or '-'}"),
+              ('Unit', lambda o: o.unit or '-'), ('GST', lambda o: f"{o.gst_rate}%"),
+              ('Stock', lambda o: o.stock_display()), ('Pick Batch (FEFO)', pick_batch_txt),
+              ('Status', stock_badge), ('Alternative', alt_txt)],
         fields=['name', 'composition', 'hsn_code', 'category', 'brand', 'gst_rate', 'unit',
                 'reorder_level', 'default_supplier', 'location', 'rack', 'row', 'is_active'],
         inline=dict(model=ProductUnit, fields=['unit', 'factor'],
@@ -86,7 +104,9 @@ CONFIG = {
         title='Suppliers', one='Supplier', model=Supplier, order=['company'],
         search=['company', 'gstin', 'phone'],
         cols=[('Company', lambda o: o.company), ('Phone', lambda o: o.phone or '-'),
-              ('GSTIN', lambda o: o.gstin or '-'), ('Balance (due)', lambda o: rs(o.opening_balance)),
+              ('Address', lambda o: o.address or '-'), ('GSTIN', lambda o: o.gstin or '-'),
+              ('State', lambda o: o.state or '-'), ('PAN', lambda o: o.pan or '-'),
+              ('Balance (due)', lambda o: rs(o.opening_balance)), ('Created', lambda o: d(o.created_at)),
               ('Active', lambda o: badge('Active', 'green') if o.is_active else badge('Inactive', 'grey'))],
         fields=['company', 'person', 'phone', 'email', 'address', 'city', 'gstin', 'is_active'],
     ),
@@ -95,6 +115,7 @@ CONFIG = {
         related=['supplier'], search=['invoice_number', 'supplier__company', 'items__product__name'],
         cols=[('Invoice No.', lambda o: o.invoice_number), ('Date', lambda o: d(o.invoice_date)),
               ('Supplier', lambda o: o.supplier.company), ('Items', lambda o: o.total_items),
+              ('Taxable', lambda o: rs(o.taxable)), ('GST', lambda o: rs(o.gst_total)),
               ('Total', lambda o: rs(o.total))],
         fields=['supplier', 'invoice_number', 'invoice_date'],
         inline=dict(model=PurchaseItem, title='Invoice items',
@@ -103,11 +124,16 @@ CONFIG = {
     ),
     'bills': dict(
         title='Billing', one='Bill', model=Bill, order=['-id'],
-        search=['customer_name'],
+        related=['order'], search=['customer_name', 'invoice_number'],
         initial=lambda: {'date': timezone.localdate()},
-        cols=[('Bill #', lambda o: f"#{o.id}"), ('Customer', lambda o: o.customer_name),
+        cols=[('Invoice No.', lambda o: o.display_number), ('Customer', lambda o: o.customer_name),
+              ('Mode', lambda o: badge(o.invoice_mode.title(), 'green' if o.invoice_mode == 'online' else 'grey')),
+              ('Order', lambda o: o.order.order_id if o.order_id else '-'),
               ('Date', lambda o: d(o.date)), ('Items', lambda o: o.total_items),
-              ('Total', lambda o: rs(o.total))],
+              ('Taxable', lambda o: rs(o.taxable)), ('CGST', lambda o: rs(o.cgst)),
+              ('SGST', lambda o: rs(o.sgst)), ('IGST', lambda o: rs(o.igst)),
+              ('Total', lambda o: rs(o.total)),
+              ('Status', lambda o: badge('Final', 'green') if o.status == 'FINAL' else badge('Cancelled', 'red'))],
         fields=['customer_name', 'date', 'invoice_mode', 'order'],
         inline=dict(model=InvoiceItem, title='Bill items',
                     fields=['product', 'qty', 'unit', 'rate', 'discount_percent', 'discount_amount', 'is_igst']),
@@ -179,10 +205,15 @@ CONFIG = {
     ),
     'batches': dict(
         title='Batch & Expiry', one='Batch', model=Batch, order=['expire_date', 'id'], readonly=True,
-        related=['product'], search=['product__name', 'batch_number'],
+        related=['product', 'supplier', 'unit'], search=['product__name', 'batch_number', 'supplier__company'],
         cols=[('Product', lambda o: o.product.name if o.product else '-'),
+              ('Supplier', lambda o: o.supplier.company if o.supplier else '-'),
               ('Batch', lambda o: o.batch_number), ('Qty (base)', lambda o: o.qty),
-              ('Expiry', lambda o: d(o.expire_date)), ('Status', expiry_badge)],
+              ('Unit', lambda o: o.unit or '-'),
+              ('Rack / Row', lambda o: f"{o.rack or '-'} / {o.row or '-'}"),
+              ('Location', lambda o: o.location or '-'),
+              ('MFG', lambda o: d(o.manufacture_date)), ('Expiry', lambda o: d(o.expire_date)),
+              ('Status', expiry_badge)],
     ),
 }
 
@@ -297,7 +328,7 @@ def listing(request, key):
         per = 10
     pg = Paginator(qs.order_by(*cfg['order']), per).get_page(request.GET.get('page'))
     act = cfg.get('action')
-    rows = [(o.pk, [fn(o) for _, fn in cfg['cols']], act(o) if act else None) for o in pg]
+    rows = [dict(pk=o.pk, obj=o, cells=[fn(o) for _, fn in cfg['cols']], act=act(o) if act else None) for o in pg]
     return page(request, 'app/list.html', key=key, active=key, cfg=cfg, heads=[h for h, _ in cfg['cols']],
                 rows=rows, page=pg, q=q, per=per, per_opts=PER_OPTS, total=pg.paginator.count,
                 base=urlencode({'q': q, 'per': per}))
@@ -309,6 +340,9 @@ def edit(request, key, pk=None):
     if cfg.get('readonly'):
         raise Http404
     obj = get_object_or_404(cfg['model'], pk=pk) if pk else None
+    if key == 'bills' and obj:  # Final bill edit nahi hota (GST record). Galti ho to Cancel karke naya banao.
+        messages.warning(request, 'Bill final ho chuka hai, edit nahi ho sakta. Galti ho to Cancel karke naya bill banayein.')
+        return redirect('invoice', pk=obj.pk)
     Form = modelform_factory(cfg['model'], fields=cfg['fields'], formfield_callback=date_cb)
     inl = cfg.get('inline')
 
@@ -356,6 +390,8 @@ def edit(request, key, pk=None):
                     po.status = 'COMPLETED'
                     po.save(update_fields=['status'])
             messages.success(request, f"{cfg['one']} save ho gaya ✅")
+            if key == 'bills' and not obj:  # naya bill -> seedha invoice
+                return redirect('invoice', pk=form.instance.pk)
             return redirect('list', key=key)
         except ValidationError as e:
             messages.error(request, ' '.join(e.messages))
@@ -366,7 +402,7 @@ def edit(request, key, pk=None):
             form.instance._state.adding = True
 
     title = f"Edit {cfg['one']}" if obj else f"New {cfg['one']}"
-    return page(request, 'app/form.html', key=key, active=key, title=title, form=form, fs=fs,
+    return page(request, 'app/form.html', key=key, active=key, title=title, form=form, fs=fs, back_url=f'/{key}/',
                 inline_title=inl['title'] if inl else '',
                 note=f"{po.po_number} ({po.supplier.company}) se bhara gaya hai. Invoice number, price, MFG/EXP date bharo. Save karte hi PO Completed ho jayega." if po else '')
 
@@ -378,6 +414,9 @@ def delete(request, key, pk):
     if cfg.get('readonly'):
         raise Http404
     obj = get_object_or_404(cfg['model'], pk=pk)
+    if key == 'bills':
+        messages.error(request, 'Bill delete nahi hota (invoice number ka record rehna chahiye). Cancel use karein.')
+        return redirect('list', key=key)
     if key == 'units' and (Product.objects.filter(unit=obj).exists()
                            or ProductUnit.objects.filter(unit=obj).exists()):
         messages.error(request, 'Ye unit kisi product me use ho raha hai, isliye delete nahi ho sakta.')
@@ -390,3 +429,101 @@ def delete(request, key, pk):
     except ValidationError as e:
         messages.error(request, ' '.join(e.messages))
     return redirect('list', key=key)
+
+
+# ---------------- Invoice / Shop ----------------
+
+ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve',
+        'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
+TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+
+
+def _two(n):
+    return ONES[n] if n < 20 else TENS[n // 10] + (' ' + ONES[n % 10] if n % 10 else '')
+
+
+def _three(n):
+    h, r = divmod(n, 100)
+    return (ONES[h] + ' Hundred' + (' ' if r else '') if h else '') + (_two(r) if r else '')
+
+
+def rupees_in_words(n):
+    """Indian system (Lakh/Crore) me amount in words."""
+    if n == 0:
+        return 'Zero'
+    parts = []
+    crore, n = divmod(n, 10 ** 7)
+    if crore:
+        parts.append(rupees_in_words(crore) + ' Crore')
+    lakh, n = divmod(n, 10 ** 5)
+    if lakh:
+        parts.append(_two(lakh) + ' Lakh')
+    thousand, n = divmod(n, 1000)
+    if thousand:
+        parts.append(_two(thousand) + ' Thousand')
+    if n:
+        parts.append(_three(n))
+    return ' '.join(parts)
+
+
+@login_required
+def invoice(request, pk):
+    bill = get_object_or_404(Bill, pk=pk)
+    items = list(bill.items.select_related('product', 'unit'))
+    batch_map = Batch.objects.in_bulk({int(k) for it in items for k in (it.batch_history or {})})
+
+    rows, zero = [], Decimal('0')
+    for n, it in enumerate(items, 1):
+        batches = []
+        for k in (it.batch_history or {}):
+            b = batch_map.get(int(k))
+            if b:
+                batches.append(f"{b.batch_number} / {b.expire_date.strftime('%m-%y') if b.expire_date else '-'}")
+        gross = (it.rate or zero) * (it.qty or 0)
+        rows.append(dict(
+            n=n, name=it.product.name if it.product else '-',
+            comp=(it.product.composition or '') if it.product else '',
+            hsn=(it.product.hsn_code or '') if it.product else '',
+            batch=', '.join(batches), qty=f"{it.qty} {it.unit or ''}".strip(),
+            rate=it.rate or zero, disc=(gross - it.taxable_value).quantize(Decimal('0.01')),
+            taxable=it.taxable_value, gst_rate=it.gst_rate, total=it.total or zero,
+        ))
+
+    def s(field):
+        return sum((getattr(i, field) or zero for i in items), zero)
+
+    total = s('total')
+    grand = total.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+    return render(request, 'app/invoice.html', dict(
+        bill=bill, shop=ShopProfile.get(), rows=rows,
+        taxable=s('taxable_value'), cgst=s('cgst'), sgst=s('sgst'), igst=s('igst'),
+        total=total, round_off=grand - total, grand=grand,
+        words=rupees_in_words(int(grand)),
+        fmt='thermal' if request.GET.get('fmt') == 'thermal' else 'a4',
+    ))
+
+
+@login_required
+@require_POST
+def bill_cancel(request, pk):
+    if not request.user.is_staff:
+        raise PermissionDenied
+    bill = get_object_or_404(Bill, pk=pk)
+    bill.cancel()
+    messages.success(request, f"{bill.display_number} cancel ho gaya. Stock wapas add ho gaya.")
+    return redirect('list', key='bills')
+
+
+@login_required
+def shop(request):
+    if not request.user.is_staff:
+        raise PermissionDenied
+    Form = modelform_factory(ShopProfile, fields=['name', 'address', 'phone', 'email', 'gstin',
+                                                  'drug_license', 'terms'])
+    form = Form(request.POST or None, instance=ShopProfile.get())
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'Shop details save ho gayi ✅')
+        return redirect('shop')
+    return page(request, 'app/form.html', key='shop', active='shop', title='Shop Settings',
+                form=form, fs=None, back_url='/')

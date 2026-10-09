@@ -12,7 +12,7 @@ from import_export.admin import ImportExportModelAdmin
 from import_export.widgets import ForeignKeyWidget
 
 from .models import (
-    Batch, Bill, Brand, Category, Expense, FinancialReport, InvoiceItem, Order,
+    Batch, Bill, Brand, Category, Expense, ShopProfile, FinancialReport, InvoiceItem, Order,
     Payment, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem, Sale,
     Supplier, Transaction, Unit,
 )
@@ -295,7 +295,8 @@ class InvoiceItemInline(admin.TabularInline):
 
 @admin.register(Bill)
 class BillAdmin(SafeDeleteMixin, admin.ModelAdmin):
-    list_display = ('id', 'customer_name', 'invoice_mode', 'order', 'date', 'total_items', 'taxable', 'cgst', 'sgst', 'igst', 'total')
+    list_display = ('id', 'invoice_number', 'status', 'customer_name', 'invoice_mode', 'order', 'date', 'total_items', 'taxable', 'cgst', 'sgst', 'igst', 'total')
+    search_fields = ['invoice_number', 'customer_name']
     inlines = [InvoiceItemInline]
     list_per_page = 10
 
@@ -435,3 +436,11 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
     def mark_as_completed(self, request, queryset):
         count = queryset.update(status='COMPLETED')
         self.message_user(request, f"{count} PO(s) COMPLETED mark ho gaye.", messages.SUCCESS)
+
+
+@admin.register(ShopProfile)
+class ShopProfileAdmin(admin.ModelAdmin):
+    list_display = ('name', 'gstin', 'drug_license', 'phone')
+
+    def has_add_permission(self, request):
+        return not ShopProfile.objects.exists()

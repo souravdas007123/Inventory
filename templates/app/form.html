@@ -1,7 +1,7 @@
 {% extends "app/base.html" %}
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
-<div class="head"><h1>{{ title }}</h1><a class="btn ghost" href="{% url 'list' key %}">← Back</a></div>
+<div class="head"><h1>{{ title }}</h1><a class="btn ghost" href="{{ back_url }}">← Back</a></div>
 <form method="post" class="card">{% csrf_token %}
   {% if note %}<div class="msg success">{{ note }}</div>{% endif %}
   {{ form.non_field_errors }}
@@ -28,7 +28,7 @@
   </div>
   {% endif %}
 
-  <div class="bar"><button class="btn">💾 Save</button><a class="btn ghost" href="{% url 'list' key %}">Cancel</a></div>
+  <div class="bar"><button class="btn">💾 Save</button><a class="btn ghost" href="{{ back_url }}">Cancel</a></div>
 </form>
 {% endblock %}
 

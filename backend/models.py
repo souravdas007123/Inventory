@@ -154,8 +154,8 @@ class Supplier(models.Model):
 
 class Product(models.Model):
     GST_CHOICES = (
-        (5.00, '5%'),
-        (18.00, '18%'),
+        (Decimal('5.00'), '5%'),
+        (Decimal('18.00'), '18%'),
     )
     name = models.CharField(max_length=255, blank=True, null=True)
     composition = models.CharField(max_length=255, blank=True, null=True, help_text="Example: Paracetamol 500mg")
@@ -164,7 +164,7 @@ class Product(models.Model):
     batch = models.CharField(max_length=50, editable=False, blank=True, null=True)
     brand = models.ForeignKey(Brand, on_delete=models.SET_NULL, null=True, blank=True)
     sku = models.CharField(max_length=50, unique=True, editable=False, blank=True, null=True)
-    gst_rate = models.DecimalField(max_digits=4, decimal_places=2, default=18.00, choices=GST_CHOICES, verbose_name="GST (%)")
+    gst_rate = models.DecimalField(max_digits=4, decimal_places=2, default=Decimal('18.00'), choices=GST_CHOICES, verbose_name="GST (%)")
     stock_qty = models.PositiveIntegerField(editable=False, default=0, verbose_name="Stock")
     unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Base Unit",
                              help_text="Sabse chhoti unit (e.g. Tablet). Stock hamesha isi me store hota hai.")
@@ -578,6 +578,75 @@ class Order(models.Model):
 
 
 # ======================================================
+# SHOP PROFILE + INVOICE NUMBERING
+# ======================================================
+
+class ShopProfile(models.Model):
+    """Dukaan ki details (invoice par chhapti hain). Sirf ek record rehta hai."""
+    name = models.CharField(max_length=255, default="My Pharmacy", verbose_name="Shop Name")
+    address = models.TextField(blank=True)
+    phone = models.CharField(max_length=30, blank=True)
+    email = models.EmailField(blank=True)
+    gstin = models.CharField(max_length=15, blank=True, verbose_name="GSTIN")
+    drug_license = models.CharField(max_length=255, blank=True, verbose_name="Drug Licence No.",
+                                    help_text="Jaise: DL No. 20/21/12345, 21/21/12345")
+    terms = models.TextField(
+        blank=True,
+        default="Goods once sold will not be taken back or exchanged.\nPlease check batch and expiry at the time of purchase.",
+        verbose_name="Terms & Conditions",
+    )
+
+    @classmethod
+    def get(cls):
+        return cls.objects.first() or cls.objects.create()
+
+    @property
+    def state(self):
+        return GST_STATE_CODES.get(self.gstin[:2], "") if self.gstin else ""
+
+    def save(self, *args, **kwargs):
+        self.gstin = (self.gstin or "").strip().upper()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = "Shop Profile"
+        verbose_name_plural = "Shop Profile"
+
+
+class InvoiceCounter(models.Model):
+    """Har financial year (Apr-Mar) ka alag, bina gap wala invoice counter."""
+    fiscal_year = models.CharField(max_length=7, unique=True)
+    last_number = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.fiscal_year}: {self.last_number}"
+
+
+def fiscal_year(d=None):
+    d = d or timezone.localdate()
+    start = d.year if d.month >= 4 else d.year - 1
+    return f"{start}-{str(start + 1)[-2:]}"
+
+
+def next_invoice_number():
+    """
+    INV/2026-27/0001 jaisa agla number. Bill ke saath hi ek transaction me chalta hai,
+    isliye bill fail/rollback ho to number kharch nahi hota (koi gap nahi).
+    UPDATE ... SET n = n + 1 database level par lock leta hai, to do log ek saath bill
+    banayein tab bhi duplicate number nahi banta.
+    """
+    fy = fiscal_year()
+    with transaction.atomic():
+        counter, _ = InvoiceCounter.objects.get_or_create(fiscal_year=fy)
+        InvoiceCounter.objects.filter(pk=counter.pk).update(last_number=F('last_number') + 1)
+        counter.refresh_from_db()
+    return f"INV/{fy}/{counter.last_number:04d}"
+
+
+# ======================================================
 # BILL
 # ======================================================
 
@@ -586,6 +655,13 @@ class Bill(models.Model):
         ('online', 'Online'),
         ('offline', 'Offline'),
     )
+    STATUS_CHOICES = (
+        ('FINAL', 'Final'),
+        ('CANCELLED', 'Cancelled'),
+    )
+    invoice_number = models.CharField(max_length=30, unique=True, null=True, blank=True, editable=False)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='FINAL', editable=False)
+    cancelled_at = models.DateTimeField(null=True, blank=True, editable=False)
     customer_name = models.CharField(max_length=255, default="Cash")
     date = models.DateField(blank=True, null=True)
     invoice_mode = models.CharField(max_length=10, choices=MODE_CHOICES, default='offline')
@@ -608,6 +684,12 @@ class Bill(models.Model):
                     self.customer_name = self.order.customers_name
                 if not self.date and self.order.order_date:
                     self.date = self.order.order_date
+            if not self.date:
+                self.date = timezone.localdate()
+
+            # Naya bill: gap-free invoice number
+            if self.pk is None and not self.invoice_number:
+                self.invoice_number = next_invoice_number()
 
             super().save(*args, **kwargs)
 
@@ -627,8 +709,29 @@ class Bill(models.Model):
                 item.delete()  # stock + batch wapas
             super().delete(*args, **kwargs)
 
+    def cancel(self):
+        """Bill cancel: stock/batch wapas, Sales se hatao. Bill aur items record ke liye bache rehte hain."""
+        if self.status == 'CANCELLED':
+            return
+        with transaction.atomic():
+            for item in self.items.all():
+                if item.product_id and item.base_qty:
+                    product = Product.objects.select_for_update().get(pk=item.product_id)
+                    product.stock_qty += item.base_qty
+                    product.save(update_fields=['stock_qty'])
+                    item._restore_to_exact_batches()
+                    InvoiceItem.objects.filter(pk=item.pk).update(batch_history={})
+                Sale.objects.filter(invoice_item=item).delete()  # Transaction bhi cascade se hat jata hai
+            self.status = 'CANCELLED'
+            self.cancelled_at = timezone.now()
+            super().save(update_fields=['status', 'cancelled_at'])
+
+    @property
+    def display_number(self):
+        return self.invoice_number or f"BILL-{self.id}"
+
     def __str__(self):
-        return f"Bill #{self.id} - {self.customer_name}"
+        return f"{self.display_number} - {self.customer_name}"
 
     def _sum(self, field):
         total = self.items.aggregate(s=Sum(field))['s']

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ bill.display_number }}</title>
+<style>
+@page { {% if fmt == 'thermal' %}size: 80mm auto; margin: 3mm{% else %}size: A4; margin: 12mm{% endif %} }
+*{box-sizing:border-box}
+body{margin:0;background:#eef1f5;color:#111;font:{% if fmt == 'thermal' %}11px/1.35{% else %}13px/1.45{% endif %} system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.bar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding:12px}
+.bar a,.bar button{border:0;background:#0f9d8a;color:#fff;padding:9px 16px;border-radius:9px;font:600 14px system-ui;cursor:pointer;text-decoration:none}
+.bar a.g{background:#fff;color:#0f9d8a;border:1px solid #0f9d8a}
+.sheet{position:relative;background:#fff;margin:0 auto 24px;padding:{% if fmt == 'thermal' %}8px{% else %}22px{% endif %};width:{% if fmt == 'thermal' %}80mm{% else %}210mm{% endif %};max-width:100%;box-shadow:0 2px 14px #0002}
+.top{display:flex;justify-content:space-between;gap:12px;border-bottom:2px solid #111;padding-bottom:10px}
+.shop h1{margin:0;font-size:{% if fmt == 'thermal' %}15px{% else %}22px{% endif %}}
+.shop p{margin:2px 0;color:#333}
+.meta{text-align:right}.meta h2{margin:0 0 4px;font-size:{% if fmt == 'thermal' %}13px{% else %}17px{% endif %};letter-spacing:.05em}
+.cust{margin:10px 0;padding:8px 10px;border:1px solid #bbb;border-radius:6px}
+table{width:100%;border-collapse:collapse}
+.items th{background:#f1f3f5;text-align:left;font-size:.9em;padding:6px;border:1px solid #bbb}
+.items td{padding:5px 6px;border:1px solid #ddd;vertical-align:top}
+.r{text-align:right}.c{text-align:center}small{color:#555}
+.tot{margin:10px 0 0 auto;width:{% if fmt == 'thermal' %}100%{% else %}55%{% endif %}}
+.tot td{padding:3px 6px}.tot .g td{font-size:1.25em;font-weight:700;border-top:2px solid #111;padding-top:6px}
+.words{margin:10px 0;padding:8px;background:#f6f7f9;border-radius:6px}
+.foot{display:flex;justify-content:space-between;gap:12px;margin-top:14px;align-items:flex-end}
+.terms{white-space:pre-line;font-size:.9em;color:#444;max-width:62%}
+.sign{text-align:center;min-width:150px;padding-top:34px;border-top:1px solid #111}
+.mark{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;font-size:90px;font-weight:800;color:#dc262626;transform:rotate(-25deg)}
+{% if fmt == 'thermal' %}.nt{display:none}{% endif %}
+@media print{body{background:#fff}.bar{display:none}.sheet{margin:0;box-shadow:none;width:100%;padding:0}}
+</style>
+</head>
+<body>
+<div class="bar">
+  <button onclick="window.print()">🖨️ Print</button>
+  {% if fmt == 'thermal' %}<a class="g" href="?fmt=a4">A4 format</a>{% else %}<a class="g" href="?fmt=thermal">Thermal (80mm)</a>{% endif %}
+  <a class="g" href="/bills/">← Billing</a>
+</div>
+
+<div class="sheet">
+  {% if bill.status == 'CANCELLED' %}<div class="mark">CANCELLED</div>{% endif %}
+  <div class="top">
+    <div class="shop">
+      <h1>{{ shop.name }}</h1>
+      {% if shop.address %}<p>{{ shop.address|linebreaksbr }}</p>{% endif %}
+      {% if shop.phone %}<p>Ph: {{ shop.phone }}{% if shop.email %} · {{ shop.email }}{% endif %}</p>{% endif %}
+      {% if shop.gstin %}<p><b>GSTIN:</b> {{ shop.gstin }}</p>{% endif %}
+      {% if shop.drug_license %}<p><b>Drug Licence:</b> {{ shop.drug_license }}</p>{% endif %}
+    </div>
+    <div class="meta">
+      <h2>TAX INVOICE</h2>
+      <p><b>{{ bill.display_number }}</b></p>
+      <p>Date: {{ bill.date|date:"d M Y" }}</p>
+    </div>
+  </div>
+
+  <div class="cust"><b>Bill To:</b> {{ bill.customer_name }}</div>
+
+  <table class="items">
+    <thead><tr>
+      <th class="c">#</th><th>Item</th><th class="nt">HSN</th><th class="nt">Batch / Exp</th>
+      <th class="r">Qty</th><th class="r">Rate</th><th class="r nt">Disc</th>
+      <th class="r nt">Taxable</th><th class="r nt">GST%</th><th class="r">Amount</th>
+    </tr></thead>
+    <tbody>
+    {% for r in rows %}<tr>
+      <td class="c">{{ r.n }}</td>
+      <td>{{ r.name }}{% if r.comp %}<br><small>{{ r.comp }}</small>{% endif %}</td>
+      <td class="nt">{{ r.hsn }}</td><td class="nt">{{ r.batch|default:"-" }}</td>
+      <td class="r">{{ r.qty }}</td><td class="r">{{ r.rate|floatformat:2 }}</td>
+      <td class="r nt">{{ r.disc|floatformat:2 }}</td><td class="r nt">{{ r.taxable|floatformat:2 }}</td>
+      <td class="r nt">{{ r.gst_rate }}%</td><td class="r">{{ r.total|floatformat:2 }}</td>
+    </tr>{% endfor %}
+    </tbody>
+  </table>
+
+  <table class="tot">
+    <tr><td>Taxable Value</td><td class="r">₹{{ taxable|floatformat:2 }}</td></tr>
+    {% if igst and igst != 0 %}<tr><td>IGST</td><td class="r">₹{{ igst|floatformat:2 }}</td></tr>
+    {% else %}<tr><td>CGST</td><td class="r">₹{{ cgst|floatformat:2 }}</td></tr>
+    <tr><td>SGST</td><td class="r">₹{{ sgst|floatformat:2 }}</td></tr>{% endif %}
+    <tr><td>Round off</td><td class="r">{{ round_off|floatformat:2 }}</td></tr>
+    <tr class="g"><td>Grand Total</td><td class="r">₹{{ grand }}</td></tr>
+  </table>
+
+  <div class="words"><b>Amount in words:</b> Rupees {{ words }} Only</div>
+
+  <div class="foot">
+    <div class="terms">{% if shop.terms %}<b>Terms &amp; Conditions</b><br>{{ shop.terms }}{% endif %}</div>
+    <div class="sign">For {{ shop.name }}<br><small>Authorised Signatory</small></div>
+  </div>
+</div>
+</body>
+</html>
