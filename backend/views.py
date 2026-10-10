@@ -26,7 +26,8 @@ from .models import (
 from .imports import export_value, table_download
 from .reports import dashboard_charts, dashboard_overview, profit_and_loss
 
-IMPORT_KINDS = {'products': 'products', 'customers': 'customers', 'suppliers': 'suppliers', 'purchases': 'stock'}
+IMPORT_KINDS = {'products': 'products', 'customers': 'customers', 'suppliers': 'suppliers', 'purchases': 'stock',
+                'categories': 'categories', 'brands': 'brands', 'units': 'units'}
 
 NAV = [
     {'key': 'dashboard', 'url': '/', 'label': 'Dashboard', 'icon': '🏠', 'group': ''},

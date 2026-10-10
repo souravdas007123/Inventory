@@ -587,6 +587,52 @@ def commit_stock(results, opts):
 
 
 # ======================================================
+# CATEGORIES / BRANDS / UNITS  (sirf naam)
+# ======================================================
+
+def _simple_importer(model, samples, alias_units=False):
+    existing_label = {'Unit': 'unit', 'Brand': 'brand', 'Category': 'category'}[model.__name__]
+
+    def validate(rows, opts):
+        have = {(o.name or '').strip().lower() for o in model.objects.all()}
+        results, seen = [], {}
+        for n, raw in rows:
+            errors, warnings = [], []
+            name = _unit_name(raw.get('name')) if alias_units else txt(raw.get('name'))
+            if not name:
+                errors.append('name zaroori hai')
+            elif len(name) > 255:
+                errors.append('naam 255 characters se chhota rakhein')
+            elif name.lower() in seen:
+                errors.append(f"ye naam row {seen[name.lower()]} me bhi hai (file me duplicate)")
+            if name:
+                seen.setdefault(name.lower(), n)
+            if errors:
+                action = 'error'
+            elif name.lower() in have:
+                action = 'skip'
+                warnings.append(f'ye {existing_label} pehle se hai, chhod diya')
+            else:
+                action = 'create'
+            results.append(_result(n, action, dict(name=name), errors, warnings, label=name))
+        return results
+
+    def apply(d):
+        if not model.objects.filter(name__iexact=d['name']).exists():
+            model.objects.create(name=d['name'])
+
+    def commit(results, opts):
+        return _commit_each(results, apply)
+
+    def export():
+        return ['name'], [[o.name] for o in model.objects.order_by('name')]
+
+    return dict(cols=[_col('name', True, f'{existing_label.capitalize()} ka naam', *samples)],
+                aliases={existing_label: 'name', f'{existing_label}_name': 'name'},
+                validate=validate, commit=commit, export=export, has_update=False, max_rows=3000)
+
+
+# ======================================================
 # Common commit + registry
 # ======================================================
 
@@ -629,6 +675,16 @@ IMPORTERS = {
              'Opening stock ke liye bhi yahi use karein.',
         after='Purchases page par bane hue bills dikhenge. Galti ho to wahan se Purchase Return karein.'),
 }
+IMPORTERS['categories'] = dict(
+    title='Categories', icon='🗂️', desc='Dawa ki categories (Tablet, Syrup, Injection...). Products import me category likhne par apne aap ban bhi jati hai.',
+    after='', **_simple_importer(Category, ('Tablet', 'Syrup')))
+IMPORTERS['brands'] = dict(
+    title='Brands', icon='🏷️', desc='Brand / company ke naam (Cipla, Sun Pharma...). Products import me brand likhne par apne aap ban bhi jata hai.',
+    after='', **_simple_importer(Brand, ('Cipla', 'Sun Pharma')))
+IMPORTERS['units'] = dict(
+    title='Units', icon='📏', desc='Units (Tablet, Strip, Box, Bottle...). Chhote naam (tab, strips, btl) apne aap sahi naam me badal jate hain.',
+    after='Strip/Box jaise bade pack ka conversion Products import ke pack1/pack2 columns se set hota hai.',
+    **_simple_importer(Unit, ('Tablet', 'Strip'), alias_units=True))
 IMPORTERS['stock']['desc_extra'] = 'Ek invoice me ek bhi row galat ho to poora invoice skip hota hai.'
 
 

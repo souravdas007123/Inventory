@@ -55,7 +55,7 @@ After pulling: `python manage.py migrate` (migrations 0003, 0004).
 
 Menu: **Master Data → Import / Export** (`/import/`).
 
-- Import: **Products, Customers, Suppliers, Stock Entry (purchases / opening stock)** — Excel (.xlsx) ya CSV.
+- Import: **Products, Customers, Suppliers, Stock Entry (purchases / opening stock), Categories, Brands, Units** — Excel (.xlsx) ya CSV.
   Template download → bharein → upload → **preview** (kuch save nahi hota) → confirm.
 - Galat rows skip hoti hain aur wajah dikhti hai. Stock Entry me ek invoice ki koi row galat ho to poora invoice skip hota hai; supplier ka same invoice number dobara entry nahi hota.
 - Update mode: "Jo pehle se hain unhe update karo" tick karne par naam / barcode / phone / company se match hokar sirf bhare hue columns badalte hain.
