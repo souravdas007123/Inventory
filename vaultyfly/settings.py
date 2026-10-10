@@ -191,7 +191,7 @@ if EMAIL_HOST:
     EMAIL_USE_TLS = env_bool('DJANGO_EMAIL_TLS', True)
 else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = os.environ.get('DJANGO_FROM_EMAIL', 'Vaultyfly <noreply@localhost>')
+DEFAULT_FROM_EMAIL = os.environ.get('DJANGO_FROM_EMAIL', 'MedSync <noreply@localhost>')
 
 # Daily alert digest (low stock / expiry) kin ko jaye. Khali ho to Shop Settings ka email use hota hai.
 ALERT_EMAILS = env_list('DJANGO_ALERT_EMAILS')

@@ -28,7 +28,7 @@ from .reports import dashboard_charts, dashboard_overview, profit_and_loss
 NAV = [
     {'key': 'dashboard', 'url': '/', 'label': 'Dashboard', 'icon': '🏠', 'group': ''},
     {'key': 'bills', 'url': '/bills/', 'label': 'Billing', 'icon': '🧾', 'group': ''},
-    {'key': 'products', 'url': '/products/', 'label': 'Products', 'icon': '💊', 'group': ''},
+    {'key': 'products', 'url': '/products/', 'label': 'Products', 'icon': '🧴', 'group': ''},
     {'key': 'purchases', 'url': '/purchases/', 'label': 'Purchases', 'icon': '📦', 'group': ''},
     {'key': 'batches', 'url': '/batches/', 'label': 'Batch & Expiry', 'icon': '⏳', 'group': ''},
     {'key': 'customers', 'url': '/customers/', 'label': 'Customers (Udhar)', 'icon': '👥', 'group': 'Customers'},

@@ -1,4 +1,4 @@
-# Vaultyfly — Pharmacy Inventory & Billing (Django)
+# MedSync — Pharmacy Inventory & Billing (Django)
 
 Medical store ke liye inventory, purchase, GST billing, batch/expiry (FEFO) aur P&L.
 

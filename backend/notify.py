@@ -40,7 +40,7 @@ def _section(title, lines, total):
 
 def alert_digest_text(alerts, shop_name=''):
     """Plain-text digest (email aur WhatsApp dono ke liye)."""
-    head = f"{shop_name or 'Vaultyfly'} - Stock alerts ({alerts['today']:%d %b %Y})"
+    head = f"{shop_name or 'MedSync'} - Stock alerts ({alerts['today']:%d %b %Y})"
     parts = [head, '']
     parts += _section('OUT OF STOCK', [p.name or str(p) for p in alerts['out']], len(alerts['out']))
     parts += _section('LOW STOCK', [f"{p.name} ({p.stock_display()})" for p in alerts['low']], len(alerts['low']))
