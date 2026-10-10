@@ -1,9 +1,8 @@
 import calendar
-from decimal import Decimal
 
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied
-from django.db.models import Q, Sum
+from django.db.models import Q
 from django.template.response import TemplateResponse
 from django.utils import timezone
 from django.utils.html import format_html
@@ -11,6 +10,7 @@ from import_export import fields, resources
 from import_export.admin import ImportExportModelAdmin
 from import_export.widgets import ForeignKeyWidget
 
+from .reports import profit_and_loss
 from .models import (
     Batch, Bill, Brand, Category, Expense, ShopProfile, FinancialReport, InvoiceItem, Order,
     Payment, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem, Sale,
@@ -332,10 +332,6 @@ class ExpenseAdmin(admin.ModelAdmin):
 # PROFIT & LOSS REPORT
 # ======================================================
 
-def _dec(value):
-    return Decimal(str(value or 0))
-
-
 @admin.register(FinancialReport)
 class FinancialReportAdmin(admin.ModelAdmin):
 
@@ -361,44 +357,17 @@ class FinancialReportAdmin(admin.ModelAdmin):
         if not 1 <= month <= 12:
             month = today.month
 
-        # 1. Income = Sales ki taxable value (GST income nahi hai)
-        sales = _dec(Sale.objects.filter(
-            date__month=month, date__year=year
-        ).aggregate(s=Sum('taxable_value'))['s'])
-
-        # 2. COGS = jo maal bika uski purchase cost (batch_history se)
-        batch_rate = {
-            b.id: b.purchase_item.rate
-            for b in Batch.objects.select_related('purchase_item').filter(purchase_item__isnull=False)
-        }
-        cogs = Decimal('0')
-        items = InvoiceItem.objects.filter(sale__date__month=month, sale__date__year=year)
-        for item in items:
-            for batch_id, qty in (item.batch_history or {}).items():
-                cogs += batch_rate.get(int(batch_id), Decimal('0')) * qty
-
-        # Sirf information ke liye: is mahine kitna maal kharida (taxable)
-        purchases = _dec(PurchaseItem.objects.filter(
-            purchase__invoice_date__month=month, purchase__invoice_date__year=year
-        ).aggregate(s=Sum('tax'))['s'])
-
-        # 3. Indirect expenses
-        expenses = _dec(Expense.objects.filter(
-            date__month=month, date__year=year
-        ).aggregate(s=Sum('amount'))['s'])
-
-        gross_profit = sales - cogs
-        net_profit = gross_profit - expenses
+        pl = profit_and_loss(month, year)
 
         context = dict(
             self.admin_site.each_context(request),
             title=f"Profit & Loss Report ({calendar.month_name[month]} {year})",
-            sales=sales,
-            cogs=cogs,
-            purchases=purchases,
-            expenses=expenses,
-            gross_profit=gross_profit,
-            net_profit=net_profit,
+            sales=pl['sales'],
+            cogs=pl['cogs'],
+            purchases=pl['purchases'],
+            expenses=pl['expenses'],
+            gross_profit=pl['gross'],
+            net_profit=pl['net'],
             month=month,
             year=year,
             months=[(i, calendar.month_name[i]) for i in range(1, 13)],

@@ -13,22 +13,49 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+def _load_env_file(path):
+    """Chhota .env loader (koi extra package nahi). Pehle se set environment variable ko override nahi karta."""
+    if not path.exists():
+        return
+    for line in path.read_text(encoding='utf-8').splitlines():
+        line = line.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+        key, value = line.split('=', 1)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
-# SECURITY WARNING: keep the secret key used in production secret!
-# SECRET_KEY = 'django-insecure-0hv67jme748wy(dwtz(3n&l)23_r9h0-a9o4mnzv(_pl0x(0o*'
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-dev-key-change-me')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-# DEBUG = True
-DEBUG = os.environ.get('DJANGO_DEBUG', '1') == '1'
+_load_env_file(BASE_DIR / '.env')
 
-ALLOWED_HOSTS = ['*']
+
+def env_bool(name, default=False):
+    return os.environ.get(name, '1' if default else '0').strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+def env_list(name, default=''):
+    return [x.strip() for x in os.environ.get(name, default).split(',') if x.strip()]
+
+
+# SECURITY: DEBUG default me BAND hai. Local development ke liye .env me DJANGO_DEBUG=1 rakhein.
+DEBUG = env_bool('DJANGO_DEBUG', False)
+
+_DEV_SECRET_KEY = 'django-insecure-dev-key-change-me'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY') or _DEV_SECRET_KEY
+if not DEBUG and SECRET_KEY == _DEV_SECRET_KEY:
+    raise ImproperlyConfigured(
+        "DJANGO_SECRET_KEY set nahi hai. Production me apni secret key environment variable (ya .env) me daalein. "
+        "Sirf local development ke liye .env me DJANGO_DEBUG=1 rakh sakte hain (.env.example dekhein)."
+    )
+
+# Production me apna domain DJANGO_ALLOWED_HOSTS me daalein (comma se alag), jaise: shop.example.com,www.example.com
+ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,[::1]')
+CSRF_TRUSTED_ORIGINS = env_list('DJANGO_CSRF_TRUSTED_ORIGINS')  # jaise: https://shop.example.com
 
 
 # Application definition
@@ -46,6 +73,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # DEBUG off hone par bhi static files serve karta hai
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -122,7 +150,12 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = BASE_DIR / 'staticfiles'   # `python manage.py collectstatic` yahin files banata hai (git me nahi hai)
+
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage'},
+}
 
 MEDIA_URL = '/media/'
 
@@ -136,3 +169,29 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
+
+
+# ---- HTTPS / cookies (production me DJANGO_HTTPS=1) ----
+if env_bool('DJANGO_HTTPS', False):
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 3600
+    if env_bool('DJANGO_BEHIND_PROXY', False):  # nginx/Render/Heroku jaise proxy ke peeche
+        SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# ---- Email (alerts aur Purchase Order bhejne ke liye) ----
+# DJANGO_EMAIL_HOST set na ho to email console me print hota hai (test ke liye).
+EMAIL_HOST = os.environ.get('DJANGO_EMAIL_HOST', '')
+if EMAIL_HOST:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_PORT = int(os.environ.get('DJANGO_EMAIL_PORT', '587'))
+    EMAIL_HOST_USER = os.environ.get('DJANGO_EMAIL_USER', '')
+    EMAIL_HOST_PASSWORD = os.environ.get('DJANGO_EMAIL_PASSWORD', '')
+    EMAIL_USE_TLS = env_bool('DJANGO_EMAIL_TLS', True)
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = os.environ.get('DJANGO_FROM_EMAIL', 'Vaultyfly <noreply@localhost>')
+
+# Daily alert digest (low stock / expiry) kin ko jaye. Khali ho to Shop Settings ka email use hota hai.
+ALERT_EMAILS = env_list('DJANGO_ALERT_EMAILS')

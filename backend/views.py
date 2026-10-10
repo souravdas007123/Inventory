@@ -22,6 +22,7 @@ from .models import (
     ProductUnit, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem, Sale,
     ShopProfile, Supplier, Transaction, Unit,
 )
+from .reports import profit_and_loss
 
 NAV = [
     {'key': 'dashboard', 'url': '/', 'label': 'Dashboard', 'icon': '🏠', 'group': ''},
@@ -86,17 +87,19 @@ PO_COLORS = {'PENDING': 'amber', 'SENT': 'blue', 'COMPLETED': 'green', 'CANCELLE
 CONFIG = {
     'products': dict(
         title='Products', one='Product', model=Product, order=['name'],
-        related=['brand', 'category', 'unit'],
-        search=['name', 'composition', 'sku', 'hsn_code'],
+        related=['brand', 'category', 'unit'], prefetch=['unit_conversions__unit', 'batches'],
+        search=['name', 'composition', 'sku', 'hsn_code', 'barcode'],
         cols=[('Name', lambda o: o.name), ('Composition', lambda o: o.composition or '-'),
               ('Brand', lambda o: o.brand or '-'), ('Category', lambda o: o.category or '-'),
               ('HSN', lambda o: o.hsn_code or '-'), ('SKU', lambda o: o.sku or '-'),
               ('Rack / Row', lambda o: f"{o.rack or '-'} / {o.row or '-'}"),
               ('Unit', lambda o: o.unit or '-'), ('GST', lambda o: f"{o.gst_rate}%"),
+              ('MRP', lambda o: rs(o.mrp) if o.mrp is not None else '-'),
+              ('Schedule', lambda o: '-' if o.schedule == 'NONE' else badge(o.schedule, 'amber')),
               ('Stock', lambda o: o.stock_display()), ('Pick Batch (FEFO)', pick_batch_txt),
               ('Status', stock_badge), ('Alternative', alt_txt)],
-        fields=['name', 'composition', 'hsn_code', 'category', 'brand', 'gst_rate', 'unit',
-                'reorder_level', 'default_supplier', 'location', 'rack', 'row', 'is_active'],
+        fields=['name', 'composition', 'hsn_code', 'category', 'brand', 'gst_rate', 'unit', 'mrp', 'barcode',
+                'schedule', 'reorder_level', 'default_supplier', 'location', 'rack', 'row', 'is_active'],
         inline=dict(model=ProductUnit, fields=['unit', 'factor'],
                     title='Unit conversions (jaise 1 Strip = 15 Tablet)'),
     ),
@@ -112,7 +115,8 @@ CONFIG = {
     ),
     'purchases': dict(
         title='Purchases', one='Purchase Invoice', model=Purchase, order=['-invoice_date', '-id'],
-        related=['supplier'], search=['invoice_number', 'supplier__company', 'items__product__name'],
+        related=['supplier'], prefetch=['items'],
+        search=['invoice_number', 'supplier__company', 'items__product__name'],
         cols=[('Invoice No.', lambda o: o.invoice_number), ('Date', lambda o: d(o.invoice_date)),
               ('Supplier', lambda o: o.supplier.company), ('Items', lambda o: o.total_items),
               ('Taxable', lambda o: rs(o.taxable)), ('GST', lambda o: rs(o.gst_total)),
@@ -124,7 +128,7 @@ CONFIG = {
     ),
     'bills': dict(
         title='Billing', one='Bill', model=Bill, order=['-id'],
-        related=['order'], search=['customer_name', 'invoice_number'],
+        related=['order'], prefetch=['items'], search=['customer_name', 'invoice_number'],
         initial=lambda: {'date': timezone.localdate()},
         cols=[('Invoice No.', lambda o: o.display_number), ('Customer', lambda o: o.customer_name),
               ('Mode', lambda o: badge(o.invoice_mode.title(), 'green' if o.invoice_mode == 'online' else 'grey')),
@@ -154,20 +158,22 @@ CONFIG = {
     ),
     'orders': dict(
         title='Customer Orders', one='Order', model=Order, order=['-id'], related=['customer_product', 'customer_unit'],
+        prefetch=['bill_set'],
         search=['order_id', 'customers_name', 'customer_product__name'],
         initial=lambda: {'order_date': timezone.localdate()},
         cols=[('Order ID', lambda o: o.order_id), ('Customer', lambda o: o.customers_name or '-'),
               ('Product', lambda o: o.customer_product.name if o.customer_product else '-'),
               ('Qty', lambda o: f"{o.customer_qty or 0} {o.customer_unit or ''}".strip()),
               ('Rate', lambda o: rs(o.customer_rate)), ('Date', lambda o: d(o.order_date)),
-              ('Billed?', lambda o: badge('Billed', 'green') if o.bill_set.exists() else badge('Pending', 'amber'))],
+              ('Billed?', lambda o: badge('Billed', 'green') if o.bill_set.all() else badge('Pending', 'amber'))],
         fields=['customers_name', 'customer_product', 'customer_qty', 'customer_unit', 'customer_rate', 'order_date'],
     ),
     'purchase_orders': dict(
         title='Purchase Orders', one='Purchase Order', model=PurchaseOrder, order=['-id'], related=['supplier'],
+        prefetch=['items'],
         search=['po_number', 'supplier__company', 'items__product__name'],
         cols=[('PO No.', lambda o: o.po_number), ('Supplier', lambda o: o.supplier.company),
-              ('Date', lambda o: d(o.date_created)), ('Items', lambda o: o.items.count()),
+              ('Date', lambda o: d(o.date_created)), ('Items', lambda o: len(o.items.all())),
               ('Status', lambda o: badge(o.get_status_display(), PO_COLORS.get(o.status, 'grey')))],
         action=lambda o: f"/purchases/new/?from_po={o.pk}" if o.status in ('PENDING', 'SENT') else None,
         action_label='📥 Receive',
@@ -248,13 +254,14 @@ def dashboard(request):
         return Sale.objects.filter(**f).aggregate(s=Sum('total'))['s'] or 0
 
     live = Batch.objects.filter(qty__gt=0, expire_date__isnull=False).select_related('product')
-    low = Product.objects.filter(stock_qty__lte=F('reorder_level')).order_by('stock_qty')
+    active = Product.objects.exclude(is_active=False)
+    low = active.filter(stock_qty__lte=F('reorder_level')).order_by('stock_qty')
     expiring = live.filter(expire_date__gte=today, expire_date__lte=soon).order_by('expire_date')
     return page(
         request, 'app/dashboard.html', active='dashboard',
         today_sales=total(date=today),
         month_sales=total(date__month=today.month, date__year=today.year),
-        low_count=low.count(), out_count=Product.objects.filter(stock_qty=0).count(),
+        low_count=low.count(), out_count=active.filter(stock_qty=0).count(),
         expired_count=live.filter(expire_date__lt=today).count(), expiring_count=expiring.count(),
         payable=Supplier.objects.aggregate(s=Sum('opening_balance'))['s'] or 0,
         low_rows=[(p.name, p.stock_display(), stock_badge(p)) for p in low[:6]],
@@ -276,35 +283,13 @@ def report(request):
     if not 1 <= month <= 12:
         month = today.month
 
-    def dec(x):
-        return Decimal(str(x or 0))
-
-    # Income = sales ki taxable value (GST income nahi hai)
-    sales = dec(Sale.objects.filter(date__month=month, date__year=year)
-                .aggregate(s=Sum('taxable_value'))['s'])
-
-    # COGS = jo maal bika uski purchase cost (batch_history se)
-    batch_rate = {b.id: b.purchase_item.rate for b in
-                  Batch.objects.select_related('purchase_item').filter(purchase_item__isnull=False)}
-    cogs = Decimal('0')
-    for item in InvoiceItem.objects.filter(sale__date__month=month, sale__date__year=year):
-        for batch_id, qty in (item.batch_history or {}).items():
-            cogs += batch_rate.get(int(batch_id), Decimal('0')) * qty
-
-    purchases = dec(PurchaseItem.objects.filter(
-        purchase__invoice_date__month=month, purchase__invoice_date__year=year
-    ).aggregate(s=Sum('tax'))['s'])
-    expenses = dec(Expense.objects.filter(date__month=month, date__year=year)
-                   .aggregate(s=Sum('amount'))['s'])
-
-    gross = sales - cogs
+    pl = profit_and_loss(month, year)
     return page(
         request, 'app/report.html', active='report', month=month, year=year,
         months=[(i, calendar.month_name[i]) for i in range(1, 13)],
         years=list(range(today.year - 5, today.year + 1)),
         month_name=calendar.month_name[month],
-        sales=sales, cogs=cogs, gross=gross, expenses=expenses, net=gross - expenses,
-        purchases=purchases,
+        **pl,
     )
 
 
@@ -314,6 +299,8 @@ def listing(request, key):
     qs = cfg['model'].objects.all()
     if cfg.get('related'):
         qs = qs.select_related(*cfg['related'])
+    if cfg.get('prefetch'):
+        qs = qs.prefetch_related(*cfg['prefetch'])
     q = request.GET.get('q', '').strip()
     if q and cfg.get('search'):
         cond = Q()
@@ -332,6 +319,19 @@ def listing(request, key):
     return page(request, 'app/list.html', key=key, active=key, cfg=cfg, heads=[h for h, _ in cfg['cols']],
                 rows=rows, page=pg, q=q, per=per, per_opts=PER_OPTS, total=pg.paginator.count,
                 base=urlencode({'q': q, 'per': per}))
+
+
+def bill_form_errors(form, fs):
+    """Bill save hone se pehle ke extra checks. Error messages ki list return karta hai."""
+    errors = []
+    online = form.cleaned_data.get('invoice_mode') == 'online'
+    if not online:
+        rows = [f.cleaned_data for f in fs.forms
+                if getattr(f, 'cleaned_data', None) and not f.cleaned_data.get('DELETE')
+                and f.cleaned_data.get('product')]
+        if not rows:
+            errors.append('Bill me kam se kam ek item zaroori hai.')
+    return errors
 
 
 @login_required
@@ -381,25 +381,33 @@ def edit(request, key, pk=None):
             f"{o.order_id} · {o.customers_name or '-'} · {o.customer_product or '-'} x {o.customer_qty or 0}")
 
     if post and form.is_valid() and (fs is None or fs.is_valid()):
-        try:
-            with transaction.atomic():
-                form.save()
-                if fs:
-                    fs.save()
-                if po and po.status != 'CANCELLED':
-                    po.status = 'COMPLETED'
-                    po.save(update_fields=['status'])
-            messages.success(request, f"{cfg['one']} save ho gaya ✅")
-            if key == 'bills' and not obj:  # naya bill -> seedha invoice
-                return redirect('invoice', pk=form.instance.pk)
-            return redirect('list', key=key)
-        except ValidationError as e:
-            messages.error(request, ' '.join(e.messages))
-        except IntegrityError:
-            messages.error(request, 'Duplicate entry hai (ye record pehle se maujood hai).')
-        if obj is None:  # rollback ke baad instance ko phir "naya" rakho
-            form.instance.pk = None
-            form.instance._state.adding = True
+        problems = bill_form_errors(form, fs) if key == 'bills' else []
+        for problem in problems:
+            form.add_error(None, problem)
+        if not problems:
+            try:
+                with transaction.atomic():
+                    form.save()
+                    if fs:
+                        fs.save()
+                    if key == 'bills':
+                        form.instance.after_items_saved()  # credit limit jaise checks (fail par rollback)
+                    if po and po.status != 'CANCELLED':
+                        po.status = 'COMPLETED'
+                        po.save(update_fields=['status'])
+                messages.success(request, f"{cfg['one']} save ho gaya ✅")
+                if key == 'bills' and not obj:  # naya bill -> seedha invoice
+                    return redirect('invoice', pk=form.instance.pk)
+                return redirect('list', key=key)
+            except ValidationError as e:
+                messages.error(request, ' '.join(e.messages))
+            except ProtectedError:
+                messages.error(request, 'Ye record kisi aur record (jaise return/write-off) se juda hai, isliye badla nahi ja sakta.')
+            except IntegrityError:
+                messages.error(request, 'Duplicate entry hai (ye record pehle se maujood hai).')
+            if obj is None:  # rollback ke baad instance ko phir "naya" rakho
+                form.instance.pk = None
+                form.instance._state.adding = True
 
     title = f"Edit {cfg['one']}" if obj else f"New {cfg['one']}"
     return page(request, 'app/form.html', key=key, active=key, title=title, form=form, fs=fs, back_url=f'/{key}/',
@@ -509,7 +517,11 @@ def bill_cancel(request, pk):
     if not request.user.is_staff:
         raise PermissionDenied
     bill = get_object_or_404(Bill, pk=pk)
-    bill.cancel()
+    try:
+        bill.cancel()
+    except ValidationError as e:
+        messages.error(request, ' '.join(e.messages))
+        return redirect('list', key='bills')
     messages.success(request, f"{bill.display_number} cancel ho gaya. Stock wapas add ho gaya.")
     return redirect('list', key='bills')
 

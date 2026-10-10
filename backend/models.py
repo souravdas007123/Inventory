@@ -10,6 +10,7 @@ from django.db.models import F, Q, Sum
 from django.utils import timezone
 
 TWO = Decimal('0.01')
+RATE_Q = Decimal('0.0001')   # per base unit rate 4 decimal tak (sasti tablets ka COGS sahi rahe)
 
 GST_STATE_CODES = {
     '01': 'Jammu & Kashmir', '02': 'Himachal Pradesh', '03': 'Punjab',
@@ -57,8 +58,9 @@ def adjust_supplier_balance(supplier_id, delta):
     """Supplier ka balance (payable) delta se badhata/ghatata hai."""
     if not supplier_id or not delta:
         return
+    delta = Decimal(str(delta))
     supplier = Supplier.objects.select_for_update().get(pk=supplier_id)
-    supplier.opening_balance = (supplier.opening_balance or 0) + int(delta)
+    supplier.opening_balance = (supplier.opening_balance or Decimal('0')) + delta
     supplier.save(update_fields=['opening_balance'])
 
 
@@ -120,7 +122,8 @@ class Supplier(models.Model):
     state = models.CharField(max_length=50, editable=False, blank=True, null=True)
     gstin = models.CharField(max_length=15, unique=True, help_text="Enter 15 digit GSTIN", blank=True, null=True)
     pan = models.CharField(max_length=10, editable=False, blank=True, null=True)
-    opening_balance = models.IntegerField(editable=False, blank=True, null=True, verbose_name="Balance")
+    opening_balance = models.DecimalField(max_digits=12, decimal_places=2, editable=False, blank=True, null=True,
+                                          verbose_name="Balance")
     created_at = models.DateField(auto_now_add=True, blank=True, null=True)
     updated_at = models.DateField(auto_now=True, blank=True, null=True)
     is_active = models.BooleanField(default=True, verbose_name="Active Status")
@@ -154,7 +157,9 @@ class Supplier(models.Model):
 
 class Product(models.Model):
     GST_CHOICES = (
+        (Decimal('0.00'), '0% (Nil / Exempt)'),
         (Decimal('5.00'), '5%'),
+        (Decimal('12.00'), '12%'),
         (Decimal('18.00'), '18%'),
     )
     name = models.CharField(max_length=255, blank=True, null=True)
@@ -174,12 +179,25 @@ class Product(models.Model):
     rack = models.CharField(max_length=50, blank=True, null=True, verbose_name="Rack No.")
     row = models.CharField(max_length=50, blank=True, null=True, verbose_name="Row No.")
     is_active = models.BooleanField(default=True, blank=True, null=True)
+    SCHEDULE_CHOICES = (
+        ('NONE', 'Normal (no schedule)'),
+        ('H', 'Schedule H (prescription)'),
+        ('H1', 'Schedule H1 (register zaroori)'),
+        ('X', 'Schedule X (register zaroori)'),
+    )
+    schedule = models.CharField(max_length=4, choices=SCHEDULE_CHOICES, default='NONE', verbose_name="Drug Schedule")
+    barcode = models.CharField(max_length=64, unique=True, null=True, blank=True, verbose_name="Barcode")
+    mrp = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                              verbose_name="MRP / Sale rate (per base unit)",
+                              help_text="Billing me scan/search karne par rate yahin se bharta hai")
 
     @property
     def is_low_stock(self):
         return self.stock_qty <= self.reorder_level
 
     def save(self, *args, **kwargs):
+        if self.barcode is not None:
+            self.barcode = self.barcode.strip() or None
         if not self.sku:
             new_sku = generate_unique_sku_id()
             while Product.objects.filter(sku=new_sku).exists():
@@ -204,7 +222,12 @@ class Product(models.Model):
         base = self.unit.name if self.unit_id else "unit"
         remaining = self.stock_qty
         parts = []
-        convs = self.unit_conversions.select_related('unit').filter(factor__gt=1).order_by('-factor')
+        # prefetch_related('unit_conversions__unit') ho to extra query nahi lagti
+        if 'unit_conversions' in getattr(self, '_prefetched_objects_cache', {}):
+            all_convs = self.unit_conversions.all()
+        else:
+            all_convs = self.unit_conversions.select_related('unit')
+        convs = sorted((c for c in all_convs if c.factor > 1), key=lambda c: c.factor, reverse=True)
         for conv in convs:
             qty, remaining = divmod(remaining, conv.factor)
             if qty:
@@ -216,12 +239,23 @@ class Product(models.Model):
     def get_next_batch(self):
         """FEFO: sabse pehle expire hone wala (non-expired) batch."""
         today = timezone.localdate()
-        return (
-            self.batches.filter(qty__gt=0)
-            .filter(Q(expire_date__isnull=True) | Q(expire_date__gte=today))
-            .order_by(F('expire_date').asc(nulls_last=True), 'id')
-            .first()
-        )
+        # Python me filter: prefetch_related('batches') ho to extra query nahi lagti
+        live = [b for b in self.batches.all()
+                if b.qty > 0 and (b.expire_date is None or b.expire_date >= today)]
+        if not live:
+            return None
+        return min(live, key=lambda b: (b.expire_date is None, b.expire_date or today, b.id))
+
+    def sellable_qty(self):
+        """Sirf wo stock jo bik sakta hai (expired batches ko chhod kar), base unit me."""
+        today = timezone.localdate()
+        return sum(b.qty for b in self.batches.all()
+                   if b.qty > 0 and (b.expire_date is None or b.expire_date >= today))
+
+    def expired_qty(self):
+        today = timezone.localdate()
+        return sum(b.qty for b in self.batches.all()
+                   if b.qty > 0 and b.expire_date is not None and b.expire_date < today)
 
     def get_alternatives(self, limit=2):
         if not self.composition:
@@ -305,7 +339,7 @@ class Batch(models.Model):
 
 class Purchase(models.Model):
     """Ek supplier invoice: supplier + invoice number + date. Items niche PurchaseItem me."""
-    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='purchases')
+    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, related_name='purchases')
     invoice_number = models.CharField(max_length=50, verbose_name="Invoice No.")
     invoice_date = models.DateField(default=timezone.localdate, verbose_name="Invoice Date")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -322,9 +356,9 @@ class Purchase(models.Model):
             if old:
                 # Supplier badla: saare items ka amount purane se naye supplier par shift
                 if old.supplier_id != self.supplier_id:
-                    total = self.items.aggregate(s=Sum('purchase_price'))['s'] or 0
-                    adjust_supplier_balance(old.supplier_id, -int(total))
-                    adjust_supplier_balance(self.supplier_id, int(total))
+                    total = self.items.aggregate(s=Sum('purchase_price'))['s'] or Decimal('0')
+                    adjust_supplier_balance(old.supplier_id, -total)
+                    adjust_supplier_balance(self.supplier_id, total)
                     Batch.objects.filter(purchase_item__purchase=self).update(supplier=self.supplier)
 
                 # Date / supplier ka naam ledger me bhi sync
@@ -340,12 +374,13 @@ class Purchase(models.Model):
             super().delete(*args, **kwargs)
 
     def _sum(self, field):
-        total = self.items.aggregate(s=Sum(field))['s']
+        # .all() => prefetch_related('items') ho to list page par extra query nahi lagti
+        total = sum((getattr(i, field) or Decimal('0') for i in self.items.all()), Decimal('0'))
         return round(total, 2) if total else 0
 
     @property
     def total_items(self):
-        return self.items.count()
+        return len(self.items.all())
 
     @property
     def taxable(self):
@@ -381,8 +416,9 @@ class PurchaseItem(models.Model):
                              help_text="Khali chhodne par product ki base unit maani jayegi")
     unit_factor = models.PositiveIntegerField(editable=False, default=1)
     base_qty = models.PositiveIntegerField(editable=False, default=0, verbose_name="Qty (base unit)")
-    purchase_price = models.IntegerField(blank=True, null=True, verbose_name="Price (GST ke saath total)")
-    rate = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0, verbose_name="Rate (per base unit)")
+    purchase_price = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True,
+                                         verbose_name="Price (GST ke saath total)")
+    rate = models.DecimalField(max_digits=12, decimal_places=4, editable=False, default=0, verbose_name="Rate (per base unit)")
     tax = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0, verbose_name="Taxable Value")
     gst = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
     cgst = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
@@ -398,6 +434,8 @@ class PurchaseItem(models.Model):
             raise ValidationError({'qty': 'Qty 0 se zyada honi chahiye.'})
         if self.purchase_price is None:
             raise ValidationError({'purchase_price': 'Price daalna zaroori hai.'})
+        if self.purchase_price < 0:
+            raise ValidationError({'purchase_price': 'Price negative nahi ho sakta.'})
         if self.manufacture_date and self.expire_date and self.expire_date < self.manufacture_date:
             raise ValidationError({'expire_date': 'EXP date, MFG date se pehle nahi ho sakti.'})
         if self.product_id and self.unit_id:
@@ -419,14 +457,32 @@ class PurchaseItem(models.Model):
             qty = self.qty or 0
             self.base_qty = qty * self.unit_factor
 
+            # ---- Guards: maal bik/return ho chuka ho to edit se stock na bigde ----
+            if old:
+                if old.return_items.exists():
+                    raise ValidationError(
+                        'Is purchase item par Purchase Return ban chuka hai, isliye edit nahi ho sakta.')
+                old_batch = Batch.objects.filter(purchase_item=old).first()
+                consumed = max((old.base_qty or 0) - old_batch.qty, 0) if old_batch else 0
+                if consumed and old.product_id != self.product_id:
+                    raise ValidationError(
+                        f"Is item ka {consumed} maal bik/kharch ho chuka hai, product badla nahi ja sakta.")
+                if consumed and self.base_qty < consumed:
+                    raise ValidationError(
+                        f"Is item ka {consumed} maal pehle hi bik/kharch ho chuka hai, "
+                        f"qty {consumed} (base unit) se kam nahi ho sakti.")
+
             # ---- GST calculation (Decimal) ----
             price = Decimal(self.purchase_price or 0)
-            self.gst_rate = int(product.gst_rate)
+            if old and old.product_id == self.product_id:
+                self.gst_rate = old.gst_rate   # purani entry par us waqt ka GST rate hi rahe
+            else:
+                self.gst_rate = int(product.gst_rate)
             gst_rate = Decimal(self.gst_rate)
 
             if self.base_qty > 0:
                 self.tax = (price * 100 / (gst_rate + 100)).quantize(TWO)
-                self.rate = (self.tax / self.base_qty).quantize(TWO)
+                self.rate = (self.tax / self.base_qty).quantize(RATE_Q)
                 self.gst = (price - self.tax).quantize(TWO)
                 self.cgst = (self.gst / 2).quantize(TWO)
                 self.sgst = self.gst - self.cgst
@@ -493,17 +549,22 @@ class PurchaseItem(models.Model):
             )
 
             # ---- Supplier balance sync ----
-            new_price = int(self.purchase_price or 0)
-            old_price = int(old.purchase_price or 0) if old else 0
+            new_price = Decimal(self.purchase_price or 0)
+            old_price = Decimal(old.purchase_price or 0) if old else Decimal('0')
             adjust_supplier_balance(header.supplier_id, new_price - old_price)
 
     def delete(self, *args, **kwargs):
         with transaction.atomic():
+            batch = Batch.objects.filter(purchase_item=self).first()
+            if batch and batch.qty < (self.base_qty or 0):
+                raise ValidationError(
+                    f"Is purchase ka {(self.base_qty or 0) - batch.qty} (base unit) maal bik/kharch/return ho chuka hai, "
+                    f"isliye ise delete nahi kar sakte. Galti ho to Purchase Return banayein.")
             product = Product.objects.get(pk=self.product_id)
             product.stock_qty = max(0, product.stock_qty - (self.base_qty or 0))
             product.save(update_fields=['stock_qty'])
 
-            adjust_supplier_balance(self.purchase.supplier_id, -int(self.purchase_price or 0))
+            adjust_supplier_balance(self.purchase.supplier_id, -Decimal(self.purchase_price or 0))
             # Batch aur Transaction CASCADE se khud delete ho jayenge
             super().delete(*args, **kwargs)
 
@@ -520,7 +581,8 @@ class PurchaseItem(models.Model):
 # ======================================================
 
 class Sale(models.Model):
-    date = models.DateField(auto_now_add=True, null=True)
+    # Bill ki date se set hoti hai (pehle auto_now_add tha => backdated/online bill galat mahine me jaate the)
+    date = models.DateField(default=timezone.localdate, null=True)
     name = models.CharField(max_length=255, editable=False, null=True)
     invoice_mode = models.CharField(max_length=10, editable=False)
     taxable_value = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=0)
@@ -555,7 +617,7 @@ class Sale(models.Model):
 class Order(models.Model):
     order_id = models.CharField(max_length=20, unique=True, null=True, editable=False, blank=True)
     customers_name = models.CharField(max_length=100, blank=True, null=True)
-    customer_product = models.ForeignKey(Product, on_delete=models.CASCADE, blank=True, null=True)
+    customer_product = models.ForeignKey(Product, on_delete=models.PROTECT, blank=True, null=True)
     customer_rate = models.IntegerField(blank=True, null=True)
     customer_qty = models.IntegerField(blank=True, null=True)
     customer_unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Unit")
@@ -631,14 +693,15 @@ def fiscal_year(d=None):
     return f"{start}-{str(start + 1)[-2:]}"
 
 
-def next_invoice_number():
+def next_invoice_number(on=None):
     """
     INV/2026-27/0001 jaisa agla number. Bill ke saath hi ek transaction me chalta hai,
     isliye bill fail/rollback ho to number kharch nahi hota (koi gap nahi).
     UPDATE ... SET n = n + 1 database level par lock leta hai, to do log ek saath bill
     banayein tab bhi duplicate number nahi banta.
+    `on` = bill ki date: financial year usi date se nikalta hai (aaj ki date se nahi).
     """
-    fy = fiscal_year()
+    fy = fiscal_year(on)
     with transaction.atomic():
         counter, _ = InvoiceCounter.objects.get_or_create(fiscal_year=fy)
         InvoiceCounter.objects.filter(pk=counter.pk).update(last_number=F('last_number') + 1)
@@ -689,7 +752,7 @@ class Bill(models.Model):
 
             # Naya bill: gap-free invoice number
             if self.pk is None and not self.invoice_number:
-                self.invoice_number = next_invoice_number()
+                self.invoice_number = next_invoice_number(self.date)
 
             super().save(*args, **kwargs)
 
@@ -702,6 +765,10 @@ class Bill(models.Model):
                     qty=self.order.customer_qty,
                     unit=self.order.customer_unit,
                 )
+
+    def after_items_saved(self):
+        """Items save hone ke baad ke checks. ValidationError aaye to poora bill rollback ho jata hai."""
+        return
 
     def delete(self, *args, **kwargs):
         with transaction.atomic():
@@ -734,7 +801,8 @@ class Bill(models.Model):
         return f"{self.display_number} - {self.customer_name}"
 
     def _sum(self, field):
-        total = self.items.aggregate(s=Sum(field))['s']
+        # .all() => prefetch_related('items') ho to list page par extra query nahi lagti
+        total = sum((getattr(i, field) or Decimal('0') for i in self.items.all()), Decimal('0'))
         return round(total, 2) if total else 0
 
     @property
@@ -743,7 +811,7 @@ class Bill(models.Model):
 
     @property
     def total_items(self):
-        return self.items.count()
+        return len(self.items.all())
 
     @property
     def taxable(self):
@@ -772,7 +840,7 @@ class Bill(models.Model):
 
 class InvoiceItem(models.Model):
     bill = models.ForeignKey(Bill, related_name='items', on_delete=models.CASCADE, blank=True, null=True)
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, blank=True, null=True)
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, blank=True, null=True)
     batch_history = models.JSONField(default=dict, blank=True, null=True)
     rate = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, help_text="Rate chuni hui unit ke hisaab se")
     qty = models.IntegerField(blank=True, null=True)
@@ -810,11 +878,14 @@ class InvoiceItem(models.Model):
             old_base = old.base_qty or 0
 
         needed = self.qty * factor
-        available = self.product.stock_qty + old_base
+        # Sirf non-expired batches ka stock bik sakta hai (FEFO expired batch skip karta hai)
+        available = self.product.sellable_qty() + old_base
         if needed > available:
             base_name = self.product.unit.name if self.product.unit_id else 'unit'
+            expired = self.product.expired_qty()
+            extra = f' (Expired stock {expired} {base_name} alag hai, wo bik nahi sakta)' if expired else ''
             raise ValidationError({
-                'qty': f'Stock kam hai. Chahiye: {needed} {base_name}, Available: {available} {base_name}'
+                'qty': f'Stock kam hai. Chahiye: {needed} {base_name}, Bikne layak: {available} {base_name}{extra}'
             })
 
         if self.discount_percent and self.discount_amount:
@@ -846,7 +917,10 @@ class InvoiceItem(models.Model):
             self.base_qty = self.qty * self.unit_factor
 
             # ---- Calculation (rate chuni hui unit ke hisaab se) ----
-            self.gst_rate = int(self.product.gst_rate)
+            if old and old.product_id == self.product_id:
+                self.gst_rate = old.gst_rate   # purane bill par us waqt ka GST rate hi rahe
+            else:
+                self.gst_rate = int(self.product.gst_rate)
             rate_val = Decimal(str(self.rate or 0))
             gross = rate_val * Decimal(self.qty)
             pct = Decimal(str(self.discount_percent or 0))
@@ -898,6 +972,7 @@ class InvoiceItem(models.Model):
             Sale.objects.update_or_create(
                 invoice_item=self,
                 defaults=dict(
+                    date=(self.bill.date if self.bill and self.bill.date else timezone.localdate()),
                     name=self.bill.customer_name if self.bill else "Cash",
                     invoice_mode=self.bill.invoice_mode if self.bill else 'offline',
                     taxable_value=self.taxable_value,
@@ -1045,9 +1120,9 @@ class Payment(models.Model):
         ('CASH', 'Cash'),
         ('BANK', 'Bank'),
     )
-    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='payments')
-    amount = models.IntegerField()
-    due = models.IntegerField(editable=False, blank=True, null=True)
+    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, related_name='payments')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    due = models.DecimalField(max_digits=12, decimal_places=2, editable=False, blank=True, null=True)
     payment_mode = models.CharField(max_length=50, choices=TRANSACTION_TYPES, blank=True, null=True)
     payment_date = models.DateField(auto_now_add=True)
 
@@ -1116,7 +1191,11 @@ class Expense(models.Model):
     )
     date = models.DateField(default=timezone.localdate)
     name = models.CharField(max_length=255, help_text="e.g., Rent, Salary, Electricity", choices=EXPENSES_TYPES)
-    amount = models.IntegerField()
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+
+    def clean(self):
+        if self.amount is not None and self.amount <= 0:
+            raise ValidationError({'amount': 'Amount 0 se zyada hona chahiye.'})
 
     def __str__(self):
         return f"{self.name} - ₹{self.amount}"
@@ -1145,9 +1224,15 @@ class PurchaseOrder(models.Model):
         ('CANCELLED', 'Cancelled'),
     )
     po_number = models.CharField(max_length=20, unique=True, default=generate_po_number, editable=False)
-    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE)
+    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT)
     date_created = models.DateField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+
+    def save(self, *args, **kwargs):
+        if self._state.adding:
+            while PurchaseOrder.objects.filter(po_number=self.po_number).exists():
+                self.po_number = generate_po_number()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.po_number} - {self.supplier.company}"
