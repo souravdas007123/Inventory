@@ -1,7 +1,7 @@
 from django.contrib.auth import views as auth_views
 from django.urls import path
 
-from . import views, views_extra
+from . import views, views_extra, views_import
 
 # NOTE: specific paths hamesha neeche wale generic '<str:key>/...' patterns se PEHLE aane chahiye.
 urlpatterns = [
@@ -37,6 +37,10 @@ urlpatterns = [
     # Physical stock audit
     path('stock_audits/start/', views_extra.audit_start, name='audit_start'),
     path('stock_audits/<int:pk>/count/', views_extra.audit_count, name='audit_count'),
+
+    # Bulk import / export
+    path('import/', views_import.import_home, name='import_home'),
+    path('import/<str:kind>/', views_import.import_view, name='import'),
 
     # Generic list / new / edit / delete (CONFIG based)
     path('<str:key>/', views.listing, name='list'),

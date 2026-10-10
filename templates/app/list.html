@@ -2,8 +2,13 @@
 {% block title %}{{ cfg.title }}{% endblock %}
 {% block content %}
 <div class="head"><h1>{{ cfg.title }}</h1>
-  {% if cfg.start_url %}<form method="post" action="{{ cfg.start_url }}" style="margin:0">{% csrf_token %}<button class="btn">+ New {{ cfg.one }}</button></form>
-  {% elif not cfg.readonly and not cfg.no_new %}<a class="btn" href="{% url 'new' key %}">+ New {{ cfg.one }}</a>{% endif %}</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    {% if import_kind %}<a class="btn ghost" href="{% url 'import' import_kind %}">⬆ Import</a>{% endif %}
+    <a class="btn ghost" href="?{{ base }}&export=xlsx" title="Ye poori list (search ke hisaab se) Excel me">⬇ Excel</a>
+    <a class="btn ghost" href="?{{ base }}&export=csv">CSV</a>
+    {% if cfg.start_url %}<form method="post" action="{{ cfg.start_url }}" style="margin:0">{% csrf_token %}<button class="btn">+ New {{ cfg.one }}</button></form>
+    {% elif not cfg.readonly and not cfg.no_new %}<a class="btn" href="{% url 'new' key %}">+ New {{ cfg.one }}</a>{% endif %}
+  </div></div>
 {% if cfg.hint %}<div class="msg info">{{ cfg.hint }}</div>{% endif %}
 <div class="card">
   <form class="search" method="get">

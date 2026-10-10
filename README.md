@@ -50,3 +50,15 @@ Production me static files ke liye: `python manage.py collectstatic` (files `sta
 - **Dashboard**: 14-day sales chart, top selling, dead stock. **Stock audit**: physical count with variance applied to stock.
 
 After pulling: `python manage.py migrate` (migrations 0003, 0004).
+
+## Bulk import / export
+
+Menu: **Master Data → Import / Export** (`/import/`).
+
+- Import: **Products, Customers, Suppliers, Stock Entry (purchases / opening stock)** — Excel (.xlsx) ya CSV.
+  Template download → bharein → upload → **preview** (kuch save nahi hota) → confirm.
+- Galat rows skip hoti hain aur wajah dikhti hai. Stock Entry me ek invoice ki koi row galat ho to poora invoice skip hota hai; supplier ka same invoice number dobara entry nahi hota.
+- Update mode: "Jo pehle se hain unhe update karo" tick karne par naam / barcode / phone / company se match hokar sirf bhare hue columns badalte hain.
+- Har list page par **⬇ Excel / CSV** (search ke hisaab se poori list). Products / Customers / Suppliers ka export wapas import bhi ho sakta hai.
+- Stock Entry sahi order: Suppliers → Products → Stock Entry.
+- Limits: 5 MB, 3000 rows (Stock Entry 1500). Preview ka temp data server ke temp folder me rehta hai (24 ghante me saaf).

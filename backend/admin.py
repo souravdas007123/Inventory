@@ -91,19 +91,7 @@ class TransactionAdmin(ReadOnlyLedgerMixin, admin.ModelAdmin):
 # PRODUCT
 # ======================================================
 
-# Excel me aksar short naam likhe hote hain. Ye unhe sahi Unit se jod deta hai.
-# Apne hisaab se yahan aur jod sakte ho:  'short naam (chhote akshar me)': 'Unit ka asli naam'
-UNIT_ALIASES = {
-    'pcs': 'Piece', 'pc': 'Piece', 'pieces': 'Piece', 'nos': 'Piece', 'no': 'Piece',
-    'tab': 'Tablet', 'tabs': 'Tablet', 'tablets': 'Tablet',
-    'cap': 'Capsule', 'caps': 'Capsule', 'capsules': 'Capsule',
-    'strips': 'Strip', 'stp': 'Strip',
-    'btl': 'Bottle', 'bottles': 'Bottle',
-    'boxes': 'Box', 'bx': 'Box',
-    'pkt': 'Pack', 'packs': 'Pack', 'packet': 'Pack',
-    'tubes': 'Tube', 'vials': 'Vial', 'sachets': 'Sachet',
-    'ml': 'ML', 'mls': 'ML',
-}
+from .imports import UNIT_ALIASES  # noqa: E402  (Excel ke short unit naam -> asli Unit)
 
 
 class GetOrCreateFKWidget(ForeignKeyWidget):

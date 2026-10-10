@@ -23,7 +23,10 @@ from .models import (
     Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem, PurchaseReturn,
     Sale, SalesReturn, ShopProfile, StockAudit, StockWriteOff, Supplier, Transaction, Unit,
 )
+from .imports import export_value, table_download
 from .reports import dashboard_charts, dashboard_overview, profit_and_loss
+
+IMPORT_KINDS = {'products': 'products', 'customers': 'customers', 'suppliers': 'suppliers', 'purchases': 'stock'}
 
 NAV = [
     {'key': 'dashboard', 'url': '/', 'label': 'Dashboard', 'icon': '🏠', 'group': ''},
@@ -50,6 +53,7 @@ NAV = [
     {'key': 'categories', 'url': '/categories/', 'label': 'Categories', 'icon': '🗂️', 'group': 'Master Data'},
     {'key': 'brands', 'url': '/brands/', 'label': 'Brands', 'icon': '🏷️', 'group': 'Master Data'},
     {'key': 'units', 'url': '/units/', 'label': 'Units', 'icon': '📏', 'group': 'Master Data'},
+    {'key': 'import', 'url': '/import/', 'label': 'Import / Export', 'icon': '📥', 'group': 'Master Data'},
     {'key': 'shop', 'url': '/shop/', 'label': 'Shop Settings', 'icon': '🏪', 'group': 'Master Data', 'staff': True},
 ]
 
@@ -423,12 +427,16 @@ def listing(request, key):
         per = 10
     if per not in PER_OPTS:
         per = 10
+    fmt = request.GET.get('export')
+    if fmt in ('xlsx', 'csv'):   # poori (search ke hisaab se filtered) list Excel/CSV me
+        rows = [[export_value(fn(o)) for _, fn in cfg['cols']] for o in qs.order_by(*cfg['order'])[:20000]]
+        return table_download(f"medsync_{key}_{timezone.localdate():%Y%m%d}", [h for h, _ in cfg['cols']], rows, fmt)
     pg = Paginator(qs.order_by(*cfg['order']), per).get_page(request.GET.get('page'))
     acts = cfg.get('actions')
     rows = [dict(pk=o.pk, obj=o, cells=[fn(o) for _, fn in cfg['cols']], acts=acts(o) if acts else []) for o in pg]
     return page(request, 'app/list.html', key=key, active=key, cfg=cfg, heads=[h for h, _ in cfg['cols']],
                 rows=rows, page=pg, q=q, per=per, per_opts=PER_OPTS, total=pg.paginator.count,
-                has_actions=bool(acts),
+                has_actions=bool(acts), import_kind=IMPORT_KINDS.get(key),
                 base=urlencode({'q': q, 'per': per}))
 
 

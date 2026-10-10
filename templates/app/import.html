@@ -1,0 +1,81 @@
+{% extends "app/base.html" %}
+{% block title %}Import {{ imp.title }}{% endblock %}
+{% block content %}
+<div class="head"><h1>{{ imp.icon }} Import: {{ imp.title }}</h1><a class="btn ghost" href="{% url 'import_home' %}">← Import / Export</a></div>
+
+{% if stage == 'done' %}
+  <div class="msg success">Import ho gaya{% if filename %} ({{ filename }}){% endif %}.</div>
+  <div class="stats">
+    <div class="card stat ok"><small>Naye bane</small><b>{{ summary.created }}</b></div>
+    {% if imp.has_update %}<div class="card stat"><small>Update hue</small><b>{{ summary.updated }}</b></div>{% endif %}
+    <div class="card stat"><small>Chhode gaye</small><b>{{ summary.skipped }}</b></div>
+    <div class="card stat {% if summary.failed %}warn{% endif %}"><small>Fail</small><b>{{ summary.failed|length }}</b></div>
+  </div>
+  {% for n in summary.notes %}<div class="msg info">{{ n }}</div>{% endfor %}
+  {% if summary.failed %}<div class="card" style="margin-bottom:14px"><h3 style="margin-top:0">Ye save nahi ho paye</h3>
+    <div class="tw"><table class="t"><thead><tr><th>File row</th><th>Wajah</th></tr></thead>
+      {% for n, msg in summary.failed %}<tr><td>{{ n }}</td><td>{{ msg }}</td></tr>{% endfor %}
+    </table></div></div>{% endif %}
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <a class="btn" href="{% if kind == 'stock' %}/purchases/{% else %}/{{ kind }}/{% endif %}">List dekhein →</a>
+    <a class="btn ghost" href="{% url 'import' kind %}">Aur file import karein</a>
+  </div>
+  {% if imp.after %}<p style="color:var(--mute)">{{ imp.after }}</p>{% endif %}
+
+{% elif stage == 'preview' %}
+  <div class="msg info">Ye sirf <b>preview</b> hai, abhi kuch save nahi hua. File: <b>{{ filename }}</b> ({{ total }} rows).</div>
+  <div class="stats">
+    <div class="card stat ok"><small>Naye banenge</small><b>{{ counts.create }}</b></div>
+    {% if imp.has_update %}<div class="card stat"><small>Update honge</small><b>{{ counts.update }}</b></div>{% endif %}
+    <div class="card stat"><small>Chhode jayenge</small><b>{{ counts.skip }}</b></div>
+    <div class="card stat {% if counts.error %}warn{% endif %}"><small>Galat rows</small><b>{{ counts.error }}</b></div>
+  </div>
+  {% if ignored %}<div class="msg warning">Ye columns pehchane nahi gaye, isliye ignore hue: {{ ignored|join:", " }}</div>{% endif %}
+  {% if counts.error %}<div class="msg error">{{ counts.error }} row(s) me galti hai. Neeche dekh lein. Galat rows import <b>nahi</b> hongi, baaki sahi rows ho jayengi. Chahein to file theek karke dobara upload karein.</div>{% endif %}
+
+  <form method="post" class="card" style="margin-bottom:14px">{% csrf_token %}
+    <input type="hidden" name="action" value="commit"><input type="hidden" name="token" value="{{ token }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <button class="btn" {% if not ok_count %}disabled style="opacity:.5;cursor:not-allowed"{% endif %}>✅ {{ ok_count }} row import karo</button>
+      <a class="btn ghost" href="{% url 'import' kind %}">Cancel / dusri file</a>
+    </div>
+    {% if not ok_count %}<p style="color:var(--red);margin:10px 0 0">Koi bhi sahi row nahi mili, file theek karke dobara upload karein.</p>{% endif %}
+  </form>
+
+  <div class="card"><h3 style="margin-top:0">Rows {% if truncated %}<small style="color:var(--mute);font-weight:400">(pehli {{ rows|length }}, galat rows sabse upar)</small>{% endif %}</h3>
+    <div class="tw"><table class="t">
+      <thead><tr><th>File row</th><th>Status</th><th>Detail</th><th>Notes</th></tr></thead>
+      {% for r in rows %}<tr>
+        <td>{{ r.n }}</td>
+        <td>{% if r.action == 'error' %}<span class="badge red">Galat</span>{% elif r.action == 'create' %}<span class="badge green">Naya</span>{% elif r.action == 'update' %}<span class="badge blue">Update</span>{% else %}<span class="badge grey">Skip</span>{% endif %}</td>
+        <td>{{ r.label }}</td>
+        <td>{% for e in r.errors %}<div style="color:var(--red)">{{ e }}</div>{% endfor %}{% for w in r.warnings %}<div style="color:var(--amber)">{{ w }}</div>{% endfor %}</td>
+      </tr>{% endfor %}
+    </table></div></div>
+
+{% else %}
+  <div class="msg info">{{ imp.desc }}{% if imp.desc_extra %} {{ imp.desc_extra }}{% endif %}</div>
+  <div class="card" style="margin-bottom:14px">
+    <h3 style="margin-top:0">3 aasan step</h3>
+    <ol style="margin:0 0 12px;padding-left:20px;line-height:1.8">
+      <li><a class="link" href="?template=1"><b>Template download</b></a> karein (Excel). Usme <b>Data</b> sheet khali hai, <b>Example</b> aur <b>Help</b> sheet dekh lein.</li>
+      <li>Data sheet me apni rows bharein. <span class="badge green">Hare</span> header wale columns zaroori hain.</li>
+      <li>Neeche file upload karein. Pehle preview dikhega, phir aap confirm karenge.</li>
+    </ol>
+    <form method="post" enctype="multipart/form-data">{% csrf_token %}
+      <input type="hidden" name="action" value="preview">
+      <div class="grid">
+        <div class="fld"><label for="file">Excel (.xlsx) ya CSV file</label><input id="file" type="file" name="file" accept=".xlsx,.xlsm,.csv" required><small>Zyada se zyada {{ imp.max_rows }} rows aur 5 MB</small></div>
+        {% if imp.has_update %}<div class="fld"><label><input type="checkbox" name="update" value="1"> Jo pehle se hain unhe update karo</label><small>Tick na ho to pehle se maujood naam / barcode / phone wali rows chhod di jayengi. Update me sirf wahi columns badalte hain jo file me bhare hon.</small></div>{% endif %}
+      </div>
+      <div class="bar"><button class="btn">🔍 Preview dekhein</button>
+        {% if can_export %}<a class="btn ghost" href="?export=xlsx">⬇ Maujooda data export (edit karke wapas import kar sakte hain)</a>{% endif %}</div>
+    </form>
+  </div>
+  <div class="card"><h3 style="margin-top:0">Columns</h3>
+    <div class="tw"><table class="t">
+      <thead><tr><th>Column</th><th>Zaroori?</th><th>Kya likhein</th><th>Example</th></tr></thead>
+      {% for c in cols %}<tr><td><b>{{ c.name }}</b></td><td>{% if c.required %}<span class="badge green">Haan</span>{% else %}<span class="badge grey">Optional</span>{% endif %}</td><td>{{ c.help }}</td><td>{{ c.samples.0 }}</td></tr>{% endfor %}
+    </table></div></div>
+{% endif %}
+{% endblock %}
