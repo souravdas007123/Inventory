@@ -22,15 +22,15 @@ a{color:inherit;text-decoration:none}
 .side details a{margin-left:6px}
 .side .me{margin-top:auto;position:sticky;bottom:-18px;background:var(--side);display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 6px 4px;border-top:1px solid #ffffff1f;color:var(--sidetxt);font-size:13px}
 .side .me .r{display:flex;align-items:center;gap:6px}.side .me a{padding:4px 8px}.side .me form{margin:0}
-.main{margin-left:230px;padding:22px;max-width:1200px}
+.main{margin-left:230px;padding:22px;max-width:1600px;min-width:0}
 .top{display:none;align-items:center;gap:12px;margin-bottom:14px}
 .burger{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:6px 12px;font-size:18px}
 .head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
 h1{margin:0;font-size:20px}h3{margin:18px 0 8px;font-size:15px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 1px 3px #0f2e2b0d}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:18px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(190px,100%),1fr));gap:14px;margin-bottom:18px}
 .stat small{color:var(--mute)}.stat b{display:block;font-size:21px;margin-top:2px;color:var(--pri)}a.stat:hover{border-color:var(--pri)}
-.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:14px}
 .btn{display:inline-block;border:0;background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;padding:7px 14px;border-radius:9px;font:inherit;font-weight:600;cursor:pointer}
 .btn.ghost{background:var(--soft);color:var(--pri)}.btn.red{background:var(--red);color:#fff}.btn.sm{padding:4px 9px;font-size:12px}
 .tw{overflow-x:auto}
@@ -45,20 +45,48 @@ table.t{width:100%;border-collapse:collapse}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--pri);outline-offset:0;border-color:var(--pri)}
 input,select,textarea{width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit}
 input[type=checkbox]{width:auto;transform:scale(1.2)}
-.t input,.t select{min-width:105px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.t input,.t select{min-width:90px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:14px}
 .fld label{display:block;font-weight:600;font-size:12px;margin-bottom:4px}
 .fld small{color:var(--mute);display:block;margin-top:3px}
 .errorlist{list-style:none;margin:4px 0 0;padding:0;color:var(--red);font-size:13px}
-.bar{margin-top:20px;display:flex;gap:10px}
-.search{display:flex;gap:8px;margin-bottom:12px}.search input{max-width:340px}
+.bar{margin-top:20px;display:flex;gap:10px;flex-wrap:wrap}
+.search{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}.search input{max-width:340px}
 .msg{padding:11px 14px;border-radius:10px;margin-bottom:12px;font-weight:500}
 .msg.info,.msg.warning{background:var(--soft);color:var(--pri)}
 .msg.success{background:#05966922;color:var(--green)}.msg.error{background:#e11d4822;color:var(--red)}
 .pager{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);color:var(--mute);font-size:14px}
 .pager b{color:var(--ink)}
 .empty{text-align:center;color:var(--mute);padding:26px}
-@media(max-width:820px){.side{transform:translateX(-100%)}.side.open{transform:none;box-shadow:0 0 40px #0006}.main{margin-left:0;padding:14px}.top{display:flex}}
+img,video{max-width:100%;height:auto}
+.top{position:sticky;top:0;z-index:15;background:var(--bg);padding:8px 0;margin-top:-8px}
+@media(max-width:820px){.side{transform:translateX(-100%)}.side.open{transform:none;box-shadow:0 0 40px #0006}.main{margin-left:0;padding:14px}.top{display:flex}
+  body{font-size:14px}
+  .card{padding:12px;border-radius:12px}
+  .head{align-items:flex-start}.head h1{font-size:18px}
+  .btn{padding:9px 14px}.btn.sm{padding:7px 11px}
+  input,select,textarea{font-size:16px;padding:9px 10px}   /* 16px: iPhone zoom nahi karega */
+  .search input{max-width:none;flex:1 1 160px}.search select,.search .btn{flex:0 0 auto}
+  .stat b{font-size:18px}
+  /* ---- Table -> card rows (side scroll nahi) ---- */
+  .tw{overflow-x:visible}
+  table.t.stack,table.t.stack tbody,table.t.stack tr,table.t.stack td{display:block;width:100%}
+  table.t.stack thead{display:none}
+  table.t.stack tr{border:1px solid var(--line);border-radius:12px;padding:6px 12px;margin-bottom:10px;background:var(--card)}
+  table.t.stack tr:hover td{background:transparent}
+  table.t.stack td{display:flex;justify-content:space-between;align-items:center;gap:14px;text-align:right!important;padding:7px 0;border-bottom:1px dashed var(--line);word-break:break-word}
+  table.t.stack td:last-child{border-bottom:0}
+  table.t.stack td::before{content:attr(data-label);flex:0 0 38%;max-width:42%;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--mute)}
+  table.t.stack td[data-label=""]::before,table.t.stack td:not([data-label])::before{display:none}
+  table.t.stack td[data-label=""],table.t.stack td:not([data-label]){justify-content:flex-end;flex-wrap:wrap}
+  table.t.stack td.empty{display:block;text-align:center!important}
+  table.t.stack td input,table.t.stack td select{min-width:0;flex:1 1 auto;text-align:right;max-width:none!important}
+  table.t.stack td form{display:inline}
+  table.t.stack td>*{max-width:62%}
+  table.t.stack td[data-label=""]>*,table.t.stack td:not([data-label])>*{max-width:none}
+  .pager{justify-content:center;font-size:13px}
+}
+@media(max-width:480px){.main{padding:10px}.stats{grid-template-columns:1fr 1fr;gap:10px}.stat small{font-size:11px}.head .btn{flex:1 1 auto;text-align:center}}
 </style>
 </head>
 <body>
@@ -85,6 +113,29 @@ input[type=checkbox]{width:auto;transform:scale(1.2)}
   {% for m in messages %}<div class="msg {{ m.tags }}">{{ m }}</div>{% endfor %}
   {% block content %}{% endblock %}
 </main>
+<script>
+// Har table ke <th> se mobile card-view ke liye data-label set karo (header wali tables par hi)
+function labelTables(root){
+  (root||document).querySelectorAll('table.t').forEach(function(t){
+    var ths=t.querySelectorAll('thead th'); if(!ths.length) return;
+    t.classList.add('stack');
+    var labels=[].map.call(ths,function(h){return h.textContent.trim();});
+    t.querySelectorAll('tbody tr').forEach(function(tr){
+      var i=0;
+      [].forEach.call(tr.children,function(td){
+        if(td.tagName!=='TD') return;
+        if(!td.hasAttribute('data-label')) td.setAttribute('data-label',labels[i]||'');
+        i+=td.colSpan||1;
+      });
+    });
+  });
+}
+labelTables();
+new MutationObserver(function(m){ if(m.some(function(x){return x.addedNodes.length;})) labelTables(); })
+  .observe(document.querySelector('main'),{childList:true,subtree:true});
+document.addEventListener('click',function(e){var s=document.getElementById('side');
+  if(s&&s.classList.contains('open')&&!s.contains(e.target)&&!e.target.closest('.burger'))s.classList.remove('open');});
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
