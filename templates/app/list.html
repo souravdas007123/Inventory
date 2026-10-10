@@ -2,7 +2,9 @@
 {% block title %}{{ cfg.title }}{% endblock %}
 {% block content %}
 <div class="head"><h1>{{ cfg.title }}</h1>
-  {% if not cfg.readonly %}<a class="btn" href="{% url 'new' key %}">+ New {{ cfg.one }}</a>{% endif %}</div>
+  {% if cfg.start_url %}<form method="post" action="{{ cfg.start_url }}" style="margin:0">{% csrf_token %}<button class="btn">+ New {{ cfg.one }}</button></form>
+  {% elif not cfg.readonly and not cfg.no_new %}<a class="btn" href="{% url 'new' key %}">+ New {{ cfg.one }}</a>{% endif %}</div>
+{% if cfg.hint %}<div class="msg info">{{ cfg.hint }}</div>{% endif %}
 <div class="card">
   <form class="search" method="get">
     <input name="q" value="{{ q }}" placeholder="Search...">
@@ -12,18 +14,24 @@
     <button class="btn ghost">Search</button>
   </form>
   <div class="tw"><table class="t">
-    <thead><tr>{% for h in heads %}<th>{{ h }}</th>{% endfor %}{% if not cfg.readonly %}<th></th>{% endif %}</tr></thead>
+    <thead><tr>{% for h in heads %}<th>{{ h }}</th>{% endfor %}{% if not cfg.readonly or has_actions %}<th></th>{% endif %}</tr></thead>
     <tbody>
     {% for r in rows %}<tr>
       {% for c in r.cells %}<td>{{ c }}</td>{% endfor %}
-      {% if not cfg.readonly %}<td style="white-space:nowrap">
+      {% if not cfg.readonly or has_actions %}<td style="white-space:nowrap">
         {% if key == 'bills' %}
           <a class="btn sm" href="{% url 'invoice' r.pk %}">🖨️ Invoice</a>
+          {% if r.obj.status == 'FINAL' %}<a class="btn ghost sm" href="{% url 'sales_return_new' r.pk %}">↩ Return</a>{% endif %}
           {% if r.obj.status == 'FINAL' and user.is_staff %}<form method="post" action="{% url 'bill_cancel' r.pk %}" style="display:inline" onsubmit="return confirm('Bill cancel karna hai? Stock wapas add ho jayega.')">{% csrf_token %}<button class="btn red sm">Cancel</button></form>{% endif %}
         {% else %}
-          {% if r.act %}<a class="btn sm" href="{{ r.act }}">{{ cfg.action_label }}</a>{% endif %}
-          <a class="btn ghost sm" href="{% url 'edit' key r.pk %}">Edit</a>
-          <form method="post" action="{% url 'delete' key r.pk %}" style="display:inline" onsubmit="return confirm('Pakka delete karna hai?')">{% csrf_token %}<button class="btn red sm">Delete</button></form>
+          {% for a in r.acts %}
+            {% if a.post %}<form method="post" action="{{ a.url }}" style="display:inline"{% if a.confirm %} onsubmit="return confirm('{{ a.confirm|escapejs }}')"{% endif %}>{% csrf_token %}<button class="btn {% if a.cls %}{{ a.cls }}{% endif %} sm">{{ a.label }}</button></form>
+            {% else %}<a class="btn sm" href="{{ a.url }}"{% if a.target %} target="{{ a.target }}" rel="noopener"{% endif %}>{{ a.label }}</a>{% endif %}
+          {% endfor %}
+          {% if not cfg.readonly %}
+            {% if not cfg.no_edit %}<a class="btn ghost sm" href="{% url 'edit' key r.pk %}">Edit</a>{% endif %}
+            <form method="post" action="{% url 'delete' key r.pk %}" style="display:inline" onsubmit="return confirm('Pakka delete karna hai?')">{% csrf_token %}<button class="btn red sm">Delete</button></form>
+          {% endif %}
         {% endif %}
       </td>{% endif %}
     </tr>{% empty %}<tr><td class="empty" colspan="9">Abhi kuch nahi mila.</td></tr>{% endfor %}

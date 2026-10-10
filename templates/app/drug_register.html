@@ -1,0 +1,29 @@
+{% extends "app/base.html" %}
+{% block title %}Drug Register{% endblock %}
+{% block content %}
+<div class="head"><h1>📒 Drug Register <small style="font-size:15px;color:var(--mute)">{{ month_name }} {{ year }}</small></h1>
+  <form method="get" class="search" style="margin:0">
+    <select name="schedule" style="width:auto">
+      <option value="H1X" {% if sel == 'H1X' %}selected{% endif %}>Schedule H1 + X</option>
+      <option value="H" {% if sel == 'H' %}selected{% endif %}>Schedule H</option>
+      <option value="ALL" {% if sel == 'ALL' %}selected{% endif %}>H + H1 + X</option>
+    </select>
+    <select name="month" style="width:auto">{% for n, name in months %}<option value="{{ n }}" {% if n == month %}selected{% endif %}>{{ name }}</option>{% endfor %}</select>
+    <select name="year" style="width:auto">{% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}</select>
+    <button class="btn">Show</button>
+    <button class="btn ghost" name="export" value="xlsx">⬇ Excel</button>
+  </form>
+</div>
+<div class="msg info">Product ko Products page par Drug Schedule (H / H1 / X) set karein. Bill banate waqt Doctor aur Patient ki details bharni hoti hain; register yahin se apne aap banta hai.</div>
+<div class="card"><div class="tw"><table class="t">
+  <thead><tr><th>Date</th><th>Invoice</th><th>Patient</th><th>Doctor (Reg. No.)</th><th>Medicine</th><th>Sch.</th><th>Batch / Exp</th><th>Qty</th></tr></thead>
+  <tbody>
+  {% for r in rows %}<tr>
+    <td>{{ r.date|date:"d M Y" }}</td><td>{{ r.invoice }}</td>
+    <td>{{ r.patient|default:"-" }}{% if r.address %}<br><small>{{ r.address }}</small>{% endif %}</td>
+    <td>{{ r.doctor|default:"-" }}{% if r.reg_no %}<br><small>{{ r.reg_no }}</small>{% endif %}</td>
+    <td>{{ r.product }}</td><td><span class="badge amber">{{ r.schedule }}</span></td><td>{{ r.batch|default:"-" }}</td><td>{{ r.qty }}</td>
+  </tr>{% empty %}<tr><td class="empty" colspan="8">Is mahine koi scheduled dawa nahi bikhi.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "app/base.html" %}
+{% block title %}GST Reports{% endblock %}
+{% block content %}
+<div class="head"><h1>🧮 GST Reports <small style="font-size:15px;color:var(--mute)">{{ month_name }} {{ year }}</small></h1>
+  <form method="get" class="search" style="margin:0">
+    <select name="month" style="width:auto">{% for n, name in months %}<option value="{{ n }}" {% if n == month %}selected{% endif %}>{{ name }}</option>{% endfor %}</select>
+    <select name="year" style="width:auto">{% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}</select>
+    <button class="btn">Show</button>
+    <button class="btn ghost" name="export" value="xlsx">⬇ Excel</button>
+  </form>
+</div>
+<div class="msg info">Ye accounting summary hai (sirf Final bills aur is mahine ke credit/debit notes). Return file karne se pehle apne CA se zaroor verify karein.</div>
+
+<div class="card"><h3 style="margin-top:0">GSTR-3B jaisa summary</h3>
+  <div class="tw"><table class="t">
+    <thead><tr><th></th><th style="text-align:right">Taxable</th><th style="text-align:right">CGST</th><th style="text-align:right">SGST</th><th style="text-align:right">IGST</th></tr></thead>
+    <tr><td>Outward supplies (credit notes ghata kar)</td><td style="text-align:right">₹{{ rep.outward.taxable|floatformat:2 }}</td><td style="text-align:right">₹{{ rep.outward.cgst|floatformat:2 }}</td><td style="text-align:right">₹{{ rep.outward.sgst|floatformat:2 }}</td><td style="text-align:right">₹{{ rep.outward.igst|floatformat:2 }}</td></tr>
+    <tr><td>ITC: purchases ka GST (debit notes ghata kar)</td><td style="text-align:right">₹{{ rep.itc.taxable|floatformat:2 }}</td><td style="text-align:right">₹{{ rep.itc.cgst|floatformat:2 }}</td><td style="text-align:right">₹{{ rep.itc.sgst|floatformat:2 }}</td><td style="text-align:right">₹{{ rep.itc.igst|floatformat:2 }}</td></tr>
+    <tr><td><b>Net GST payable</b></td><td></td><td style="text-align:right"><b>₹{{ rep.net.cgst|floatformat:2 }}</b></td><td style="text-align:right"><b>₹{{ rep.net.sgst|floatformat:2 }}</b></td><td style="text-align:right"><b>₹{{ rep.net.igst|floatformat:2 }}</b></td></tr>
+  </table></div>
+  <p style="color:var(--mute);font-size:13px;margin:10px 0 0">Total net GST: <b>₹{{ rep.net.total|floatformat:2 }}</b>. Purchases me sirf CGST+SGST (aadha-aadha) ginte hain; ITC eligibility aap khud check karein.</p>
+</div>
+
+<div class="card" style="margin-top:14px"><h3 style="margin-top:0">Documents</h3>
+  Invoices: <b>{{ rep.docs.invoices }}</b> ({{ rep.docs.first }} → {{ rep.docs.last }}) · Cancelled: <b>{{ rep.docs.cancelled }}</b> · Credit notes: <b>{{ rep.docs.credit_notes }}</b>
+</div>
+
+<div class="card" style="margin-top:14px"><h3 style="margin-top:0">B2B invoices (customer GSTIN ke saath)</h3>
+  <div class="tw"><table class="t">
+    <thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>GSTIN</th><th style="text-align:right">Taxable</th><th style="text-align:right">CGST</th><th style="text-align:right">SGST</th><th style="text-align:right">IGST</th><th style="text-align:right">Total</th></tr></thead>
+    {% for r in rep.b2b %}<tr><td>{{ r.invoice }}</td><td>{{ r.date|date:"d M Y" }}</td><td>{{ r.customer }}</td><td>{{ r.gstin }}</td>
+      <td style="text-align:right">{{ r.taxable|floatformat:2 }}</td><td style="text-align:right">{{ r.cgst|floatformat:2 }}</td><td style="text-align:right">{{ r.sgst|floatformat:2 }}</td><td style="text-align:right">{{ r.igst|floatformat:2 }}</td><td style="text-align:right">{{ r.total|floatformat:2 }}</td></tr>
+    {% empty %}<tr><td class="empty" colspan="9">Is mahine koi B2B invoice nahi.</td></tr>{% endfor %}
+  </table></div>
+</div>
+
+<div class="card" style="margin-top:14px"><h3 style="margin-top:0">B2C (rate wise, credit notes ghata kar)</h3>
+  <div class="tw"><table class="t">
+    <thead><tr><th>GST %</th><th style="text-align:right">Taxable</th><th style="text-align:right">CGST</th><th style="text-align:right">SGST</th><th style="text-align:right">IGST</th><th style="text-align:right">Total</th></tr></thead>
+    {% for r in rep.b2c %}<tr><td>{{ r.rate }}%</td><td style="text-align:right">{{ r.taxable|floatformat:2 }}</td><td style="text-align:right">{{ r.cgst|floatformat:2 }}</td><td style="text-align:right">{{ r.sgst|floatformat:2 }}</td><td style="text-align:right">{{ r.igst|floatformat:2 }}</td><td style="text-align:right">{{ r.total|floatformat:2 }}</td></tr>
+    {% empty %}<tr><td class="empty" colspan="6">Is mahine koi B2C bikri nahi.</td></tr>{% endfor %}
+  </table></div>
+</div>
+
+<div class="card" style="margin-top:14px"><h3 style="margin-top:0">Credit notes (sales return)</h3>
+  <div class="tw"><table class="t">
+    <thead><tr><th>Note</th><th>Date</th><th>Against</th><th>Customer</th><th style="text-align:right">Taxable</th><th style="text-align:right">GST</th><th style="text-align:right">Total</th></tr></thead>
+    {% for r in rep.credit_notes %}<tr><td>{{ r.note }}</td><td>{{ r.date|date:"d M Y" }}</td><td>{{ r.invoice }}</td><td>{{ r.customer }}{% if r.gstin %} ({{ r.gstin }}){% endif %}</td>
+      <td style="text-align:right">{{ r.taxable|floatformat:2 }}</td><td style="text-align:right">{{ r.gst|floatformat:2 }}</td><td style="text-align:right">{{ r.total|floatformat:2 }}</td></tr>
+    {% empty %}<tr><td class="empty" colspan="7">Is mahine koi credit note nahi.</td></tr>{% endfor %}
+  </table></div>
+</div>
+
+<div class="card" style="margin-top:14px"><h3 style="margin-top:0">HSN summary</h3>
+  <div class="tw"><table class="t">
+    <thead><tr><th>HSN</th><th>GST %</th><th style="text-align:right">Qty (base)</th><th style="text-align:right">Taxable</th><th style="text-align:right">CGST</th><th style="text-align:right">SGST</th><th style="text-align:right">IGST</th><th style="text-align:right">Total</th></tr></thead>
+    {% for r in rep.hsn %}<tr><td>{{ r.hsn }}</td><td>{{ r.rate }}%</td><td style="text-align:right">{{ r.qty }}</td><td style="text-align:right">{{ r.taxable|floatformat:2 }}</td><td style="text-align:right">{{ r.cgst|floatformat:2 }}</td><td style="text-align:right">{{ r.sgst|floatformat:2 }}</td><td style="text-align:right">{{ r.igst|floatformat:2 }}</td><td style="text-align:right">{{ r.total|floatformat:2 }}</td></tr>
+    {% empty %}<tr><td class="empty" colspan="8">Is mahine koi bikri nahi.</td></tr>{% endfor %}
+  </table></div>
+</div>
+{% endblock %}

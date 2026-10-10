@@ -1,5 +1,5 @@
 from datetime import timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 import random
 import string
 
@@ -589,6 +589,9 @@ class Sale(models.Model):
     gst = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=0)
     total = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=0)
     invoice_item = models.OneToOneField('InvoiceItem', on_delete=models.CASCADE, null=True, blank=True)
+    # Sales return par negative Sale row banti hai (dashboard/P&L/ledger khud net ho jaate hain)
+    sales_return_item = models.OneToOneField('SalesReturnItem', on_delete=models.CASCADE, null=True, blank=True,
+                                             editable=False, related_name='sale_entry')
 
     def save(self, *args, **kwargs):
         with transaction.atomic():
@@ -725,10 +728,26 @@ class Bill(models.Model):
     invoice_number = models.CharField(max_length=30, unique=True, null=True, blank=True, editable=False)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='FINAL', editable=False)
     cancelled_at = models.DateTimeField(null=True, blank=True, editable=False)
+    PAYMENT_CHOICES = (
+        ('CASH', 'Cash'),
+        ('UPI', 'UPI'),
+        ('CARD', 'Card'),
+        ('CREDIT', 'Udhar (Credit)'),
+    )
     customer_name = models.CharField(max_length=255, default="Cash")
+    customer = models.ForeignKey('Customer', on_delete=models.PROTECT, null=True, blank=True, related_name='bills',
+                                 help_text="Regular customer / udhar ke liye select karein")
     date = models.DateField(blank=True, null=True)
     invoice_mode = models.CharField(max_length=10, choices=MODE_CHOICES, default='offline')
     order = models.ForeignKey('Order', on_delete=models.SET_NULL, null=True, blank=True)
+    payment_mode = models.CharField(max_length=10, choices=PAYMENT_CHOICES, default='CASH')
+    amount_paid = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'),
+                                      verbose_name="Abhi diya (sirf udhar bill me)",
+                                      help_text="Udhar bill me customer ne abhi kitna diya (baaki udhar me jayega)")
+    doctor_name = models.CharField(max_length=100, blank=True, default='')
+    doctor_reg_no = models.CharField(max_length=50, blank=True, default='', verbose_name="Doctor Reg. No.")
+    patient_name = models.CharField(max_length=100, blank=True, default='')
+    patient_address = models.CharField(max_length=255, blank=True, default='')
 
     def clean(self):
         if self.invoice_mode == 'online':
@@ -739,9 +758,18 @@ class Bill(models.Model):
                 raise ValidationError({'order': 'Is Order me product / rate / qty missing hai.'})
         else:
             self.order = None
+        if self.payment_mode == 'CREDIT':
+            if not self.customer_id:
+                raise ValidationError({'customer': 'Udhar bill ke liye Customer select karna zaroori hai.'})
+            if self.amount_paid is not None and self.amount_paid < 0:
+                raise ValidationError({'amount_paid': 'Amount negative nahi ho sakta.'})
+        else:
+            self.amount_paid = Decimal('0.00')   # udhar nahi hai to poora paisa mil chuka maana jata hai
 
     def save(self, *args, **kwargs):
         with transaction.atomic():
+            if self.customer_id and (not self.customer_name or self.customer_name == "Cash"):
+                self.customer_name = self.customer.name
             if self.invoice_mode == 'online' and self.order:
                 if self.customer_name == "Cash" and self.order.customers_name:
                     self.customer_name = self.order.customers_name
@@ -768,7 +796,14 @@ class Bill(models.Model):
 
     def after_items_saved(self):
         """Items save hone ke baad ke checks. ValidationError aaye to poora bill rollback ho jata hai."""
-        return
+        if self.payment_mode != 'CREDIT' or not self.customer_id:
+            return
+        limit = self.customer.credit_limit or Decimal('0')
+        if limit > 0:
+            balance = self.customer.balance()
+            if balance > limit:
+                raise ValidationError(
+                    f"Customer ka udhar limit ₹{limit} hai, is bill ke baad baaki ₹{balance} ho jayega.")
 
     def delete(self, *args, **kwargs):
         with transaction.atomic():
@@ -780,6 +815,9 @@ class Bill(models.Model):
         """Bill cancel: stock/batch wapas, Sales se hatao. Bill aur items record ke liye bache rehte hain."""
         if self.status == 'CANCELLED':
             return
+        if self.returns.exists():
+            raise ValidationError('Is bill par Credit Note (Sales Return) ban chuka hai, isliye bill cancel nahi ho sakta. '
+                                  'Pehle return delete karein.')
         with transaction.atomic():
             for item in self.items.all():
                 if item.product_id and item.base_qty:
@@ -792,6 +830,18 @@ class Bill(models.Model):
             self.status = 'CANCELLED'
             self.cancelled_at = timezone.now()
             super().save(update_fields=['status', 'cancelled_at'])
+
+    @property
+    def grand_total(self):
+        """Rupaye me round kiya hua total (invoice par jo chhapta hai)."""
+        return Decimal(self.total or 0).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+
+    @property
+    def credit_due(self):
+        """Is udhar bill ka bill-time par baaki hissa (receipts alag se Customer balance me ghatate hain)."""
+        if self.status != 'FINAL' or self.payment_mode != 'CREDIT':
+            return Decimal('0')
+        return max(self.grand_total - (self.amount_paid or Decimal('0')), Decimal('0'))
 
     @property
     def display_number(self):
@@ -911,6 +961,8 @@ class InvoiceItem(models.Model):
 
         with transaction.atomic():
             old = InvoiceItem.objects.filter(pk=self.pk).first() if self.pk else None
+            if old and old.return_items.exists():
+                raise ValidationError('Is bill item par Return/Credit Note ban chuka hai, isliye edit nahi ho sakta.')
 
             # ---- Unit conversion ----
             self.unit_factor = resolve_unit_factor(self, old)
@@ -1164,6 +1216,8 @@ class Payment(models.Model):
 class Transaction(models.Model):
     purchase_item = models.OneToOneField(PurchaseItem, on_delete=models.CASCADE, null=True, blank=True, editable=False)
     sale = models.OneToOneField(Sale, on_delete=models.CASCADE, null=True, blank=True, editable=False)
+    purchase_return_item = models.OneToOneField('PurchaseReturnItem', on_delete=models.CASCADE, null=True,
+                                                blank=True, editable=False)
     purchase_date = models.DateField(editable=False, blank=True, null=True)
     supplier = models.CharField(max_length=255, editable=False, blank=True, null=True)
     purchase_amount = models.DecimalField(max_digits=12, decimal_places=2, editable=False, blank=True, null=True)
@@ -1249,3 +1303,7 @@ class PurchaseOrderItem(models.Model):
 
     def __str__(self):
         return f"{self.product.name} (Qty: {self.order_qty})"
+
+
+# Naye models (customer, returns, write-off, audit) alag file me; yahin se register hote hain
+from .models_extra import *  # noqa: E402,F401,F403

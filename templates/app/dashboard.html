@@ -1,14 +1,51 @@
 {% extends "app/base.html" %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
-<div class="head"><h1>Dashboard</h1><a class="btn" href="/bills/new/">+ New Bill</a></div>
+<style>
+.bars{display:flex;align-items:flex-end;gap:6px;height:150px;padding-top:8px}
+.bars .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;min-width:0}
+.bars .bar{width:100%;max-width:34px;background:linear-gradient(180deg,var(--pri),var(--pri2));border-radius:6px 6px 0 0;min-height:2px}
+.bars .bar.zero{background:var(--line)}
+.bars small{color:var(--mute);font-size:10px;margin-top:4px;white-space:nowrap}
+.hbar{height:8px;border-radius:99px;background:var(--line);margin-top:4px;overflow:hidden}
+.hbar span{display:block;height:100%;background:linear-gradient(90deg,var(--pri),var(--pri2))}
+</style>
+<div class="head"><h1>Dashboard</h1>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <a class="btn ghost" href="{{ wa_link }}" target="_blank" rel="noopener" title="Stock alerts WhatsApp par bhejein">💬 Alerts WhatsApp</a>
+    {% if user.is_staff %}<form method="post" action="{% url 'alerts_send' %}" style="margin:0">{% csrf_token %}<button class="btn ghost" title="Low stock / expiry ka digest email karein">✉️ Alerts Email</button></form>{% endif %}
+    <a class="btn" href="/bills/new/">+ New Bill</a>
+  </div>
+</div>
 <div class="stats">
-  <div class="card stat"><small>Sale</small><b>₹{{ today_sales|floatformat:2 }}</b></div>
+  <div class="card stat"><small>Sale (aaj, return ke baad)</small><b>₹{{ today_sales|floatformat:2 }}</b></div>
   <div class="card stat"><small>Monthly Sale</small><b>₹{{ month_sales|floatformat:2 }}</b></div>
   <div class="card stat"><small>Supplier Due</small><b>₹{{ payable }}</b></div>
   <a class="card stat" href="/products/"><small>Low Stock / Out of Stock</small><b>{{ low_count }} / {{ out_count }}</b></a>
   <a class="card stat" href="/batches/"><small>Expiring (30 days) / Expired</small><b>{{ expiring_count }} / {{ expired_count }}</b></a>
 </div>
+
+<div class="card" style="margin-bottom:14px"><h3 style="margin-top:0">📈 Pichle 14 din ki sale <small style="color:var(--mute);font-weight:400">(total ₹{{ charts.total_14|floatformat:2 }})</small></h3>
+  <div class="bars">
+    {% for b in charts.bars %}<div class="col" title="{{ b.label }}: ₹{{ b.value|floatformat:2 }}">
+      <div class="bar{% if not b.pct %} zero{% endif %}" style="height:{% if b.pct %}{{ b.pct }}{% else %}2{% endif %}%"></div><small>{{ b.label }}</small></div>{% endfor %}
+  </div>
+</div>
+
+<div class="two" style="margin-bottom:14px">
+  <div class="card"><h3 style="margin-top:0">🏆 Top selling (30 din)</h3>
+    {% for t in charts.top_rows %}<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;gap:8px"><span>{{ t.name }}</span><b>₹{{ t.amount|floatformat:2 }}</b></div>
+      <div class="hbar"><span style="width:{{ t.pct }}%"></span></div><small style="color:var(--mute)">{{ t.qty }} (base unit) bika</small></div>
+    {% empty %}<div class="empty">Abhi bikri ka data nahi.</div>{% endfor %}
+  </div>
+  <div class="card"><h3 style="margin-top:0">🧊 Dead stock (90 din se bikri nahi)</h3>
+    <div class="tw"><table class="t">
+      {% for name, stock in charts.dead_stock %}<tr><td>{{ name }}</td><td>{{ stock }}</td></tr>
+      {% empty %}<tr><td class="empty">Koi dead stock nahi 👍</td></tr>{% endfor %}
+    </table></div></div>
+</div>
+
 <div class="two">
   <div class="card"><h3 style="margin-top:0">⚠️ Low Stock</h3>
     <div class="tw"><table class="t">

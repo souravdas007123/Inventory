@@ -56,7 +56,13 @@ table{width:100%;border-collapse:collapse}
     </div>
   </div>
 
-  <div class="cust"><b>Bill To:</b> {{ bill.customer_name }}</div>
+  <div class="cust"><b>Bill To:</b> {{ bill.customer_name }}{% if bill.customer.gstin %} &nbsp;·&nbsp; <b>GSTIN:</b> {{ bill.customer.gstin }}{% endif %}
+    {% if bill.customer.phone %}<br><small>Ph: {{ bill.customer.phone }}</small>{% endif %}
+    {% if bill.doctor_name or bill.patient_name %}<br><small>
+      {% if bill.patient_name %}Patient: <b>{{ bill.patient_name }}</b>{% if bill.patient_address %} ({{ bill.patient_address }}){% endif %}{% endif %}
+      {% if bill.doctor_name %} &nbsp; Dr. <b>{{ bill.doctor_name }}</b>{% if bill.doctor_reg_no %} (Reg. {{ bill.doctor_reg_no }}){% endif %}{% endif %}
+    </small>{% endif %}
+  </div>
 
   <table class="items">
     <thead><tr>
@@ -83,6 +89,9 @@ table{width:100%;border-collapse:collapse}
     <tr><td>SGST</td><td class="r">₹{{ sgst|floatformat:2 }}</td></tr>{% endif %}
     <tr><td>Round off</td><td class="r">{{ round_off|floatformat:2 }}</td></tr>
     <tr class="g"><td>Grand Total</td><td class="r">₹{{ grand }}</td></tr>
+    <tr><td>Payment</td><td class="r">{{ bill.get_payment_mode_display }}</td></tr>
+    {% if bill.payment_mode == 'CREDIT' %}<tr><td>Paid now</td><td class="r">₹{{ bill.amount_paid }}</td></tr>
+    <tr><td><b>Udhar (due)</b></td><td class="r"><b>₹{{ bill.credit_due }}</b></td></tr>{% endif %}
   </table>
 
   <div class="words"><b>Amount in words:</b> Rupees {{ words }} Only</div>

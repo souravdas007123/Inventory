@@ -49,6 +49,12 @@
             <td style="padding: 12px; border-bottom: 1px solid #3a3a3a; color: red; text-align: right;">- ₹{{ expenses|floatformat:2 }}</td>
         </tr>
 
+        <!-- WRITE-OFFS -->
+        <tr>
+            <td style="padding: 12px; border-bottom: 1px solid #3a3a3a;">Less: Expired / Damaged stock write-off (purchase cost)</td>
+            <td style="padding: 12px; border-bottom: 1px solid #3a3a3a; color: red; text-align: right;">- ₹{{ writeoffs|floatformat:2 }}</td>
+        </tr>
+
         <!-- NET PROFIT -->
         <tr style="background-color: {% if net_profit >= 0 %}#1f3a1f{% else %}#3a1f1f{% endif %}; font-size: 18px;">
             <td style="padding: 15px;"><strong>Net Profit / Loss</strong></td>

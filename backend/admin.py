@@ -12,9 +12,10 @@ from import_export.widgets import ForeignKeyWidget
 
 from .reports import profit_and_loss
 from .models import (
-    Batch, Bill, Brand, Category, Expense, ShopProfile, FinancialReport, InvoiceItem, Order,
-    Payment, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem, Sale,
-    Supplier, Transaction, Unit,
+    Batch, Bill, Brand, Category, Customer, CustomerPayment, Expense, ShopProfile, FinancialReport,
+    InvoiceItem, Order, Payment, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
+    PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, Sale, SalesReturn, SalesReturnItem,
+    StockAudit, StockAuditItem, StockWriteOff, Supplier, Transaction, Unit,
 )
 
 
@@ -154,11 +155,12 @@ class ProductAdmin(ImportExportModelAdmin):
     inlines = [ProductUnitInline]
     resource_classes = [ProductResource]
     list_display = (
-        'id', 'name', 'composition', 'brand', 'hsn_code', 'sku', 'category',
-        'pick_batch', 'rack', 'row', 'unit', 'gst_rate', 'stock_qty', 'stock_packs',
+        'id', 'name', 'composition', 'brand', 'hsn_code', 'sku', 'barcode', 'category',
+        'pick_batch', 'rack', 'row', 'unit', 'gst_rate', 'mrp', 'schedule', 'stock_qty', 'stock_packs',
         'stock_status', 'alternatives',
     )
-    search_fields = ['name', 'sku', 'rack', 'composition']
+    search_fields = ['name', 'sku', 'barcode', 'rack', 'composition']
+    list_filter = ('schedule', 'gst_rate')
     list_select_related = ('brand', 'category', 'unit')
     list_per_page = 10
 
@@ -295,8 +297,10 @@ class InvoiceItemInline(admin.TabularInline):
 
 @admin.register(Bill)
 class BillAdmin(SafeDeleteMixin, admin.ModelAdmin):
-    list_display = ('id', 'invoice_number', 'status', 'customer_name', 'invoice_mode', 'order', 'date', 'total_items', 'taxable', 'cgst', 'sgst', 'igst', 'total')
+    list_display = ('id', 'invoice_number', 'status', 'customer_name', 'payment_mode', 'invoice_mode', 'order', 'date', 'total_items', 'taxable', 'cgst', 'sgst', 'igst', 'total')
     search_fields = ['invoice_number', 'customer_name']
+    list_filter = ('status', 'payment_mode', 'invoice_mode')
+    autocomplete_fields = ['customer']
     inlines = [InvoiceItemInline]
     list_per_page = 10
 
@@ -366,6 +370,7 @@ class FinancialReportAdmin(admin.ModelAdmin):
             cogs=pl['cogs'],
             purchases=pl['purchases'],
             expenses=pl['expenses'],
+            writeoffs=pl['writeoffs'],
             gross_profit=pl['gross'],
             net_profit=pl['net'],
             month=month,
@@ -413,3 +418,92 @@ class ShopProfileAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return not ShopProfile.objects.exists()
+
+
+# ======================================================
+# CUSTOMER / UDHAR
+# ======================================================
+
+@admin.register(Customer)
+class CustomerAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'phone', 'gstin', 'credit_limit', 'is_active')
+    search_fields = ['name', 'phone', 'gstin']
+    list_filter = ('is_active',)
+    list_per_page = 10
+
+
+@admin.register(CustomerPayment)
+class CustomerPaymentAdmin(admin.ModelAdmin):
+    list_display = ('id', 'date', 'customer', 'amount', 'mode', 'note')
+    search_fields = ['customer__name', 'note']
+    list_select_related = ('customer',)
+    autocomplete_fields = ['customer']
+    list_per_page = 10
+
+
+# ======================================================
+# RETURNS / WRITE-OFF / AUDIT  (stock par asar model.save()/delete() se aata hai, isliye
+# ye records admin me sirf dekhne ke liye hain; naye banane ke liye app ke screens use karein)
+# ======================================================
+
+class ViewOnlyMixin:
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+class SalesReturnItemInline(ViewOnlyMixin, admin.TabularInline):
+    model = SalesReturnItem
+    extra = 0
+    fields = ('invoice_item', 'qty', 'base_qty', 'taxable_value', 'gst', 'total')
+    readonly_fields = fields
+
+
+@admin.register(SalesReturn)
+class SalesReturnAdmin(ViewOnlyMixin, SafeDeleteMixin, admin.ModelAdmin):
+    list_display = ('id', 'note_number', 'date', 'bill', 'refund_mode', 'reason')
+    search_fields = ['note_number', 'bill__invoice_number', 'bill__customer_name']
+    inlines = [SalesReturnItemInline]
+    list_per_page = 10
+
+
+class PurchaseReturnItemInline(ViewOnlyMixin, admin.TabularInline):
+    model = PurchaseReturnItem
+    extra = 0
+    fields = ('purchase_item', 'qty', 'base_qty', 'taxable_value', 'gst', 'amount')
+    readonly_fields = fields
+
+
+@admin.register(PurchaseReturn)
+class PurchaseReturnAdmin(ViewOnlyMixin, SafeDeleteMixin, admin.ModelAdmin):
+    list_display = ('id', 'note_number', 'date', 'purchase', 'reason')
+    search_fields = ['note_number', 'purchase__invoice_number', 'purchase__supplier__company']
+    inlines = [PurchaseReturnItemInline]
+    list_per_page = 10
+
+
+@admin.register(StockWriteOff)
+class StockWriteOffAdmin(SafeDeleteMixin, admin.ModelAdmin):
+    list_display = ('id', 'date', 'batch', 'qty', 'reason', 'cost', 'note')
+    search_fields = ['batch__batch_number', 'batch__product__name']
+    list_filter = ('reason', 'date')
+    list_per_page = 10
+
+    def has_change_permission(self, request, obj=None):
+        return False   # edit nahi hota; galti ho to delete karke dobara banayein
+
+
+class StockAuditItemInline(ViewOnlyMixin, admin.TabularInline):
+    model = StockAuditItem
+    extra = 0
+    fields = ('product', 'system_qty', 'counted_qty', 'system_qty_at_apply', 'applied_diff')
+    readonly_fields = fields
+
+
+@admin.register(StockAudit)
+class StockAuditAdmin(ViewOnlyMixin, admin.ModelAdmin):
+    list_display = ('id', 'date', 'status', 'note')
+    list_filter = ('status',)
+    inlines = [StockAuditItemInline]

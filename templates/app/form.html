@@ -14,6 +14,12 @@
   {% if fs %}
   <div id="items-sec">
   <h3>{{ inline_title }}</h3>
+  {% if key == 'bills' %}
+  <div id="scan-box" style="margin-bottom:12px">
+    <input id="scan" type="text" autocomplete="off" placeholder="🔍 Barcode scan karein ya dawa ka naam likhein (Enter dabane par add ho jayega)">
+    <div id="scan-results" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
+  </div>
+  {% endif %}
   {{ fs.management_form }}{{ fs.non_form_errors }}
   <div class="tw"><table class="t">
     <thead><tr>{% for f in fs.empty_form.visible_fields %}<th>{{ f.label }}</th>{% endfor %}</tr></thead>
@@ -43,6 +49,64 @@ function toggleMode() {
   if (!online) orderBox.value = '';
 }
 mode.onchange = toggleMode; toggleMode();
+
+// Udhar (credit) bill me hi "Abhi diya" field dikhao
+const payMode = document.getElementById('id_payment_mode'), paidBox = document.getElementById('id_amount_paid');
+function togglePay() { if (payMode && paidBox) paidBox.closest('.fld').style.display = payMode.value === 'CREDIT' ? '' : 'none'; }
+if (payMode) { payMode.addEventListener('change', togglePay); togglePay(); }
+
+// ---- Barcode scan / quick product search ----
+const scan = document.getElementById('scan'), resBox = document.getElementById('scan-results'),
+      rowsBody = document.getElementById('rows');
+const rowField = (tr, name) => tr.querySelector('[name$="-' + name + '"]');
+function addProduct(p) {
+  for (const tr of rowsBody.querySelectorAll('tr')) {          // pehle se row hai to qty +1
+    const sel = rowField(tr, 'product');
+    if (sel && sel.value === String(p.id)) {
+      const q = rowField(tr, 'qty'); q.value = (parseInt(q.value || '0', 10) + 1); return;
+    }
+  }
+  let target = null;                                           // khali row dhundo
+  for (const tr of rowsBody.querySelectorAll('tr')) {
+    const sel = rowField(tr, 'product');
+    if (sel && !sel.value) { target = tr; break; }
+  }
+  if (!target) {
+    document.getElementById('add').click();
+    const trs = rowsBody.querySelectorAll('tr'); target = trs[trs.length - 1];
+  }
+  rowField(target, 'product').value = String(p.id);
+  rowField(target, 'qty').value = 1;
+  const rate = rowField(target, 'rate');
+  if (p.mrp && rate && !rate.value) rate.value = p.mrp;
+}
+function showResults(list) {
+  resBox.textContent = '';
+  list.forEach(p => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn ghost sm';
+    b.textContent = p.name + (p.mrp ? ' · ₹' + p.mrp : '') + ' · stock ' + p.stock + (p.schedule !== 'NONE' ? ' · Sch ' + p.schedule : '');
+    b.onclick = () => { addProduct(p); scan.value = ''; resBox.textContent = ''; scan.focus(); };
+    resBox.appendChild(b);
+  });
+}
+async function lookup(q, enter) {
+  if (!q) { resBox.textContent = ''; return; }
+  const r = await fetch('/api/products/lookup/?q=' + encodeURIComponent(q), {credentials: 'same-origin'});
+  if (!r.ok) return;
+  const data = await r.json();
+  if (enter && (data.exact || data.results.length === 1)) {
+    addProduct(data.results.find(x => x.barcode === q) || data.results[0]);
+    scan.value = ''; resBox.textContent = ''; return;
+  }
+  showResults(data.results);
+  if (enter && !data.results.length) resBox.textContent = 'Koi product nahi mila.';
+}
+let scanTimer;
+if (scan) {
+  scan.addEventListener('input', () => { clearTimeout(scanTimer); scanTimer = setTimeout(() => lookup(scan.value.trim(), false), 250); });
+  scan.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); lookup(scan.value.trim(), true); } });
+}
 </script>{% endif %}{% if fs %}
 <script>
 const total = document.getElementById('id_{{ fs.prefix }}-TOTAL_FORMS');
