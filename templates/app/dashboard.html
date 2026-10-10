@@ -4,11 +4,34 @@
 <style>
 .bars{display:flex;align-items:flex-end;gap:6px;height:150px;padding-top:8px}
 .bars .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;min-width:0}
-.bars .bar{width:100%;max-width:34px;background:linear-gradient(180deg,var(--pri),var(--pri2));border-radius:6px 6px 0 0;min-height:2px}
+.bars .bar{margin:0;display:block;width:100%;max-width:34px;background:linear-gradient(180deg,var(--pri),var(--pri2));border-radius:6px 6px 0 0;min-height:2px}
 .bars .bar.zero{background:var(--line)}
 .bars small{color:var(--mute);font-size:10px;margin-top:4px;white-space:nowrap}
 .hbar{height:8px;border-radius:99px;background:var(--line);margin-top:4px;overflow:hidden}
 .hbar span{display:block;height:100%;background:linear-gradient(90deg,var(--pri),var(--pri2))}
+
+.sec{margin:22px 0 10px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.stat .sub{display:block;margin-top:2px;color:var(--mute);font-size:12px}
+.stat.warn b{color:var(--red)}.stat.ok b{color:var(--green)}
+.pairs{display:flex;align-items:flex-end;gap:10px;height:150px;padding-top:8px}
+.pairs .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;min-width:0}
+.pairs .two-bars{display:flex;align-items:flex-end;gap:3px;width:100%;justify-content:center;height:calc(100% - 18px)}
+.pairs .b{flex:1;max-width:22px;border-radius:5px 5px 0 0;min-height:2px}
+.pairs .b.s{background:var(--pri)}.pairs .b.p{background:var(--amber)}
+.pairs small{color:var(--mute);font-size:11px;margin-top:4px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mute);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.donut-wrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.donut{width:130px;height:130px;border-radius:50%;position:relative;flex:0 0 auto}
+.donut::after{content:"";position:absolute;inset:26px;border-radius:50%;background:var(--card)}
+.donut-list{flex:1 1 150px;min-width:0}
+.donut-list div{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px dashed var(--line)}
+.donut-list i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
+.act{display:flex;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line);align-items:flex-start}
+.act:last-child{border-bottom:0}.act small{color:var(--mute);display:block}
+.link{color:var(--pri);font-weight:600}
+.mini td,.mini th{padding:6px 8px}
+@media(max-width:480px){.donut{width:110px;height:110px}.donut::after{inset:22px}}
 </style>
 <div class="head"><h1>Dashboard</h1>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -17,15 +40,33 @@
     <a class="btn" href="/bills/new/">+ New Bill</a>
   </div>
 </div>
+<div class="sec">📊 Bikri</div>
 <div class="stats">
-  <div class="card stat"><small>Sale (aaj, return ke baad)</small><b>₹{{ today_sales|floatformat:2 }}</b></div>
-  <div class="card stat"><small>Monthly Sale</small><b>₹{{ month_sales|floatformat:2 }}</b></div>
-  <div class="card stat"><small>Supplier Due</small><b>₹{{ payable }}</b></div>
-  <a class="card stat" href="/products/"><small>Low Stock / Out of Stock</small><b>{{ low_count }} / {{ out_count }}</b></a>
-  <a class="card stat" href="/batches/"><small>Expiring (30 days) / Expired</small><b>{{ expiring_count }} / {{ expired_count }}</b></a>
+  <div class="card stat"><small>Sale aaj (return ke baad)</small><b>₹{{ today_sales|floatformat:2 }}</b><span class="sub">{{ ov.bills_today }} bill</span></div>
+  <div class="card stat"><small>Is mahine ki sale</small><b>₹{{ month_sales|floatformat:2 }}</b><span class="sub">{{ ov.bills_month }} bill</span></div>
+  <div class="card stat"><small>Average bill (is mahine)</small><b>₹{{ ov.avg_bill|floatformat:2 }}</b></div>
+  <a class="card stat" href="/gst/"><small>GST collect (aaj / mahina)</small><b>₹{{ ov.gst_today|floatformat:2 }} / ₹{{ ov.gst_month|floatformat:2 }}</b><span class="sub">GST report dekhein →</span></a>
 </div>
 
-<div class="card" style="margin-bottom:14px"><h3 style="margin-top:0">📈 Pichle 14 din ki sale <small style="color:var(--mute);font-weight:400">(total ₹{{ charts.total_14|floatformat:2 }})</small></h3>
+<div class="sec">💰 Paisa</div>
+<div class="stats">
+  <a class="card stat {% if ov.udhar_total %}warn{% endif %}" href="/customers/"><small>Customers se lena (udhar)</small><b>₹{{ ov.udhar_total|floatformat:2 }}</b><span class="sub">{{ ov.udhar_count }} customer ka baaki</span></a>
+  <a class="card stat" href="/suppliers/"><small>Suppliers ko dena</small><b>₹{{ ov.payable_total|floatformat:2 }}</b><span class="sub">{{ ov.payable_count }} supplier ka baaki</span></a>
+  {% if ov.money %}
+  <a class="card stat {% if ov.profit_today >= 0 %}ok{% else %}warn{% endif %}" href="/report/"><small>Gross profit aaj</small><b>₹{{ ov.profit_today|floatformat:2 }}</b><span class="sub">kharcha se pehle</span></a>
+  <a class="card stat {% if ov.profit_month >= 0 %}ok{% else %}warn{% endif %}" href="/report/"><small>Gross profit is mahine</small><b>₹{{ ov.profit_month|floatformat:2 }}</b><span class="sub">P&amp;L dekhein →</span></a>
+  <div class="card stat"><small>Stock ki value (kharid bhav)</small><b>₹{{ ov.stock_value|floatformat:2 }}</b></div>
+  {% endif %}
+</div>
+
+<div class="sec">📦 Stock alerts</div>
+<div class="stats">
+  <a class="card stat {% if low_count or out_count %}warn{% endif %}" href="/products/"><small>Low stock / Out of stock</small><b>{{ low_count }} / {{ out_count }}</b></a>
+  <a class="card stat {% if expiring_count or expired_count %}warn{% endif %}" href="/batches/"><small>Expiring (30 din) / Expired</small><b>{{ expiring_count }} / {{ expired_count }}</b></a>
+</div>
+
+<div class="sec">📈 Charts</div>
+<div class="card" style="margin-bottom:14px"><h3 style="margin-top:0">Pichle 14 din ki sale <small style="color:var(--mute);font-weight:400">(total ₹{{ charts.total_14|floatformat:2 }})</small></h3>
   <div class="bars">
     {% for b in charts.bars %}<div class="col" title="{{ b.label }}: ₹{{ b.value|floatformat:2 }}">
       <div class="bar{% if not b.pct %} zero{% endif %}" style="height:{% if b.pct %}{{ b.pct }}{% else %}2{% endif %}%"></div><small>{{ b.label }}</small></div>{% endfor %}
@@ -33,29 +74,102 @@
 </div>
 
 <div class="two" style="margin-bottom:14px">
-  <div class="card"><h3 style="margin-top:0">🏆 Top selling (30 din)</h3>
+  <div class="card"><h3 style="margin-top:0">Sale vs Purchase (6 mahine)</h3>
+    <div class="pairs">
+      {% for m in ov.month_bars %}<div class="col" title="{{ m.label }} · Sale ₹{{ m.sale|floatformat:2 }} · Purchase ₹{{ m.buy|floatformat:2 }}">
+        <div class="two-bars"><div class="b s" style="height:{% if m.sale_pct %}{{ m.sale_pct }}{% else %}2{% endif %}%"></div><div class="b p" style="height:{% if m.buy_pct %}{{ m.buy_pct }}{% else %}2{% endif %}%"></div></div><small>{{ m.label }}</small></div>{% endfor %}
+    </div>
+    <div class="legend"><span><i style="background:var(--pri)"></i>Sale</span><span><i style="background:var(--amber)"></i>Purchase</span></div>
+  </div>
+  <div class="card"><h3 style="margin-top:0">Payment kaise mila (is mahine)</h3>
+    {% if ov.pay_rows %}
+    <div class="donut-wrap">
+      <div class="donut" style="background:conic-gradient({{ ov.pay_gradient }})" role="img" aria-label="Payment mode split"></div>
+      <div class="donut-list">{% for r in ov.pay_rows %}<div><span><i style="background:{{ r.color }}"></i>{{ r.label }}</span><b>{{ r.pct }}% · ₹{{ r.amount|floatformat:0 }}</b></div>{% endfor %}</div>
+    </div>
+    {% else %}<div class="empty">Is mahine abhi koi bill nahi.</div>{% endif %}
+  </div>
+</div>
+
+<div class="two" style="margin-bottom:14px">
+  <div class="card"><h3 style="margin-top:0">Kis din zyada bikri (pichle 8 hafte)</h3>
+    <div class="bars">
+      {% for w in ov.week_bars %}<div class="col" title="{{ w.label }}: ₹{{ w.value|floatformat:2 }}">
+        <div class="bar{% if not w.pct %} zero{% endif %}" style="height:{% if w.pct %}{{ w.pct }}{% else %}2{% endif %}%"></div><small>{{ w.label }}</small></div>{% endfor %}
+    </div>
+  </div>
+  <div class="card"><h3 style="margin-top:0">🏆 Top customers (30 din)</h3>
+    {% for t in ov.top_customers %}<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;gap:8px"><span>{{ t.name }}</span><b>₹{{ t.amount|floatformat:2 }}</b></div>
+      <div class="hbar"><span style="width:{{ t.pct }}%"></span></div><small style="color:var(--mute)">{{ t.bills }} bill</small></div>
+    {% empty %}<div class="empty">Abhi data nahi.</div>{% endfor %}
+  </div>
+</div>
+
+<div class="two" style="margin-bottom:14px">
+  <div class="card"><h3 style="margin-top:0">🏆 Top selling dawa (30 din)</h3>
     {% for t in charts.top_rows %}<div style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;gap:8px"><span>{{ t.name }}</span><b>₹{{ t.amount|floatformat:2 }}</b></div>
       <div class="hbar"><span style="width:{{ t.pct }}%"></span></div><small style="color:var(--mute)">{{ t.qty }} (base unit) bika</small></div>
     {% empty %}<div class="empty">Abhi bikri ka data nahi.</div>{% endfor %}
   </div>
   <div class="card"><h3 style="margin-top:0">🧊 Dead stock (90 din se bikri nahi)</h3>
-    <div class="tw"><table class="t">
+    <div class="tw"><table class="t mini">
       {% for name, stock in charts.dead_stock %}<tr><td>{{ name }}</td><td>{{ stock }}</td></tr>
       {% empty %}<tr><td class="empty">Koi dead stock nahi 👍</td></tr>{% endfor %}
     </table></div></div>
 </div>
 
-<div class="two">
-  <div class="card"><h3 style="margin-top:0">⚠️ Low Stock</h3>
-    <div class="tw"><table class="t">
-      {% for n, s, b in low_rows %}<tr><td>{{ n }}</td><td>{{ s }}</td><td>{{ b }}</td></tr>
-      {% empty %}<tr><td class="empty">Sab kuch theek hai 👍</td></tr>{% endfor %}
+<div class="sec">📋 Dhyan dene wali lists</div>
+<div class="two" style="margin-bottom:14px">
+  <div class="card"><h3 style="margin-top:0">💸 Udhar baaki (sabse zyada upar) <a class="link" href="/customers/" style="font-size:12px;float:right">Sab dekhein →</a></h3>
+    <div class="tw"><table class="t mini">
+      <thead><tr><th>Customer</th><th>Baaki</th><th>Kab se</th><th></th></tr></thead>
+      {% for r in ov.udhar_rows %}<tr><td>{{ r.name }}{% if r.phone %}<br><small style="color:var(--mute)">{{ r.phone }}</small>{% endif %}{% if r.over %} <span class="badge red">Limit paar</span>{% endif %}</td>
+        <td><b>₹{{ r.balance|floatformat:2 }}</b></td><td>{{ r.days }} din</td><td><a class="btn ghost sm" href="/customers/{{ r.pk }}/ledger/">Ledger</a></td></tr>
+      {% empty %}<tr><td class="empty" colspan="4">Kisi ka udhar baaki nahi 👍</td></tr>{% endfor %}
     </table></div></div>
+  <div class="card"><h3 style="margin-top:0">🏭 Suppliers ko dena baaki <a class="link" href="/suppliers/" style="font-size:12px;float:right">Sab dekhein →</a></h3>
+    <div class="tw"><table class="t mini">
+      <thead><tr><th>Supplier</th><th>Baaki</th></tr></thead>
+      {% for r in ov.payable_rows %}<tr><td>{{ r.name }}{% if r.phone %}<br><small style="color:var(--mute)">{{ r.phone }}</small>{% endif %}</td><td><b>₹{{ r.balance|floatformat:2 }}</b></td></tr>
+      {% empty %}<tr><td class="empty" colspan="2">Koi payment baaki nahi 👍</td></tr>{% endfor %}
+    </table></div></div>
+</div>
+
+<div class="two" style="margin-bottom:14px">
+  <div class="card"><h3 style="margin-top:0">🛒 Kitna mangwana chahiye <a class="link" href="/purchase_orders/new/" style="font-size:12px;float:right">+ Purchase Order</a></h3>
+    <div class="tw"><table class="t mini">
+      <thead><tr><th>Dawa</th><th>Abhi stock</th><th>Mangwayein</th></tr></thead>
+      {% for r in ov.reorder_rows %}<tr><td>{{ r.name }}</td><td>{{ r.stock }}</td><td><b>{{ r.need }}</b> {{ r.unit }}</td></tr>
+      {% empty %}<tr><td class="empty" colspan="3">Sab kuch theek hai 👍</td></tr>{% endfor %}
+    </table></div>
+    <small style="color:var(--mute)">Suggestion: reorder level ka doguna stock tak (base unit me).</small></div>
   <div class="card"><h3 style="margin-top:0">⏳ Expire Soon</h3>
-    <div class="tw"><table class="t">
+    <div class="tw"><table class="t mini">
+      <thead><tr><th>Dawa</th><th>Batch</th><th>Qty</th><th>Expiry</th></tr></thead>
       {% for p, b, q, e in exp_rows %}<tr><td>{{ p }}</td><td>{{ b }}</td><td>{{ q }}</td><td>{{ e }}</td></tr>
-      {% empty %}<tr><td class="empty">Koi batch expire hone wala nahi 👍</td></tr>{% endfor %}
+      {% empty %}<tr><td class="empty" colspan="4">Koi batch expire hone wala nahi 👍</td></tr>{% endfor %}
     </table></div></div>
+</div>
+
+<div class="two" style="margin-bottom:14px">
+  <div class="card"><h3 style="margin-top:0">⚠️ Low Stock</h3>
+    <div class="tw"><table class="t mini">
+      <thead><tr><th>Dawa</th><th>Stock</th><th>Status</th></tr></thead>
+      {% for n, s, b in low_rows %}<tr><td>{{ n }}</td><td>{{ s }}</td><td>{{ b }}</td></tr>
+      {% empty %}<tr><td class="empty" colspan="3">Sab kuch theek hai 👍</td></tr>{% endfor %}
+    </table></div></div>
+  <div class="card"><h3 style="margin-top:0">💊 Aaj ki Schedule H/H1/X bikri <a class="link" href="/drug_register/" style="font-size:12px;float:right">Register →</a></h3>
+    <div class="tw"><table class="t mini">
+      <thead><tr><th>Bill</th><th>Dawa</th><th>Sch.</th><th>Patient / Doctor</th></tr></thead>
+      {% for r in ov.schedule_rows %}<tr><td>{{ r.inv }}</td><td>{{ r.product }}</td><td><span class="badge amber">{{ r.schedule }}</span></td><td>{{ r.patient|default:"-" }}<br><small style="color:var(--mute)">Dr. {{ r.doctor|default:"-" }}</small></td></tr>
+      {% empty %}<tr><td class="empty" colspan="4">Aaj koi scheduled dawa nahi bikhi.</td></tr>{% endfor %}
+    </table></div></div>
+</div>
+
+<div class="card"><h3 style="margin-top:0">🕒 Haal ki activity</h3>
+  {% for a in ov.activity %}<a class="act" href="{{ a.url }}"><span>{{ a.icon }}</span><span>{{ a.text }}<small>{{ a.date|date:"d M Y" }}</small></span></a>
+  {% empty %}<div class="empty">Abhi koi activity nahi.</div>{% endfor %}
 </div>
 {% endblock %}

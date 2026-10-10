@@ -23,7 +23,7 @@ from .models import (
     Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem, PurchaseReturn,
     Sale, SalesReturn, ShopProfile, StockAudit, StockWriteOff, Supplier, Transaction, Unit,
 )
-from .reports import dashboard_charts, profit_and_loss
+from .reports import dashboard_charts, dashboard_overview, profit_and_loss
 
 NAV = [
     {'key': 'dashboard', 'url': '/', 'label': 'Dashboard', 'icon': '🏠', 'group': ''},
@@ -375,6 +375,7 @@ def dashboard(request):
         exp_rows=[(b.product.name if b.product else '-', b.batch_number, b.qty, d(b.expire_date))
                   for b in expiring[:6]],
         charts=dashboard_charts(today),
+        ov=dashboard_overview(today, include_money=request.user.is_staff),
         wa_link=notify.whatsapp_link(notify.alert_digest_text(notify.collect_alerts(), ShopProfile.get().name)),
     )
 

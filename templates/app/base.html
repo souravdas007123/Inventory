@@ -29,7 +29,7 @@ a{color:inherit;text-decoration:none}
 h1{margin:0;font-size:20px}h3{margin:18px 0 8px;font-size:15px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 1px 3px #0f2e2b0d}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(190px,100%),1fr));gap:14px;margin-bottom:18px}
-.stat small{color:var(--mute)}.stat b{display:block;font-size:21px;margin-top:2px;color:var(--pri)}a.stat:hover{border-color:var(--pri)}
+.stat small{color:var(--mute)}.stat b{overflow-wrap:anywhere;display:block;font-size:21px;margin-top:2px;color:var(--pri)}a.stat:hover{border-color:var(--pri)}
 .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:14px}
 .btn{display:inline-block;border:0;background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;padding:7px 14px;border-radius:9px;font:inherit;font-weight:600;cursor:pointer}
 .btn.ghost{background:var(--soft);color:var(--pri)}.btn.red{background:var(--red);color:#fff}.btn.sm{padding:4px 9px;font-size:12px}
@@ -74,16 +74,15 @@ img,video{max-width:100%;height:auto}
   table.t.stack thead{display:none}
   table.t.stack tr{border:1px solid var(--line);border-radius:12px;padding:6px 12px;margin-bottom:10px;background:var(--card)}
   table.t.stack tr:hover td{background:transparent}
-  table.t.stack td{display:flex;justify-content:space-between;align-items:center;gap:14px;text-align:right!important;padding:7px 0;border-bottom:1px dashed var(--line);word-break:break-word}
+  table.t.stack td{display:block;overflow:hidden;text-align:right!important;padding:7px 0;border-bottom:1px dashed var(--line);word-break:break-word}
   table.t.stack td:last-child{border-bottom:0}
-  table.t.stack td::before{content:attr(data-label);flex:0 0 38%;max-width:42%;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--mute)}
-  table.t.stack td[data-label=""]::before,table.t.stack td:not([data-label])::before{display:none}
-  table.t.stack td[data-label=""],table.t.stack td:not([data-label]){justify-content:flex-end;flex-wrap:wrap}
-  table.t.stack td.empty{display:block;text-align:center!important}
-  table.t.stack td input,table.t.stack td select{min-width:0;flex:1 1 auto;text-align:right;max-width:none!important}
+  table.t.stack td::before{content:attr(data-label);float:left;width:38%;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--mute);padding-top:2px}
+  table.t.stack td[data-label=""]::before{display:none}
+  table.t.stack td.empty{text-align:center!important}
+  table.t.stack td.empty::before{display:none}
+  table.t.stack td input,table.t.stack td select{min-width:0;width:58%;max-width:none!important;text-align:right}
+  table.t.stack td input[type=checkbox]{width:auto}
   table.t.stack td form{display:inline}
-  table.t.stack td>*{max-width:62%}
-  table.t.stack td[data-label=""]>*,table.t.stack td:not([data-label])>*{max-width:none}
   .pager{justify-content:center;font-size:13px}
 }
 @media(max-width:480px){.main{padding:10px}.stats{grid-template-columns:1fr 1fr;gap:10px}.stat small{font-size:11px}.head .btn{flex:1 1 auto;text-align:center}}

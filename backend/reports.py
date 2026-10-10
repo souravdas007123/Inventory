@@ -12,12 +12,13 @@ from collections import OrderedDict
 from datetime import timedelta
 from decimal import Decimal
 
-from django.db.models import Sum
+from django.db.models import Count, F, Min, Sum
+from django.db.models.functions import ExtractWeekDay, TruncMonth
 from django.utils import timezone
 
 from .models import (
-    Batch, Bill, Expense, InvoiceItem, Product, PurchaseItem, PurchaseReturnItem,
-    Sale, SalesReturnItem, StockWriteOff,
+    Batch, Bill, Customer, CustomerPayment, Expense, InvoiceItem, Product, PurchaseItem,
+    PurchaseReturnItem, Sale, SalesReturn, SalesReturnItem, StockWriteOff, Supplier, Transaction,
 )
 
 ZERO = Decimal('0')
@@ -311,3 +312,168 @@ def dashboard_charts(today=None, days=14):
             Product.objects.exclude(is_active=False).filter(stock_qty__gt=0).exclude(pk__in=sold_ids)
             .prefetch_related('unit_conversions__unit').select_related('unit').order_by('-stock_qty')[:8]]
     return dict(bars=bars, total_14=sum((v for _, v in series), ZERO), top_rows=top_rows, dead_stock=dead)
+
+
+# ======================================================
+# DASHBOARD OVERVIEW (cards, lists, extra charts)
+# ======================================================
+
+def _cogs(start, end):
+    """[start, end] ke beech bike maal ki purchase cost (return ke baad)."""
+    histories = list(InvoiceItem.objects.filter(sale__date__gte=start, sale__date__lte=end)
+                     .values_list('batch_history', flat=True))
+    batch_ids = {int(k) for h in histories for k in (h or {})}
+    batch_rate = dict(Batch.objects.filter(pk__in=batch_ids, purchase_item__isnull=False)
+                      .values_list('pk', 'purchase_item__rate'))
+    cogs = ZERO
+    for history in histories:
+        for batch_id, qty in (history or {}).items():
+            cogs += dec(batch_rate.get(int(batch_id))) * qty
+    cogs -= dec(SalesReturnItem.objects.filter(
+        sales_return__date__gte=start, sales_return__date__lte=end).aggregate(s=Sum('cost'))['s'])
+    return cogs
+
+
+def _pct(value, peak):
+    return int(round(float(value / peak) * 100)) if peak and peak > 0 and value > 0 else 0
+
+
+def dashboard_overview(today=None, include_money=False):
+    """
+    Dashboard ke extra numbers. include_money=False (non-staff) par profit / stock value nahi nikalte.
+    """
+    today = today or timezone.localdate()
+    month_start = today.replace(day=1)
+    out = {}
+
+    # ---- Bills ki ginti ----
+    final = Bill.objects.filter(status='FINAL')
+    out['bills_today'] = final.filter(date=today).count()
+    out['bills_month'] = final.filter(date__gte=month_start, date__lte=today).count()
+    month_sale = dec(Sale.objects.filter(date__gte=month_start, date__lte=today).aggregate(s=Sum('total'))['s'])
+    out['avg_bill'] = q2(month_sale / out['bills_month']) if out['bills_month'] else ZERO
+    out['gst_today'] = dec(Sale.objects.filter(date=today).aggregate(s=Sum('gst'))['s'])
+    out['gst_month'] = dec(Sale.objects.filter(date__gte=month_start, date__lte=today).aggregate(s=Sum('gst'))['s'])
+
+    # ---- Udhar (customers se lena) ----
+    credit_ids = Customer.objects.filter(bills__payment_mode='CREDIT', bills__status='FINAL').distinct()[:300]
+    first_credit = dict(Bill.objects.filter(status='FINAL', payment_mode='CREDIT', customer__isnull=False)
+                        .values_list('customer_id').annotate(d=Min('date')).order_by())
+    udhar = []
+    for c in credit_ids:
+        bal = c.balance()
+        if bal > 0:
+            since = first_credit.get(c.pk)
+            udhar.append(dict(pk=c.pk, name=c.name, phone=c.phone or '', balance=bal,
+                              days=(today - since).days if since else 0,
+                              over=bool(c.credit_limit and bal > c.credit_limit)))
+    udhar.sort(key=lambda r: r['balance'], reverse=True)
+    out['udhar_total'] = sum((r['balance'] for r in udhar), ZERO)
+    out['udhar_count'] = len(udhar)
+    out['udhar_rows'] = udhar[:6]
+
+    # ---- Supplier ko dene baaki ----
+    owed = Supplier.objects.filter(opening_balance__gt=0)
+    out['payable_total'] = dec(owed.aggregate(s=Sum('opening_balance'))['s'])
+    out['payable_count'] = owed.count()
+    out['payable_rows'] = [dict(name=sp.company, phone=sp.phone or '', balance=dec(sp.opening_balance))
+                           for sp in owed.order_by('-opening_balance')[:6]]
+
+    # ---- Payment mode split (is mahine ke bills) ----
+    labels = dict(Bill.PAYMENT_CHOICES)
+    colors = ['var(--pri)', 'var(--amber)', '#3b82f6', 'var(--red)']
+    split = list(InvoiceItem.objects.filter(bill__status='FINAL', bill__date__gte=month_start,
+                                            bill__date__lte=today)
+                 .values('bill__payment_mode').annotate(s=Sum('total')).order_by('-s'))
+    split_total = sum((dec(r['s']) for r in split), ZERO)
+    rows, acc = [], 0.0
+    for i, r in enumerate(split):
+        amount = dec(r['s'])
+        share = float(amount / split_total * 100) if split_total > 0 else 0.0
+        rows.append(dict(label=labels.get(r['bill__payment_mode'], r['bill__payment_mode']), amount=amount,
+                         pct=int(round(share)), color=colors[i % len(colors)], start=acc, end=acc + share))
+        acc += share
+    out['pay_rows'] = rows
+    out['pay_total'] = split_total
+    out['pay_gradient'] = ', '.join(f"{r['color']} {r['start']:.2f}% {r['end']:.2f}%" for r in rows)
+
+    # ---- Pichle 6 mahine: sale vs purchase ----
+    months = []
+    y, m = today.year, today.month
+    for _ in range(6):
+        months.append((y, m))
+        m -= 1
+        if m == 0:
+            y, m = y - 1, 12
+    months.reverse()
+    from datetime import date as _date
+    six_start = _date(months[0][0], months[0][1], 1)
+    sales_m = {(r['m'].year, r['m'].month): dec(r['s']) for r in
+               Sale.objects.filter(date__gte=six_start).annotate(m=TruncMonth('date')).values('m')
+               .annotate(s=Sum('total')).order_by() if r['m']}
+    buy_m = {(r['m'].year, r['m'].month): dec(r['s']) for r in
+             Transaction.objects.filter(purchase_date__gte=six_start).annotate(m=TruncMonth('purchase_date'))
+             .values('m').annotate(s=Sum('purchase_amount')).order_by() if r['m']}
+    peak = max([*sales_m.values(), *buy_m.values(), ZERO])
+    out['month_bars'] = [dict(label=_date(yy, mm, 1).strftime('%b'), sale=sales_m.get((yy, mm), ZERO),
+                              buy=buy_m.get((yy, mm), ZERO),
+                              sale_pct=_pct(sales_m.get((yy, mm), ZERO), peak),
+                              buy_pct=_pct(buy_m.get((yy, mm), ZERO), peak)) for yy, mm in months]
+
+    # ---- Din ke hisaab se sale (pichle 8 hafte) ----
+    names = {2: 'Mon', 3: 'Tue', 4: 'Wed', 5: 'Thu', 6: 'Fri', 7: 'Sat', 1: 'Sun'}   # ExtractWeekDay: 1=Sunday
+    wk = {r['w']: dec(r['s']) for r in
+          Sale.objects.filter(date__gte=today - timedelta(days=55), date__lte=today)
+          .annotate(w=ExtractWeekDay('date')).values('w').annotate(s=Sum('total')).order_by()}
+    wpeak = max([*wk.values(), ZERO])
+    out['week_bars'] = [dict(label=names[k], value=wk.get(k, ZERO), pct=_pct(wk.get(k, ZERO), wpeak))
+                        for k in (2, 3, 4, 5, 6, 7, 1)]
+
+    # ---- Top customers (30 din) ----
+    topc = list(Bill.objects.filter(status='FINAL', date__gte=today - timedelta(days=29))
+                .exclude(customer_name__iexact='cash').exclude(customer_name='')
+                .values('customer_name').annotate(s=Sum('items__total'), n=Count('id', distinct=True))
+                .order_by('-s')[:5])
+    cpeak = max([dec(t['s']) for t in topc] + [ZERO])
+    out['top_customers'] = [dict(name=t['customer_name'], amount=dec(t['s']), bills=t['n'],
+                                 pct=_pct(dec(t['s']), cpeak)) for t in topc]
+
+    # ---- Reorder suggestion ----
+    low = (Product.objects.exclude(is_active=False).filter(stock_qty__lte=F('reorder_level'))
+           .select_related('unit').prefetch_related('unit_conversions__unit').order_by('stock_qty')[:6])
+    out['reorder_rows'] = [dict(name=p.name or str(p), stock=p.stock_display(),
+                                need=max(p.reorder_level * 2 - p.stock_qty, p.reorder_level),
+                                unit=p.unit.name if p.unit_id else '') for p in low]
+
+    # ---- Recent activity ----
+    acts = []
+    for b in final.prefetch_related('items').order_by('-date', '-id')[:5]:
+        acts.append(dict(date=b.date, icon='🧾', text=f"Bill {b.display_number} · {b.customer_name} · ₹{b.grand_total}",
+                         url=f"/bills/{b.pk}/invoice/"))
+    for r in SalesReturn.objects.select_related('bill').order_by('-date', '-id')[:3]:
+        acts.append(dict(date=r.date, icon='↩️', text=f"Return {r.note_number} · {r.bill.display_number}",
+                         url=f"/sales_returns/{r.pk}/note/"))
+    for r in CustomerPayment.objects.select_related('customer').order_by('-date', '-id')[:3]:
+        acts.append(dict(date=r.date, icon='💰', text=f"Receipt ₹{r.amount} · {r.customer.name}",
+                         url=f"/customers/{r.customer_id}/ledger/"))
+    acts.sort(key=lambda a: a['date'] or today, reverse=True)
+    out['activity'] = acts[:8]
+
+    # ---- Aaj ke Schedule H / H1 / X bills ----
+    out['schedule_rows'] = [dict(inv=i.bill.display_number, product=i.product.name if i.product_id else '-',
+                                 schedule=i.product.schedule if i.product_id else '',
+                                 patient=i.bill.patient_name, doctor=i.bill.doctor_name)
+                            for i in InvoiceItem.objects.filter(bill__status='FINAL', bill__date=today,
+                                                                product__schedule__in=['H', 'H1', 'X'])
+                            .select_related('bill', 'product').order_by('-id')[:8]]
+
+    # ---- Sirf staff/owner ko: profit aur stock value ----
+    if include_money:
+        out['money'] = True
+        for key, start in (('today', today), ('month', month_start)):
+            sales = dec(Sale.objects.filter(date__gte=start, date__lte=today).aggregate(s=Sum('taxable_value'))['s'])
+            out[f'profit_{key}'] = sales - _cogs(start, today)
+        out['stock_value'] = sum((dec(rate) * qty for qty, rate in
+                                  Batch.objects.filter(qty__gt=0, purchase_item__isnull=False)
+                                  .values_list('qty', 'purchase_item__rate')), ZERO)
+    return out
