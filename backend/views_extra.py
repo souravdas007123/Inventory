@@ -532,7 +532,7 @@ def supplier_price_hint(request):
         'factors': factors,
         'suppliers': [dict(id=s['supplier_id'], name=s['supplier'], rate=str(s['last_rate']),
                            rate_txt=s['last_rate_txt'], pack_txt=s['last_rate_pack_txt'],
-                           date=s['last_date'].strftime('%d %b %Y'), stale=s['stale'],
+                           date=s['last_date'].strftime('%d %b %y'), stale=s['stale'],
                            best=s['is_best'], current=s['current'])
                       for s in data['suppliers']],
     })

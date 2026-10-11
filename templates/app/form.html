@@ -124,57 +124,67 @@ if (scan) {
     }
     return cache[pid];
   }
+  // One tidy line of small chips under each row (wraps on small screens); hidden when there is nothing to show.
   function hintBox(tr) {
-    let el = tr.querySelector('.ph');
-    if (!el) {
-      const sel = field(tr, 'product'); if (!sel) return null;
-      el = document.createElement('div'); el.className = 'ph'; el.style.cssText = 'font-size:12px;margin-top:4px;color:var(--mute)';
-      sel.parentNode.appendChild(el);
-    }
-    return el;
+    const next = tr.nextElementSibling;
+    if (next && next.classList.contains('hintrow')) return next.querySelector('.ph');
+    const sel = field(tr, 'product'); if (!sel) return null;
+    const hr = document.createElement('tr'); hr.className = 'hintrow'; hr.style.display = 'none';
+    const td = document.createElement('td'); td.colSpan = tr.children.length; td.setAttribute('data-label', '');
+    const box = document.createElement('div'); box.className = 'ph';
+    box.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-start';
+    td.appendChild(box); hr.appendChild(td); tr.after(hr);
+    return box;
   }
-  function addLine(el, text, color) {
-    const d = document.createElement('div'); d.textContent = text; if (color) d.style.color = color; el.appendChild(d);
+  function chip(el, text, cls, tip) {
+    const c = document.createElement('span'); c.className = 'badge ' + (cls || 'grey'); c.textContent = text;
+    if (tip) c.title = tip;
+    c.style.cssText = 'white-space:normal;font-weight:500;font-size:12px;padding:3px 10px;line-height:1.35';
+    el.appendChild(c);
   }
+  function show(el) { el.closest('tr').style.display = el.children.length ? '' : 'none'; }
   async function refresh(tr) {
     const sel = field(tr, 'product'), el = hintBox(tr); if (!sel || !el) return;
     const pid = sel.value;
-    if (!pid) { el.textContent = ''; return; }
+    el.textContent = '';
+    if (!pid) { show(el); return; }
     const d = await load(pid);
     if (field(tr, 'product').value !== pid) return;          // the row changed while loading
     el.textContent = '';
-    if (!d || !d.found) return;
-    const unitTxt = s => s.rate_txt + '/' + d.base_name + (s.pack_txt ? ' (' + s.pack_txt + '/' + d.pack_name + ')' : '');
+    if (!d || !d.found) { show(el); return; }
+    const packTip = s => s.pack_txt ? s.pack_txt + ' per ' + d.pack_name : '';
     const mine = d.suppliers.find(s => String(s.id) === supplierSel.value);
     const best = d.suppliers.find(s => s.best);
-    if (!d.suppliers.length) { addLine(el, 'No earlier purchase price for this product.'); return; }
-    addLine(el, mine ? 'Last from this supplier: ' + unitTxt(mine) + ' on ' + mine.date
-                     : (supplierSel.value ? 'Not bought from this supplier before.' : 'Select a supplier to see its last price.'));
-    if (best && (!mine || best.id !== mine.id)) addLine(el, 'Cheapest now: ' + best.name + ' ' + unitTxt(best));
-    else if (best && mine && best.id === mine.id) addLine(el, '✓ This is the cheapest supplier now.', 'var(--green)');
-    const qty = parseFloat(field(tr, 'qty') && field(tr, 'qty').value), price = parseFloat(field(tr, 'purchase_price') && field(tr, 'purchase_price').value);
-    const uSel = field(tr, 'unit');
+    if (!d.suppliers.length) { chip(el, 'No earlier purchase price for this product'); show(el); return; }
+    const lead = document.createElement('small'); lead.style.color = 'var(--mute)'; lead.textContent = 'Price per ' + d.base_name + ':';
+    el.appendChild(lead);
+    if (mine) chip(el, 'Last ' + mine.rate_txt + ' · ' + mine.date, 'grey', 'Last price from this supplier' + (packTip(mine) ? ' · ' + packTip(mine) : ''));
+    else chip(el, supplierSel.value ? 'New supplier for this product' : 'Select a supplier', 'grey');
+    if (best && (!mine || best.id !== mine.id)) chip(el, 'Cheapest ' + best.rate_txt + ' · ' + best.name, 'blue', packTip(best));
+    else if (best && mine && best.id === mine.id) chip(el, '✓ Cheapest supplier', 'green');
+    const qtyEl = field(tr, 'qty'), priceEl = field(tr, 'purchase_price'), uSel = field(tr, 'unit');
+    const qty = parseFloat(qtyEl && qtyEl.value), price = parseFloat(priceEl && priceEl.value);
     const factor = uSel && uSel.value ? d.factors[uSel.value] : 1;
     const ref = best || mine;
     if (qty > 0 && price >= 0 && factor && ref) {
       const rate = price / (qty * factor), refRate = parseFloat(ref.rate);
       if (refRate > 0) {
         const diff = (rate - refRate) / refRate * 100, label = best ? 'the cheapest' : 'the last price';
-        let msg = 'This entry: ' + fmt(rate) + '/' + d.base_name + (d.pack_factor ? ' (' + fmt(rate * d.pack_factor) + '/' + d.pack_name + ')' : '');
-        let color = '';
-        if (diff > 0.5) { msg += ' — ' + diff.toFixed(1) + '% above ' + label; color = 'var(--red)'; }
-        else if (diff < -0.5) { msg += ' — ' + Math.abs(diff).toFixed(1) + '% below ' + label; color = 'var(--green)'; }
-        else msg += ' — in line with ' + label;
-        addLine(el, msg, color);
+        const tip = d.pack_factor ? fmt(rate * d.pack_factor) + ' per ' + d.pack_name : '';
+        if (diff > 0.5) chip(el, 'This entry ' + fmt(rate) + ' · ▲ ' + diff.toFixed(1) + '%', 'red', 'Above ' + label + (tip ? ' · ' + tip : ''));
+        else if (diff < -0.5) chip(el, 'This entry ' + fmt(rate) + ' · ▼ ' + Math.abs(diff).toFixed(1) + '%', 'green', 'Below ' + label + (tip ? ' · ' + tip : ''));
+        else chip(el, 'This entry ' + fmt(rate) + ' · in line', 'grey', 'In line with ' + label + (tip ? ' · ' + tip : ''));
       }
     }
+    show(el);
   }
   let timer;
   const later = tr => { clearTimeout(timer); timer = setTimeout(() => refresh(tr), 250); };
-  rowsBody.addEventListener('change', e => { const tr = e.target.closest('tr'); if (tr) refresh(tr); });
-  rowsBody.addEventListener('input', e => { const tr = e.target.closest('tr'); if (tr) later(tr); });
-  supplierSel.addEventListener('change', () => rowsBody.querySelectorAll('tr').forEach(refresh));
-  rowsBody.querySelectorAll('tr').forEach(refresh);
+  rowsBody.addEventListener('change', e => { const tr = e.target.closest('tr'); if (tr && !tr.classList.contains('hintrow')) refresh(tr); });
+  rowsBody.addEventListener('input', e => { const tr = e.target.closest('tr'); if (tr && !tr.classList.contains('hintrow')) later(tr); });
+  const dataRows = () => rowsBody.querySelectorAll('tr:not(.hintrow)');
+  supplierSel.addEventListener('change', () => dataRows().forEach(refresh));
+  dataRows().forEach(refresh);
 })();
 </script>{% endif %}{% if fs %}
 <script>
