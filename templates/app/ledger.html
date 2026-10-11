@@ -4,7 +4,7 @@
 <div class="head">
   <div><h1>📒 {{ customer.name }}</h1>
     <small style="color:var(--mute)">{% if customer.phone %}Ph: {{ customer.phone }}{% endif %}{% if customer.gstin %} · GSTIN: {{ customer.gstin }}{% endif %}</small></div>
-  <div style="display:flex;gap:8px"><a class="btn" href="/customer_payments/new/?customer={{ customer.pk }}">+ Receipt</a><a class="btn ghost" href="/customers/">← Back</a></div>
+  <div style="display:flex;gap:8px"><a class="btn" href="/customer_payments/new/?customer={{ customer.pk }}">+ Receipt</a>{% if wa_link %}<a class="btn ghost" href="{{ wa_link }}" target="_blank" rel="noopener">💬 Udhar reminder</a>{% endif %}<a class="btn ghost" href="/customers/">← Back</a></div>
 </div>
 <div class="stats">
   <div class="card stat"><small>Udhar baaki (customer se lena hai)</small>

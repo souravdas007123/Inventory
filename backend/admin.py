@@ -128,6 +128,14 @@ class ProductResource(resources.ModelResource):
         widget=GetOrCreateFKWidget(Unit, field='name'),
     )
 
+    # Stock / batch / SKU system khud sambhalta hai: import se kabhi overwrite nahi hone chahiye
+    PROTECTED = ('stock_qty', 'batch', 'sku')
+
+    def import_field(self, field, *args, **kwargs):
+        if getattr(field, 'attribute', None) in self.PROTECTED:
+            return
+        return super().import_field(field, *args, **kwargs)
+
     class Meta:
         model = Product
 

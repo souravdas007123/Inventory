@@ -16,9 +16,10 @@ from django.db.models import Count, F, Min, Sum
 from django.db.models.functions import ExtractWeekDay, TruncMonth
 from django.utils import timezone
 
+from .notify import udhar_reminder_link
 from .models import (
     Batch, Bill, Customer, CustomerPayment, Expense, InvoiceItem, Product, PurchaseItem,
-    PurchaseReturnItem, Sale, SalesReturn, SalesReturnItem, StockWriteOff, Supplier, Transaction,
+    PurchaseReturnItem, Sale, SalesReturn, SalesReturnItem, ShopProfile, StockWriteOff, Supplier, Transaction,
 )
 
 ZERO = Decimal('0')
@@ -359,6 +360,7 @@ def dashboard_overview(today=None, include_money=False):
     credit_ids = Customer.objects.filter(bills__payment_mode='CREDIT', bills__status='FINAL').distinct()[:300]
     first_credit = dict(Bill.objects.filter(status='FINAL', payment_mode='CREDIT', customer__isnull=False)
                         .values_list('customer_id').annotate(d=Min('date')).order_by())
+    shop_name = ShopProfile.get().name
     udhar = []
     for c in credit_ids:
         bal = c.balance()
@@ -366,7 +368,8 @@ def dashboard_overview(today=None, include_money=False):
             since = first_credit.get(c.pk)
             udhar.append(dict(pk=c.pk, name=c.name, phone=c.phone or '', balance=bal,
                               days=(today - since).days if since else 0,
-                              over=bool(c.credit_limit and bal > c.credit_limit)))
+                              over=bool(c.credit_limit and bal > c.credit_limit),
+                              wa=udhar_reminder_link(shop_name, c.name, c.phone, bal)))
     udhar.sort(key=lambda r: r['balance'], reverse=True)
     out['udhar_total'] = sum((r['balance'] for r in udhar), ZERO)
     out['udhar_count'] = len(udhar)

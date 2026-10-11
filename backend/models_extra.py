@@ -587,3 +587,23 @@ class StockAuditItem(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['audit', 'product'], name='unique_product_per_audit'),
         ]
+
+
+# ======================================================
+# AUDIT LOG (kisne kya badla)
+# ======================================================
+
+class AuditLog(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    user = models.CharField(max_length=150, blank=True, default='')
+    action = models.CharField(max_length=20)
+    target = models.CharField(max_length=60, blank=True, default='')
+    detail = models.CharField(max_length=500, blank=True, default='')
+
+    def __str__(self):
+        return f"{self.user}: {self.action} {self.target}"
+
+    class Meta:
+        ordering = ['-id']
+        verbose_name = 'Audit Log'
+        verbose_name_plural = 'Audit Logs'

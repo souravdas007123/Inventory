@@ -331,6 +331,7 @@ class Batch(models.Model):
     class Meta:
         verbose_name = "07. Batch"
         verbose_name_plural = "07. Batch"
+        indexes = [models.Index(fields=['expire_date'], name='batch_expire_idx')]
 
 
 # ======================================================
@@ -611,6 +612,7 @@ class Sale(models.Model):
     class Meta:
         verbose_name = "10. Sales"
         verbose_name_plural = "10. Sales"
+        indexes = [models.Index(fields=['date'], name='sale_date_idx')]
 
 
 # ======================================================
@@ -882,6 +884,7 @@ class Bill(models.Model):
     class Meta:
         verbose_name = "09. Bills"
         verbose_name_plural = "09. Bills"
+        indexes = [models.Index(fields=['date', 'status'], name='bill_date_status_idx')]
 
 
 # ======================================================

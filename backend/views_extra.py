@@ -9,12 +9,12 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Q
-from django.http import HttpResponse, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import notify, reports
+from . import auditlog, backup, notify, reports
 from .models import (
     Batch, Bill, Customer, Product, Purchase, PurchaseOrder, PurchaseReturn, PurchaseReturnItem,
     SalesReturn, SalesReturnItem, ShopProfile, StockAudit, StockAuditItem, StockWriteOff,
@@ -88,7 +88,10 @@ def customer_ledger(request, pk):
     for dt, _, text, debit, credit in entries:
         running += debit - credit
         rows.append(dict(date=dt, text=text, debit=debit, credit=credit, balance=running))
-    return page(request, 'app/ledger.html', active='customers', customer=customer, rows=rows, balance=running)
+    wa_link = (notify.udhar_reminder_link(ShopProfile.get().name, customer.name, customer.phone, running)
+               if running > 0 else '')
+    return page(request, 'app/ledger.html', active='customers', customer=customer, rows=rows, balance=running,
+                wa_link=wa_link)
 
 
 # ======================================================
@@ -146,6 +149,7 @@ def sales_return_new(request, pk):
                     sr.save()
                     for it, q in qtys.items():
                         SalesReturnItem(sales_return=sr, invoice_item=it, qty=q).save()
+                auditlog.record(request, 'RETURN', 'Sales return', f"{sr.note_number} (bill {bill.display_number})")
                 messages.success(request, f"{sr.note_number} ban gaya. Stock wapas add ho gaya ✅")
                 return redirect('sales_return_note', pk=sr.pk)
             except ValidationError as e:
@@ -185,6 +189,7 @@ def purchase_return_new(request, pk):
                     pr.save()
                     for it, q in qtys.items():
                         PurchaseReturnItem(purchase_return=pr, purchase_item=it, qty=q).save()
+                auditlog.record(request, 'RETURN', 'Purchase return', pr.note_number)
                 messages.success(request, f"{pr.note_number} ban gaya. Stock aur supplier balance adjust ho gaya ✅")
                 return redirect('purchase_return_note', pk=pr.pk)
             except ValidationError as e:
@@ -238,6 +243,7 @@ def batch_writeoff(request, pk):
     try:
         StockWriteOff(batch=batch, qty=batch.qty, reason='EXPIRED' if batch.expiry_status == 'Expired' else 'OTHER',
                       note='Batch list se poora write-off').save()
+        auditlog.record(request, 'WRITEOFF', 'Batch', f"{batch.batch_number} · qty {batch.qty}")
         messages.success(request, f"{batch.batch_number} ka poora stock write-off ho gaya (P&L me loss ginega).")
     except ValidationError as e:
         messages.error(request, ' '.join(e.messages))
@@ -391,6 +397,7 @@ def audit_count(request, pk):
             if request.POST.get('action') == 'apply':
                 try:
                     audit.apply()
+                    auditlog.record(request, 'STOCK-AUDIT', 'Stock Audit', f"#{audit.pk} apply hua, stock ginti ke barabar")
                     messages.success(request, 'Stock adjust ho gaya ✅ (jin products ki ginti bhari thi unka stock ginti ke barabar).')
                 except ValidationError as e:
                     messages.error(request, ' '.join(e.messages))
@@ -402,3 +409,32 @@ def audit_count(request, pk):
     counted = sum(1 for it in items if it.counted_qty is not None)
     return page(request, 'app/stock_count.html', active='stock_audits', audit=audit, items=shown,
                 editable=editable, q=request.GET.get('q', ''), counted=counted, total=len(items))
+
+
+# ======================================================
+# DATABASE BACKUP (sirf staff)
+# ======================================================
+
+@staff_required
+def backup_page(request):
+    if request.method == 'POST':
+        try:
+            path = backup.make_backup()
+        except backup.BackupError as e:
+            messages.error(request, str(e))
+            return redirect('backup')
+        auditlog.record(request, 'BACKUP', 'Database', path.name)
+        if request.POST.get('action') == 'download':
+            return redirect('backup_download', name=path.name)
+        messages.success(request, f"Backup ban gaya: {path.name}")
+        return redirect('backup')
+    return page(request, 'app/backup.html', active='backup', backups=backup.list_backups(),
+                folder=str(backup.backup_dir()))
+
+
+@staff_required
+def backup_download(request, name):
+    path = backup.backup_path(name)
+    if not path:
+        raise Http404
+    return FileResponse(open(path, 'rb'), as_attachment=True, filename=path.name)

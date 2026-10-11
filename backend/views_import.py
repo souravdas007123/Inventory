@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import Http404
 from django.utils import timezone
 
-from . import imports
+from . import auditlog, imports
 from .imports import IMPORTERS
 from .tabular import ImportFileError, read_table
 from .views import page
@@ -44,6 +44,8 @@ def import_view(request, kind):
             else:
                 imports.drop_stash(request.POST.get('token'))     # double-click se double import na ho
                 summary = imp['commit'](payload['results'], payload['opts'])
+                auditlog.record(request, 'IMPORT', imp['title'],
+                                f"{payload.get('filename', '')}: {summary['created']} naye, {summary['updated']} update, {len(summary['failed'])} fail")
                 ctx.update(stage='done', summary=summary, filename=payload.get('filename', ''))
         else:
             upload = request.FILES.get('file')

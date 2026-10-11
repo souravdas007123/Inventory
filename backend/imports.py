@@ -24,7 +24,7 @@ from django.http import HttpResponse
 from django.utils import timezone
 
 from .models import (
-    Brand, Category, Customer, Product, ProductUnit, Purchase, PurchaseItem, Supplier, Unit,
+    Brand, Category, Customer, Expense, Product, ProductUnit, Purchase, PurchaseItem, Supplier, Unit,
 )
 from .tabular import build_csv, build_xlsx, plain, to_bool, to_date, to_dec, to_int, txt
 
@@ -587,6 +587,64 @@ def commit_stock(results, opts):
 
 
 # ======================================================
+# EXPENSES
+# ======================================================
+
+EXPENSE_COLS = [
+    _col('name', True, 'Kharche ka type: Rent, Salary, Electricity, Water, Maintenance ya Other', 'Rent', 'Electricity'),
+    _col('amount', True, 'Rupaye', '15000', '2350.50'),
+    _col('date', False, 'Date (khali = aaj)', '01/10/2026', '05/10/2026'),
+]
+EXPENSE_ALIASES = {'type': 'name', 'expense': 'name', 'expense_type': 'name', 'head': 'name', 'category': 'name',
+                   'amt': 'amount', 'rs': 'amount', 'rupees': 'amount'}
+
+
+def validate_expenses(rows, opts):
+    types = {code.lower(): code for code, _ in Expense.EXPENSES_TYPES}
+    types.update({label.lower(): code for code, label in Expense.EXPENSES_TYPES})
+    have = {(d, n, a) for d, n, a in Expense.objects.values_list('date', 'name', 'amount')}
+    today = timezone.localdate()
+    results = []
+    for n, raw in rows:
+        errors, warnings = [], []
+        type_raw = txt(raw.get('name'))
+        code = types.get(type_raw.lower())
+        if not type_raw:
+            errors.append('name (kharche ka type) zaroori hai')
+        elif not code:
+            errors.append(f"type '{type_raw}' sahi nahi (Rent, Salary, Electricity, Water, Maintenance ya Other)")
+        amount = to_dec(raw.get('amount'), 'amount', errors, required=True)
+        if amount is not None and amount <= 0:
+            errors.append('amount 0 se zyada hona chahiye')
+            amount = None
+        when = to_date(raw.get('date'), 'date', errors) or today
+        if when > today:
+            errors.append('date aage ki nahi ho sakti')
+        data = dict(name=code, amount=str(amount) if amount is not None else None, date=when.isoformat())
+        if errors:
+            action = 'error'
+        elif (when, code, amount) in have:
+            action = 'skip'
+            warnings.append('same date, type aur amount ka kharcha pehle se hai, chhod diya')
+        else:
+            action = 'create'
+        results.append(_result(n, action, data, errors, warnings, label=f"{type_raw} · ₹{amount}"))
+    return results
+
+
+def _apply_expense(d):
+    Expense.objects.create(name=d['name'], amount=Decimal(d['amount']), date=date.fromisoformat(d['date']))
+
+
+def commit_expenses(results, opts):
+    return _commit_each(results, _apply_expense)
+
+
+def export_expenses():
+    return ['name', 'amount', 'date'], [[e.get_name_display(), e.amount, e.date] for e in Expense.objects.order_by('-date', '-id')]
+
+
+# ======================================================
 # CATEGORIES / BRANDS / UNITS  (sirf naam)
 # ======================================================
 
@@ -675,6 +733,11 @@ IMPORTERS = {
              'Opening stock ke liye bhi yahi use karein.',
         after='Purchases page par bane hue bills dikhenge. Galti ho to wahan se Purchase Return karein.'),
 }
+IMPORTERS['expenses'] = dict(
+    title='Expenses', icon='💸', cols=EXPENSE_COLS, aliases=EXPENSE_ALIASES, validate=validate_expenses,
+    commit=commit_expenses, export=export_expenses, has_update=False, max_rows=3000,
+    desc='Kharche (Rent, Salary, Bijli...) ek saath. Same date, type aur amount wali row dobara import nahi hoti.',
+    after='Ye kharche Profit & Loss me apne aap ginte jayenge.')
 IMPORTERS['categories'] = dict(
     title='Categories', icon='🗂️', desc='Dawa ki categories (Tablet, Syrup, Injection...). Products import me category likhne par apne aap ban bhi jati hai.',
     after='', **_simple_importer(Category, ('Tablet', 'Syrup')))

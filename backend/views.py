@@ -17,9 +17,9 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.views.decorators.http import require_POST
 
-from . import notify
+from . import auditlog, notify
 from .models import (
-    Batch, Bill, Brand, Category, Customer, CustomerPayment, Expense, InvoiceItem, Order, Payment,
+    AuditLog, Batch, Bill, Brand, Category, Customer, CustomerPayment, Expense, InvoiceItem, Order, Payment,
     Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem, PurchaseReturn,
     Sale, SalesReturn, ShopProfile, StockAudit, StockWriteOff, Supplier, Transaction, Unit,
 )
@@ -27,7 +27,7 @@ from .imports import export_value, table_download
 from .reports import dashboard_charts, dashboard_overview, profit_and_loss
 
 IMPORT_KINDS = {'products': 'products', 'customers': 'customers', 'suppliers': 'suppliers', 'purchases': 'stock',
-                'categories': 'categories', 'brands': 'brands', 'units': 'units'}
+                'categories': 'categories', 'brands': 'brands', 'units': 'units', 'expenses': 'expenses'}
 
 NAV = [
     {'key': 'dashboard', 'url': '/', 'label': 'Dashboard', 'icon': '🏠', 'group': ''},
@@ -55,6 +55,8 @@ NAV = [
     {'key': 'brands', 'url': '/brands/', 'label': 'Brands', 'icon': '🏷️', 'group': 'Master Data'},
     {'key': 'units', 'url': '/units/', 'label': 'Units', 'icon': '📏', 'group': 'Master Data'},
     {'key': 'import', 'url': '/import/', 'label': 'Import / Export', 'icon': '📥', 'group': 'Master Data'},
+    {'key': 'audit', 'url': '/audit/', 'label': 'Audit Log', 'icon': '🕵️', 'group': 'Master Data', 'staff': True},
+    {'key': 'backup', 'url': '/backup/', 'label': 'Backup', 'icon': '💾', 'group': 'Master Data', 'staff': True},
     {'key': 'shop', 'url': '/shop/', 'label': 'Shop Settings', 'icon': '🏪', 'group': 'Master Data', 'staff': True},
 ]
 
@@ -322,6 +324,14 @@ CONFIG = {
               ('Note', lambda o: o.note or '-')],
         fields=['batch', 'qty', 'reason', 'date', 'note'],
     ),
+    'audit': dict(
+        title='Audit Log (kisne kya badla)', one='Log', model=AuditLog, order=['-id'], readonly=True, staff=True,
+        search=['user', 'action', 'target', 'detail'],
+        cols=[('Kab', lambda o: timezone.localtime(o.created_at).strftime('%d %b %Y, %I:%M %p')),
+              ('User', lambda o: o.user or '-'), ('Action', lambda o: o.action),
+              ('Kya', lambda o: o.target or '-'), ('Detail', lambda o: o.detail or '-')],
+        fields=[],
+    ),
     'stock_audits': dict(
         title='Physical Stock Audit', one='Stock Audit', model=StockAudit, order=['-id'], readonly=True, staff=True,
         prefetch=['items'], start_url='/stock_audits/start/',
@@ -543,6 +553,7 @@ def edit(request, key, pk=None):
                     if po and po.status != 'CANCELLED':
                         po.status = 'COMPLETED'
                         po.save(update_fields=['status'])
+                auditlog.record(request, 'EDIT' if obj else 'CREATE', cfg['one'], str(form.instance))
                 messages.success(request, f"{cfg['one']} save ho gaya ✅")
                 if key == 'bills' and not obj:  # naya bill -> seedha invoice
                     return redirect('invoice', pk=form.instance.pk)
@@ -577,8 +588,10 @@ def delete(request, key, pk):
                            or ProductUnit.objects.filter(unit=obj).exists()):
         messages.error(request, 'Ye unit kisi product me use ho raha hai, isliye delete nahi ho sakta.')
         return redirect('list', key=key)
+    label = str(obj)
     try:
         obj.delete()
+        auditlog.record(request, 'DELETE', cfg['one'], label)
         messages.success(request, f"{cfg['one']} delete ho gaya.")
     except ProtectedError:
         messages.error(request, 'Ye record kisi aur record se juda hai, isliye delete nahi ho sakta.')
@@ -654,6 +667,9 @@ def invoice(request, pk):
         bill=bill, shop=ShopProfile.get(), rows=rows,
         taxable=s('taxable_value'), cgst=s('cgst'), sgst=s('sgst'), igst=s('igst'),
         total=total, round_off=grand - total, grand=grand,
+        wa_link=notify.whatsapp_link(
+            f"{ShopProfile.get().name} - Bill {bill.display_number} ({bill.date:%d %b %Y}): Total \u20b9{grand}. Dhanyavaad!",
+            bill.customer.phone if bill.customer_id else ''),
         words=rupees_in_words(int(grand)),
         fmt='thermal' if request.GET.get('fmt') == 'thermal' else 'a4',
     ))
@@ -670,6 +686,7 @@ def bill_cancel(request, pk):
     except ValidationError as e:
         messages.error(request, ' '.join(e.messages))
         return redirect('list', key='bills')
+    auditlog.record(request, 'CANCEL', 'Bill', f"{bill.display_number} · {bill.customer_name}")
     messages.success(request, f"{bill.display_number} cancel ho gaya. Stock wapas add ho gaya.")
     return redirect('list', key='bills')
 

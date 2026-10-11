@@ -87,6 +87,13 @@ def whatsapp_link(text, phone=''):
     return f"{base}?text={quote(text[:1800])}"
 
 
+def udhar_reminder_link(shop_name, name, phone, balance):
+    """Customer ko udhar yaad dilane ka WhatsApp link (wa.me, koi API nahi)."""
+    text = (f"Namaste {name}, {shop_name or 'MedSync'} se yaad dilana hai ki aapka \u20b9{balance:,.2f} "
+            f"udhar baaki hai. Kripya jaldi clear kar dein. Dhanyavaad!")
+    return whatsapp_link(text, phone)
+
+
 def po_text(po, shop):
     """Purchase Order ka plain text (email body / WhatsApp message)."""
     lines = [f"{shop.name} - Purchase Order {po.po_number}",

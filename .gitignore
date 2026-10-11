@@ -12,3 +12,5 @@ staticfiles/
 
 # Secrets / local config
 .env
+
+backups/

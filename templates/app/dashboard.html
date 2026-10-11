@@ -126,7 +126,7 @@
     <div class="tw"><table class="t mini">
       <thead><tr><th>Customer</th><th>Baaki</th><th>Kab se</th><th></th></tr></thead>
       {% for r in ov.udhar_rows %}<tr><td>{{ r.name }}{% if r.phone %}<br><small style="color:var(--mute)">{{ r.phone }}</small>{% endif %}{% if r.over %} <span class="badge red">Limit paar</span>{% endif %}</td>
-        <td><b>₹{{ r.balance|floatformat:2 }}</b></td><td>{{ r.days }} din</td><td><a class="btn ghost sm" href="/customers/{{ r.pk }}/ledger/">Ledger</a></td></tr>
+        <td><b>₹{{ r.balance|floatformat:2 }}</b></td><td>{{ r.days }} din</td><td><a class="btn ghost sm" href="/customers/{{ r.pk }}/ledger/">Ledger</a> <a class="btn ghost sm" href="{{ r.wa }}" target="_blank" rel="noopener" title="WhatsApp par yaad dilayein">💬</a></td></tr>
       {% empty %}<tr><td class="empty" colspan="4">Kisi ka udhar baaki nahi 👍</td></tr>{% endfor %}
     </table></div></div>
   <div class="card"><h3 style="margin-top:0">🏭 Suppliers ko dena baaki <a class="link" href="/suppliers/" style="font-size:12px;float:right">Sab dekhein →</a></h3>

@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import tempfile
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -195,3 +196,14 @@ DEFAULT_FROM_EMAIL = os.environ.get('DJANGO_FROM_EMAIL', 'MedSync <noreply@local
 
 # Daily alert digest (low stock / expiry) kin ko jaye. Khali ho to Shop Settings ka email use hota hai.
 ALERT_EMAILS = env_list('DJANGO_ALERT_EMAILS')
+
+# Cache: sab workers ke beech shared rahe isliye file based (login lock ke liye zaroori)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': os.environ.get('DJANGO_CACHE_DIR') or str(Path(tempfile.gettempdir()) / 'medsync_cache'),
+    }
+}
+
+# Database backups yahan jayenge (DJANGO_BACKUP_DIR se badal sakte hain)
+BACKUP_DIR = Path(os.environ.get('DJANGO_BACKUP_DIR') or (BASE_DIR / 'backups'))

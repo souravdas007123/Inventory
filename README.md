@@ -62,3 +62,13 @@ Menu: **Master Data → Import / Export** (`/import/`).
 - Har list page par **⬇ Excel / CSV** (search ke hisaab se poori list). Products / Customers / Suppliers ka export wapas import bhi ho sakta hai.
 - Stock Entry sahi order: Suppliers → Products → Stock Entry.
 - Limits: 5 MB, 3000 rows (Stock Entry 1500). Preview ka temp data server ke temp folder me rehta hai (24 ghante me saaf).
+
+## Backup, Audit Log, Login lock
+
+- **Backup**: Master Data → Backup (staff). Compressed SQLite backup banta hai, latest 14 rehte hain (`DJANGO_BACKUP_DIR` se folder badal sakte hain).
+  Roz apne aap ke liye PythonAnywhere **Tasks** me: `~/.virtualenvs/inv/bin/python ~/Inventory/manage.py backup_db` (`--keep 30` se zyada rakh sakte hain).
+  Restore: `.gz` unzip karke `db.sqlite3` ki jagah rakhein.
+- **Audit Log**: Master Data → Audit Log (staff). Record, edit, delete, bill cancel, returns, write-off, stock audit, import aur backup ka user-wise log. Migration `0005` chalayein.
+- **Login lock**: 5 galat koshish ke baad 15 minute ke liye (IP + username). Cache shared file-cache me hai (`DJANGO_CACHE_DIR` se badal sakte hain). `/admin/` login par ye lock nahi hai.
+- **WhatsApp**: udhar reminder (dashboard aur customer ledger) aur invoice share. Ye wa.me link hai, koi API nahi.
+- **Import**: ab Expenses, Categories, Brands, Units bhi.
