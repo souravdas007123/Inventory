@@ -107,6 +107,75 @@ if (scan) {
   scan.addEventListener('input', () => { clearTimeout(scanTimer); scanTimer = setTimeout(() => lookup(scan.value.trim(), false), 250); });
   scan.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); lookup(scan.value.trim(), true); } });
 }
+</script>{% endif %}{% if key == 'purchases' %}
+<script>
+// ---- Price hint: last price from this supplier, cheapest supplier, and how the typed price compares ----
+(function () {
+  const rowsBody = document.getElementById('rows'), supplierSel = document.getElementById('id_supplier');
+  if (!rowsBody || !supplierSel) return;
+  const cache = {};
+  const field = (tr, n) => tr.querySelector('[name$="-' + n + '"]');
+  const fmt = v => '₹' + (v >= 10 ? v.toFixed(2) : v.toFixed(3));
+  function load(pid) {
+    if (!(pid in cache)) {
+      cache[pid] = fetch('/api/supplier_price_hint/?product=' + encodeURIComponent(pid), {credentials: 'same-origin'})
+        .then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => { if (!d) delete cache[pid]; return d; });
+    }
+    return cache[pid];
+  }
+  function hintBox(tr) {
+    let el = tr.querySelector('.ph');
+    if (!el) {
+      const sel = field(tr, 'product'); if (!sel) return null;
+      el = document.createElement('div'); el.className = 'ph'; el.style.cssText = 'font-size:12px;margin-top:4px;color:var(--mute)';
+      sel.parentNode.appendChild(el);
+    }
+    return el;
+  }
+  function addLine(el, text, color) {
+    const d = document.createElement('div'); d.textContent = text; if (color) d.style.color = color; el.appendChild(d);
+  }
+  async function refresh(tr) {
+    const sel = field(tr, 'product'), el = hintBox(tr); if (!sel || !el) return;
+    const pid = sel.value;
+    if (!pid) { el.textContent = ''; return; }
+    const d = await load(pid);
+    if (field(tr, 'product').value !== pid) return;          // the row changed while loading
+    el.textContent = '';
+    if (!d || !d.found) return;
+    const unitTxt = s => s.rate_txt + '/' + d.base_name + (s.pack_txt ? ' (' + s.pack_txt + '/' + d.pack_name + ')' : '');
+    const mine = d.suppliers.find(s => String(s.id) === supplierSel.value);
+    const best = d.suppliers.find(s => s.best);
+    if (!d.suppliers.length) { addLine(el, 'No earlier purchase price for this product.'); return; }
+    addLine(el, mine ? 'Last from this supplier: ' + unitTxt(mine) + ' on ' + mine.date
+                     : (supplierSel.value ? 'Not bought from this supplier before.' : 'Select a supplier to see its last price.'));
+    if (best && (!mine || best.id !== mine.id)) addLine(el, 'Cheapest now: ' + best.name + ' ' + unitTxt(best));
+    else if (best && mine && best.id === mine.id) addLine(el, '✓ This is the cheapest supplier now.', 'var(--green)');
+    const qty = parseFloat(field(tr, 'qty') && field(tr, 'qty').value), price = parseFloat(field(tr, 'purchase_price') && field(tr, 'purchase_price').value);
+    const uSel = field(tr, 'unit');
+    const factor = uSel && uSel.value ? d.factors[uSel.value] : 1;
+    const ref = best || mine;
+    if (qty > 0 && price >= 0 && factor && ref) {
+      const rate = price / (qty * factor), refRate = parseFloat(ref.rate);
+      if (refRate > 0) {
+        const diff = (rate - refRate) / refRate * 100, label = best ? 'the cheapest' : 'the last price';
+        let msg = 'This entry: ' + fmt(rate) + '/' + d.base_name + (d.pack_factor ? ' (' + fmt(rate * d.pack_factor) + '/' + d.pack_name + ')' : '');
+        let color = '';
+        if (diff > 0.5) { msg += ' — ' + diff.toFixed(1) + '% above ' + label; color = 'var(--red)'; }
+        else if (diff < -0.5) { msg += ' — ' + Math.abs(diff).toFixed(1) + '% below ' + label; color = 'var(--green)'; }
+        else msg += ' — in line with ' + label;
+        addLine(el, msg, color);
+      }
+    }
+  }
+  let timer;
+  const later = tr => { clearTimeout(timer); timer = setTimeout(() => refresh(tr), 250); };
+  rowsBody.addEventListener('change', e => { const tr = e.target.closest('tr'); if (tr) refresh(tr); });
+  rowsBody.addEventListener('input', e => { const tr = e.target.closest('tr'); if (tr) later(tr); });
+  supplierSel.addEventListener('change', () => rowsBody.querySelectorAll('tr').forEach(refresh));
+  rowsBody.querySelectorAll('tr').forEach(refresh);
+})();
 </script>{% endif %}{% if fs %}
 <script>
 const total = document.getElementById('id_{{ fs.prefix }}-TOTAL_FORMS');

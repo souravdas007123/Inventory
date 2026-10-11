@@ -17,6 +17,23 @@ _ONE = Decimal('0.1')
 _ZERO = Decimal('0')
 
 
+def rows_from_items(qs):
+    """PurchaseItem queryset -> plain row dicts (only rows that have a price and a quantity)."""
+    qs = qs.filter(base_qty__gt=0, purchase_price__isnull=False)
+    rows = []
+    for r in qs.values('id', 'product_id', 'product__name', 'product__unit__name', 'purchase__supplier_id',
+                       'purchase__supplier__company', 'purchase__invoice_date', 'purchase__invoice_number',
+                       'qty', 'unit__name', 'base_qty', 'purchase_price'):
+        rows.append(dict(
+            id=r['id'], product_id=r['product_id'], product=r['product__name'],
+            base_unit=r['product__unit__name'] or '', supplier_id=r['purchase__supplier_id'],
+            supplier=r['purchase__supplier__company'], date=r['purchase__invoice_date'],
+            invoice=r['purchase__invoice_number'], qty=r['qty'],
+            unit=r['unit__name'] or r['product__unit__name'] or '', base_qty=r['base_qty'],
+            total=r['purchase_price']))
+    return rows
+
+
 def unit_rate(total, base_qty):
     """Price per base unit (incl. GST), or None when it cannot be worked out."""
     if not base_qty or total is None:
@@ -62,9 +79,10 @@ def build_history(rows):
     out = []
     for r in rows:
         rate = unit_rate(r['total'], r['base_qty'])
-        change = pct(rate, last_rate.get(r['supplier_id']))
+        last_rate_before = last_rate.get(r['supplier_id'])
+        change = pct(rate, last_rate_before)
         last_rate[r['supplier_id']] = rate
-        out.append(dict(r, rate=rate, change=change))
+        out.append(dict(r, rate=rate, change=change, prev_rate=last_rate_before))
     return out
 
 
@@ -153,3 +171,41 @@ def overview(rows, today):
             saving_pct=sm['saving_pct']))
     out.sort(key=lambda p: (-p['suppliers_n'], -(p['saving_pct'] or _ZERO), p['product'].lower()))
     return out
+
+
+def cheapest_supplier_id(rows, today):
+    """Id of the supplier with the lowest current price for these rows (all rows of ONE product), or None."""
+    history = build_history(rows)
+    suppliers = supplier_stats(history, today)
+    current = [x for x in suppliers if x['current']] or suppliers
+    return current[0]['supplier_id'] if current else None
+
+
+def price_jumps(rows, today, min_pct=Decimal('10'), within_days=60, limit=8):
+    """Recent price increases: a supplier's latest price is at least min_pct above its previous price and was
+    bought within the last `within_days` days. Rows may cover many products. Biggest rise first.
+    If a different current supplier is cheaper, it is returned as the alternative."""
+    by_product = {}
+    for r in _usable(rows):
+        by_product.setdefault(r['product_id'], []).append(r)
+    out = []
+    for items in by_product.values():
+        history = build_history(items)
+        newest = {}
+        for h in history:                       # oldest first, so the last one per supplier wins
+            newest[h['supplier_id']] = h
+        suppliers = None
+        for h in newest.values():
+            if h['change'] is None or h['change'] < min_pct or (today - h['date']).days > within_days:
+                continue
+            if suppliers is None:
+                suppliers = supplier_stats(history, today)
+            alt = next((x for x in suppliers if x['current'] and x['supplier_id'] != h['supplier_id']
+                        and x['last_rate'] < h['rate']), None)
+            out.append(dict(
+                product_id=h['product_id'], product=h['product'], supplier=h['supplier'], date=h['date'],
+                old_txt=money(h['prev_rate']), new_txt=money(h['rate']), change=h['change'],
+                base_unit=h.get('base_unit') or '',
+                alt_supplier=alt['supplier'] if alt else '', alt_txt=alt['last_rate_txt'] if alt else ''))
+    out.sort(key=lambda x: (-x['change'], x['product'].lower()))
+    return out[:limit]

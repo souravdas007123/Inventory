@@ -9,6 +9,8 @@ from django.db import models, transaction
 from django.db.models import F, Q, Sum
 from django.utils import timezone
 
+from . import supplier_prices
+
 TWO = Decimal('0.01')
 RATE_Q = Decimal('0.0001')   # per base unit rate up to 4 decimals (keeps COGS accurate for cheap tablets)
 
@@ -1136,7 +1138,13 @@ class InvoiceItem(models.Model):
         if product.stock_qty > product.reorder_level:
             return
 
+        # Supplier choice: the product's default supplier if one is set; otherwise the supplier with the lowest
+        # current price (see supplier_prices); otherwise the supplier of the last purchase.
         supplier = product.default_supplier
+        if not supplier:
+            rows = supplier_prices.rows_from_items(PurchaseItem.objects.filter(product=product))
+            cheapest = supplier_prices.cheapest_supplier_id(rows, timezone.localdate())
+            supplier = Supplier.objects.filter(pk=cheapest).first() if cheapest else None
         if not supplier:
             last = (
                 PurchaseItem.objects.filter(product=product)

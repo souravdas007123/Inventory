@@ -24,6 +24,7 @@ urlpatterns = [
     # Reports
     path('gst/', views_extra.gst_view, name='gst'),
     path('drug_register/', views_extra.drug_register_view, name='drug_register'),
+    path('api/supplier_price_hint/', views_extra.supplier_price_hint, name='supplier_price_hint'),
     path('supplier_prices/', views_extra.supplier_prices_view, name='supplier_prices'),
     path('supplier_prices/<int:pk>/', views_extra.supplier_prices_product, name='supplier_prices_product'),
 

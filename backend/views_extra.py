@@ -448,20 +448,8 @@ def backup_download(request, name):
 # ======================================================
 
 def _price_rows(qs):
-    """PurchaseItem queryset -> plain dicts for supplier_prices (only rows that have a price and a quantity)."""
-    qs = qs.filter(base_qty__gt=0, purchase_price__isnull=False)
-    rows = []
-    for r in qs.values('id', 'product_id', 'product__name', 'product__unit__name', 'purchase__supplier_id',
-                       'purchase__supplier__company', 'purchase__invoice_date', 'purchase__invoice_number',
-                       'qty', 'unit__name', 'base_qty', 'purchase_price'):
-        rows.append(dict(
-            id=r['id'], product_id=r['product_id'], product=r['product__name'],
-            base_unit=r['product__unit__name'] or '', supplier_id=r['purchase__supplier_id'],
-            supplier=r['purchase__supplier__company'], date=r['purchase__invoice_date'],
-            invoice=r['purchase__invoice_number'], qty=r['qty'],
-            unit=r['unit__name'] or r['product__unit__name'] or '', base_qty=r['base_qty'],
-            total=r['purchase_price']))
-    return rows
+    """PurchaseItem queryset -> plain dicts for supplier_prices."""
+    return supplier_prices.rows_from_items(qs)
 
 
 @login_required
@@ -518,3 +506,33 @@ def supplier_prices_product(request, pk):
                 history_total=data['history_total'], stale_days=supplier_prices.STALE_DAYS,
                 best_txt=supplier_prices.money(data['summary']['best']['last_rate']) if data['summary']['best'] else '-',
                 worst_txt=supplier_prices.money(data['summary']['worst']['last_rate']) if data['summary']['worst'] else '-')
+
+
+@login_required
+def supplier_price_hint(request):
+    """JSON for the Stock Entry form: every supplier's latest price for a product + unit factors, so the form can
+    show 'last price from this supplier / cheapest supplier' and compare the price being typed."""
+    try:
+        pid = int(request.GET.get('product', ''))
+    except (TypeError, ValueError):
+        return JsonResponse({'found': False})
+    product = Product.objects.select_related('unit').filter(pk=pid).first()
+    if not product:
+        return JsonResponse({'found': False})
+    convs = list(product.unit_conversions.select_related('unit').order_by('factor'))
+    pack = next((c for c in convs if c.factor > 1), None)
+    factors = {str(c.unit_id): c.factor for c in convs}
+    if product.unit_id:
+        factors[str(product.unit_id)] = 1
+    data = supplier_prices.compare(_price_rows(PurchaseItem.objects.filter(product=product)),
+                                   timezone.localdate(), pack.factor if pack else None, history_limit=0)
+    return JsonResponse({
+        'found': True, 'base_name': product.unit.name if product.unit_id else 'unit',
+        'pack_name': pack.unit.name if pack else '', 'pack_factor': pack.factor if pack else 0,
+        'factors': factors,
+        'suppliers': [dict(id=s['supplier_id'], name=s['supplier'], rate=str(s['last_rate']),
+                           rate_txt=s['last_rate_txt'], pack_txt=s['last_rate_pack_txt'],
+                           date=s['last_date'].strftime('%d %b %Y'), stale=s['stale'],
+                           best=s['is_best'], current=s['current'])
+                      for s in data['suppliers']],
+    })

@@ -120,13 +120,25 @@
     </table></div></div>
 </div>
 
+<div class="sec">⚖️ Supplier prices</div>
+<div class="card" style="margin-bottom:14px"><h3 style="margin-top:0">📈 Price increases (last 60 days) <a class="link" href="/supplier_prices/" style="font-size:12px;float:right">Compare suppliers →</a></h3>
+  <div class="tw"><table class="t mini">
+    <thead><tr><th>Medicine</th><th>Supplier</th><th>Old price</th><th>New price</th><th>Rise</th><th>Cheaper option</th><th></th></tr></thead>
+    {% for j in ov.price_jumps %}<tr><td><b>{{ j.product }}</b></td><td>{{ j.supplier }}<br><small style="color:var(--mute)">{{ j.date|date:"d M Y" }}</small></td>
+      <td>{{ j.old_txt }}</td><td><b>{{ j.new_txt }}</b>{% if j.base_unit %} <small style="color:var(--mute)">/ {{ j.base_unit }}</small>{% endif %}</td>
+      <td><span class="badge red">▲ {{ j.change }}%</span></td>
+      <td>{% if j.alt_supplier %}<b>{{ j.alt_supplier }}</b><br><small>{{ j.alt_txt }}</small>{% else %}-{% endif %}</td>
+      <td><a class="btn ghost sm" href="/supplier_prices/{{ j.product_id }}/">Compare</a></td></tr>
+    {% empty %}<tr><td class="empty" colspan="7">No supplier price has risen by 10% or more recently 👍</td></tr>{% endfor %}
+  </table></div></div>
+
 <div class="sec">📋 Needs attention</div>
 <div class="two" style="margin-bottom:14px">
   <div class="card"><h3 style="margin-top:0">💸 Outstanding credit (highest first) <a class="link" href="/customers/" style="font-size:12px;float:right">View all →</a></h3>
     <div class="tw"><table class="t mini">
       <thead><tr><th>Customer</th><th>Due</th><th>Since</th><th></th></tr></thead>
-      {% for r in ov.credit_rows %}<tr><td>{{ r.name }}{% if r.phone %}<br><small style="color:var(--mute)">{{ r.phone }}</small>{% endif %}{% if r.over %} <span class="badge red">Limit paar</span>{% endif %}</td>
-        <td><b>₹{{ r.balance|floatformat:2 }}</b></td><td>{{ r.days }} days</td><td><a class="btn ghost sm" href="/customers/{{ r.pk }}/ledger/">Ledger</a> <a class="btn ghost sm" href="{{ r.wa }}" target="_blank" rel="noopener" title="WhatsApp par yaad dilayein">💬</a></td></tr>
+      {% for r in ov.credit_rows %}<tr><td>{{ r.name }}{% if r.phone %}<br><small style="color:var(--mute)">{{ r.phone }}</small>{% endif %}{% if r.over %} <span class="badge red">Over limit</span>{% endif %}</td>
+        <td><b>₹{{ r.balance|floatformat:2 }}</b></td><td>{{ r.days }} days</td><td><a class="btn ghost sm" href="/customers/{{ r.pk }}/ledger/">Ledger</a> <a class="btn ghost sm" href="{{ r.wa }}" target="_blank" rel="noopener" title="Send a credit reminder on WhatsApp">💬</a></td></tr>
       {% empty %}<tr><td class="empty" colspan="4">No customer has outstanding credit 👍</td></tr>{% endfor %}
     </table></div></div>
   <div class="card"><h3 style="margin-top:0">🏭 Payable to suppliers <a class="link" href="/suppliers/" style="font-size:12px;float:right">View all →</a></h3>

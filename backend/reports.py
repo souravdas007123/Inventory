@@ -16,6 +16,7 @@ from django.db.models import Count, F, Min, Sum
 from django.db.models.functions import ExtractWeekDay, TruncMonth
 from django.utils import timezone
 
+from . import supplier_prices
 from .notify import credit_reminder_link
 from .models import (
     Batch, Bill, Customer, CustomerPayment, Expense, InvoiceItem, Product, PurchaseItem,
@@ -479,4 +480,10 @@ def dashboard_overview(today=None, include_money=False):
         out['stock_value'] = sum((dec(rate) * qty for qty, rate in
                                   Batch.objects.filter(qty__gt=0, purchase_item__isnull=False)
                                   .values_list('qty', 'purchase_item__rate')), ZERO)
+
+    # ---- Supplier price jumps: latest price 10%+ above that supplier's previous price (last 60 days) ----
+    recent = (PurchaseItem.objects.filter(purchase__invoice_date__gte=today - timedelta(days=60))
+              .values_list('product_id', flat=True).distinct())
+    out['price_jumps'] = supplier_prices.price_jumps(
+        supplier_prices.rows_from_items(PurchaseItem.objects.filter(product_id__in=list(recent))), today)
     return out
