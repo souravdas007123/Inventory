@@ -24,6 +24,8 @@ urlpatterns = [
     # Reports
     path('gst/', views_extra.gst_view, name='gst'),
     path('drug_register/', views_extra.drug_register_view, name='drug_register'),
+    path('supplier_prices/', views_extra.supplier_prices_view, name='supplier_prices'),
+    path('supplier_prices/<int:pk>/', views_extra.supplier_prices_product, name='supplier_prices_product'),
 
     # Billing screen helper (barcode / quick search)
     path('api/products/lookup/', views_extra.product_lookup, name='product_lookup'),

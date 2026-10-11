@@ -1,0 +1,39 @@
+{% extends "app/base.html" %}
+{% block title %}Supplier Prices{% endblock %}
+{% block content %}
+<div class="head"><h1>⚖️ Supplier Prices</h1>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <a class="btn ghost" href="?{{ base }}&export=xlsx" title="Download this list as Excel">⬇ Excel</a>
+    <a class="btn ghost" href="?{{ base }}&export=csv">CSV</a>
+  </div></div>
+<div class="msg info">Compare what each supplier charged for the same product. Prices come from your Purchases / Stock Entry (total paid incl. GST ÷ quantity in base units), so different pack sizes can be compared fairly. Click <b>Compare</b> to see every supplier and the full price history.</div>
+<div class="card">
+  <form class="search" method="get">
+    <input name="q" value="{{ q }}" placeholder="Search product, composition or barcode...">
+    <label style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" name="multi" value="1" {% if multi %}checked{% endif %} onchange="this.form.submit()" style="width:auto"> Only products bought from 2+ suppliers</label>
+    <button class="btn ghost">Search</button>
+  </form>
+  <div class="tw"><table class="t">
+    <thead><tr><th>Product</th><th>Suppliers</th><th>Cheapest</th><th>Costliest</th><th>Possible saving</th><th>Last purchase</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}<tr>
+      <td><b>{{ r.product }}</b></td>
+      <td>{% if r.suppliers_n > 1 %}<span class="badge blue">{{ r.suppliers_n }} suppliers</span>{% else %}<span class="badge grey">1 supplier</span>{% endif %}</td>
+      <td><b>{{ r.best_txt }}</b>{% if r.base_unit %} <small style="color:var(--mute)">/ {{ r.base_unit }}</small>{% endif %}<br><small>{{ r.best_supplier }}</small></td>
+      <td>{% if r.suppliers_n > 1 %}{{ r.worst_txt }}{% if r.base_unit %} <small style="color:var(--mute)">/ {{ r.base_unit }}</small>{% endif %}<br><small>{{ r.worst_supplier }}</small>{% else %}-{% endif %}</td>
+      <td>{% if r.saving_pct %}<span class="badge {% if r.saving_pct >= 10 %}green{% else %}amber{% endif %}">{{ r.saving_pct }}%</span>{% else %}-{% endif %}</td>
+      <td>{{ r.last_date|date:"d M Y" }}</td>
+      <td style="white-space:nowrap"><a class="btn sm" href="{% url 'supplier_prices_product' r.product_id %}">Compare</a></td>
+    </tr>{% empty %}<tr><td class="empty" colspan="7">{% if multi %}No product has been bought from more than one supplier yet.{% else %}No purchase prices found yet. Prices appear here once you add purchases.{% endif %}</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+  <div class="pager">
+    <span>{{ page.start_index }}–{{ page.end_index }} of {{ total }}</span>
+    {% if page.paginator.num_pages > 1 %}
+      {% if page.has_previous %}<a class="btn ghost sm" href="?{{ base }}&page=1">«</a><a class="btn ghost sm" href="?{{ base }}&page={{ page.previous_page_number }}">‹ Prev</a>{% endif %}
+      <b>Page {{ page.number }} / {{ page.paginator.num_pages }}</b>
+      {% if page.has_next %}<a class="btn ghost sm" href="?{{ base }}&page={{ page.next_page_number }}">Next ›</a><a class="btn ghost sm" href="?{{ base }}&page={{ page.paginator.num_pages }}">»</a>{% endif %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

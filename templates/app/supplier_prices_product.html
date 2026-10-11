@@ -1,0 +1,57 @@
+{% extends "app/base.html" %}
+{% block title %}Prices: {{ product.name }}{% endblock %}
+{% block content %}
+<div class="head"><h1>⚖️ {{ product.name }} <small style="font-size:15px;color:var(--mute)">supplier prices</small></h1>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <a class="btn ghost" href="{% url 'supplier_prices' %}">← All products</a>
+    <a class="btn ghost" href="?export=xlsx">⬇ Excel</a>
+    <a class="btn ghost" href="?export=csv">CSV</a>
+  </div></div>
+<div class="msg info">
+  Prices are per <b>{{ product.unit|default:"base unit" }}</b>{% if pack %} (and per <b>{{ pack.unit }}</b>, where 1 {{ pack.unit }} = {{ pack.factor }} {{ product.unit|default:"base unit" }}){% endif %}, including GST, calculated from your purchase entries.
+  {% if product.composition %}Composition: {{ product.composition }}.{% endif %}
+</div>
+
+{% if suppliers %}
+<div class="stats">
+  <div class="card stat"><small>Suppliers used</small><b>{{ sm.count }}</b></div>
+  {% if sm.best %}<div class="card stat ok"><small>Cheapest now</small><b>{{ best_txt }}</b><span class="sub">{{ sm.best.supplier }}</span></div>{% endif %}
+  {% if sm.current_count > 1 %}<div class="card stat"><small>Costliest now</small><b>{{ worst_txt }}</b><span class="sub">{{ sm.worst.supplier }}</span></div>
+  <div class="card stat {% if sm.saving_pct and sm.saving_pct >= 10 %}ok{% endif %}"><small>Possible saving</small><b>{{ sm.saving_pct }}%</b><span class="sub">buying from the cheapest</span></div>{% endif %}
+</div>
+
+<div class="card" style="margin-bottom:14px"><h3 style="margin-top:0">Price by supplier <small style="color:var(--mute);font-weight:400">(latest purchase, cheapest first)</small></h3>
+  <div class="tw"><table class="t">
+    <thead><tr><th>Supplier</th><th>Latest price{% if product.unit %} / {{ product.unit }}{% endif %}</th>{% if pack %}<th>Latest price / {{ pack.unit }}</th>{% endif %}<th>Compared to cheapest</th><th>Lowest – Highest</th><th>Bought</th><th>Last purchase</th></tr></thead>
+    <tbody>
+    {% for s in suppliers %}<tr>
+      <td><b>{{ s.supplier }}</b>{% if s.is_best %} <span class="badge green">Cheapest</span>{% endif %}{% if s.stale %} <span class="badge amber" title="Not purchased for over {{ stale_days }} days">Old price</span>{% endif %}</td>
+      <td><b>{{ s.last_rate_txt }}</b><br><span class="badge {{ s.trend_cls }}" title="Change vs this supplier's previous price">{{ s.trend_txt }}</span></td>
+      {% if pack %}<td>{{ s.last_rate_pack_txt }}</td>{% endif %}
+      <td>{% if s.is_best %}-{% elif s.vs_best > 0 %}<span class="badge red">+{{ s.vs_best }}%</span>{% else %}<span class="badge grey">{{ s.vs_best }}%</span>{% endif %}</td>
+      <td>{{ s.min_rate_txt }} – {{ s.max_rate_txt }}<br><small>avg {{ s.avg_rate_txt }}</small></td>
+      <td>{{ s.purchases }}× <small>({{ s.total_qty }} {{ product.unit|default:"" }})</small></td>
+      <td>{{ s.last_date|date:"d M Y" }}<br><small>{{ s.last_invoice }}</small></td>
+    </tr>{% endfor %}
+    </tbody>
+  </table></div>
+  <p style="color:var(--mute);font-size:13px;margin:10px 0 0">The arrow next to a price compares it with that supplier's previous price. "avg" is weighted by quantity. Prices from suppliers not used for over {{ stale_days }} days are marked <b>Old price</b> and are not counted as cheapest.</p>
+</div>
+
+<div class="card"><h3 style="margin-top:0">Price history <small style="color:var(--mute);font-weight:400">({% if history_total > 100 %}latest 100 of {{ history_total }}{% else %}{{ history_total }} purchases{% endif %}, newest first{% if history_total > 100 %}; download Excel for all{% endif %})</small></h3>
+  <div class="tw"><table class="t">
+    <thead><tr><th>Date</th><th>Supplier</th><th>Invoice</th><th>Qty</th><th>Total (incl. GST)</th><th>Price{% if product.unit %} / {{ product.unit }}{% endif %}</th>{% if pack %}<th>Price / {{ pack.unit }}</th>{% endif %}<th>Change</th></tr></thead>
+    <tbody>
+    {% for h in history %}<tr>
+      <td>{{ h.date|date:"d M Y" }}</td><td>{{ h.supplier }}</td><td>{{ h.invoice }}</td>
+      <td>{{ h.qty }} {{ h.unit }}</td><td>₹{{ h.total|floatformat:2 }}</td><td><b>{{ h.rate_txt }}</b></td>
+      {% if pack %}<td>{{ h.pack_rate_txt }}</td>{% endif %}
+      <td><span class="badge {{ h.trend_cls }}">{{ h.trend_txt }}</span></td>
+    </tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% else %}
+<div class="card"><div class="empty">This product has not been purchased yet, so there are no supplier prices to compare. Add it in Purchases / Stock Entry first.</div></div>
+{% endif %}
+{% endblock %}

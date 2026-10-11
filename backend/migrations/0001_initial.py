@@ -310,7 +310,7 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('factor', models.PositiveIntegerField(help_text='How many base units are in 1 of this unit (e.g. 1 Strip = 15 Tablets, so enter 15)', validators=[django.core.validators.MinValueValidator(1)])),
                 ('product', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='unit_conversions', to='backend.product')),
-                ('unit', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='backend.unit', verbose_name='Bada Unit (Strip/Box)')),
+                ('unit', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='backend.unit', verbose_name='Larger Unit (Strip/Box)')),
             ],
             options={
                 'verbose_name': 'Unit Conversion',

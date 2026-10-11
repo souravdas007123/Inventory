@@ -275,7 +275,7 @@ class Product(models.Model):
 class ProductUnit(models.Model):
     """Product-wise unit conversion. Example: Dolo 650 -> 1 Strip = 15 Tablet."""
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='unit_conversions')
-    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, verbose_name="Bada Unit (Strip/Box)")
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, verbose_name="Larger Unit (Strip/Box)")
     factor = models.PositiveIntegerField(
         validators=[MinValueValidator(1)],
         help_text="How many base units are in 1 of this unit (e.g. 1 Strip = 15 Tablets, so enter 15)",

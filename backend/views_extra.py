@@ -3,10 +3,12 @@ alerts, Purchase Order share, stock audit."""
 import calendar
 from datetime import date as date_cls
 from decimal import Decimal
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
@@ -14,11 +16,12 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import auditlog, backup, notify, reports
+from . import auditlog, backup, notify, reports, supplier_prices
 from .models import (
-    Batch, Bill, Customer, Product, Purchase, PurchaseOrder, PurchaseReturn, PurchaseReturnItem,
+    Batch, Bill, Customer, Product, Purchase, PurchaseItem, PurchaseOrder, PurchaseReturn, PurchaseReturnItem,
     SalesReturn, SalesReturnItem, ShopProfile, StockAudit, StockAuditItem, StockWriteOff,
 )
+from .imports import table_download
 from .views import page
 
 
@@ -438,3 +441,80 @@ def backup_download(request, name):
     if not path:
         raise Http404
     return FileResponse(open(path, 'rb'), as_attachment=True, filename=path.name)
+
+
+# ======================================================
+# SUPPLIER PRICE COMPARISON (read-only, built from purchase entries)
+# ======================================================
+
+def _price_rows(qs):
+    """PurchaseItem queryset -> plain dicts for supplier_prices (only rows that have a price and a quantity)."""
+    qs = qs.filter(base_qty__gt=0, purchase_price__isnull=False)
+    rows = []
+    for r in qs.values('id', 'product_id', 'product__name', 'product__unit__name', 'purchase__supplier_id',
+                       'purchase__supplier__company', 'purchase__invoice_date', 'purchase__invoice_number',
+                       'qty', 'unit__name', 'base_qty', 'purchase_price'):
+        rows.append(dict(
+            id=r['id'], product_id=r['product_id'], product=r['product__name'],
+            base_unit=r['product__unit__name'] or '', supplier_id=r['purchase__supplier_id'],
+            supplier=r['purchase__supplier__company'], date=r['purchase__invoice_date'],
+            invoice=r['purchase__invoice_number'], qty=r['qty'],
+            unit=r['unit__name'] or r['product__unit__name'] or '', base_qty=r['base_qty'],
+            total=r['purchase_price']))
+    return rows
+
+
+@login_required
+def supplier_prices_view(request):
+    """All products with the cheapest and costliest supplier price."""
+    q = request.GET.get('q', '').strip()
+    multi = request.GET.get('multi') == '1'
+    qs = PurchaseItem.objects.all()
+    if q:
+        qs = qs.filter(Q(product__name__icontains=q) | Q(product__composition__icontains=q)
+                       | Q(product__barcode=q) | Q(product__sku__iexact=q))
+    rows = supplier_prices.overview(_price_rows(qs), timezone.localdate())
+    if multi:
+        rows = [r for r in rows if r['suppliers_n'] > 1]
+    fmt = request.GET.get('export')
+    if fmt in ('xlsx', 'csv'):
+        data = [[r['product'], r['base_unit'], r['suppliers_n'], r['best_supplier'], r['best_rate'],
+                 r['worst_supplier'], r['worst_rate'], r['saving_pct'] if r['saving_pct'] is not None else '',
+                 r['last_date']] for r in rows]
+        heads = ['Product', 'Base unit', 'Suppliers', 'Cheapest supplier', 'Cheapest price (per base unit)',
+                 'Costliest supplier', 'Costliest price (per base unit)', 'Saving %', 'Last purchase']
+        return table_download(f"medsync_supplier_prices_{timezone.localdate():%Y%m%d}", heads, data, fmt)
+    pg = Paginator(rows, 25).get_page(request.GET.get('page'))
+    return page(request, 'app/supplier_prices.html', active='supplier_prices', rows=pg, page=pg,
+                total=pg.paginator.count, q=q, multi=multi,
+                base=urlencode({'q': q, 'multi': '1' if multi else ''}))
+
+
+@login_required
+def supplier_prices_product(request, pk):
+    """Supplier-wise prices and full purchase price history for one product."""
+    product = get_object_or_404(Product.objects.select_related('unit'), pk=pk)
+    pack = (product.unit_conversions.select_related('unit').filter(factor__gt=1).order_by('factor').first())
+    factor = pack.factor if pack else None
+    data = supplier_prices.compare(_price_rows(PurchaseItem.objects.filter(product=product)),
+                                   timezone.localdate(), factor, history_limit=100000)
+    fmt = request.GET.get('export')
+    if fmt in ('xlsx', 'csv'):
+        base_name = product.unit.name if product.unit_id else 'base unit'
+        heads = ['Date', 'Supplier', 'Invoice', 'Qty', 'Unit', 'Total (incl. GST)', f'Price per {base_name}']
+        if pack:
+            heads.append(f'Price per {pack.unit.name}')
+        heads.append('Change vs previous (same supplier) %')
+        rows = []
+        for h in data['history']:
+            row = [h['date'], h['supplier'], h['invoice'], h['qty'], h['unit'], h['total'], h['rate']]
+            if pack:
+                row.append((h['rate'] * factor).quantize(Decimal('0.01')))
+            row.append(h['change'] if h['change'] is not None else '')
+            rows.append(row)
+        return table_download(f"medsync_prices_{product.pk}_{timezone.localdate():%Y%m%d}", heads, rows, fmt)
+    return page(request, 'app/supplier_prices_product.html', active='supplier_prices', product=product,
+                pack=pack, suppliers=data['suppliers'], sm=data['summary'], history=data['history'][:100],
+                history_total=data['history_total'], stale_days=supplier_prices.STALE_DAYS,
+                best_txt=supplier_prices.money(data['summary']['best']['last_rate']) if data['summary']['best'] else '-',
+                worst_txt=supplier_prices.money(data['summary']['worst']['last_rate']) if data['summary']['worst'] else '-')

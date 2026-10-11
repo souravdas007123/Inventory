@@ -41,6 +41,7 @@ NAV = [
     {'key': 'sales_returns', 'url': '/sales_returns/', 'label': 'Sales Returns', 'icon': '↩️', 'group': 'Customers'},
     {'key': 'suppliers', 'url': '/suppliers/', 'label': 'Suppliers', 'icon': '🏭', 'group': 'Suppliers'},
     {'key': 'purchase_orders', 'url': '/purchase_orders/', 'label': 'Purchase Orders', 'icon': '📋', 'group': 'Suppliers'},
+    {'key': 'supplier_prices', 'url': '/supplier_prices/', 'label': 'Supplier Prices', 'icon': '⚖️', 'group': 'Suppliers'},
     {'key': 'payments', 'url': '/payments/', 'label': 'Supplier Payments', 'icon': '💳', 'group': 'Suppliers'},
     {'key': 'purchase_returns', 'url': '/purchase_returns/', 'label': 'Purchase Returns', 'icon': '📤', 'group': 'Suppliers'},
     {'key': 'sales', 'url': '/sales/', 'label': 'Sales', 'icon': '📈', 'group': 'Accounts'},
@@ -143,6 +144,7 @@ CONFIG = {
                 'schedule', 'reorder_level', 'default_supplier', 'location', 'rack', 'row', 'is_active'],
         inline=dict(model=ProductUnit, fields=['unit', 'factor'],
                     title='Unit conversions (e.g. 1 Strip = 15 Tablet)'),
+        actions=lambda o: [dict(label='⚖️ Prices', url=f'/supplier_prices/{o.pk}/')],
     ),
     'suppliers': dict(
         title='Suppliers', one='Supplier', model=Supplier, order=['company'],
