@@ -24,8 +24,9 @@
     <div id="scan-results" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
   </div>
   {% endif %}
-  {% if key == 'purchases' and not form.instance.pk %}<div style="margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-    <button type="button" class="btn ghost sm" id="copy-last">↻ Copy items from this supplier's last invoice</button><small id="copy-msg" style="color:var(--mute)"></small></div>{% endif %}
+  {% if key == 'purchases' %}<div style="margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <button type="button" class="btn ghost sm" id="new-product" title="Add a medicine that is not in Products yet, without leaving this page">➕ New product</button>
+    {% if not form.instance.pk %}<button type="button" class="btn ghost sm" id="copy-last">↻ Copy items from this supplier's last invoice</button>{% endif %}<small id="copy-msg" style="color:var(--mute)"></small></div>{% endif %}
   {{ fs.management_form }}{{ fs.non_form_errors }}
   <div class="tw"><table class="t{% if key == 'purchases' %} hide-extra{% endif %}" id="items-table">
     <thead><tr>{% for f in fs.empty_form.visible_fields %}<th>{{ f.label }}</th>{% endfor %}</tr></thead>
@@ -43,6 +44,28 @@
 
   <div class="bar">{% if warnings %}<button class="btn" name="confirm_warnings" value="1">✔ Save anyway</button>{% else %}<button class="btn">💾 Save</button>{% endif %}<a class="btn ghost" href="{{ back_url }}">Cancel</a></div>
 </form>
+{% if key == 'purchases' %}
+<dialog id="np-dialog" class="dlg">
+  <div class="np-head"><h3>➕ New product</h3><button type="button" class="btn ghost sm" id="np-close" aria-label="Close">✕</button></div>
+  <small id="np-note" style="color:var(--mute);display:block;margin-bottom:10px"></small>
+  <div class="grid">
+    <div class="fld" style="grid-column:1/-1"><label for="np-name">Product name *</label><input id="np-name" maxlength="255" autocomplete="off" placeholder="e.g. Dolo 650"></div>
+    <div class="fld" style="grid-column:1/-1"><label for="np-composition">Composition</label><input id="np-composition" maxlength="255" placeholder="e.g. Paracetamol 650mg"></div>
+    <div class="fld"><label for="np-category">Category</label><input id="np-category" list="np-cats" maxlength="255" autocomplete="off"></div>
+    <div class="fld"><label for="np-brand">Brand</label><input id="np-brand" list="np-brands" maxlength="255" autocomplete="off"></div>
+    <div class="fld"><label for="np-gst">GST (%) *</label><select id="np-gst"><option value="">---</option><option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option></select></div>
+    <div class="fld"><label for="np-unit">Base unit *</label><select id="np-unit"><option value="">---</option>{% for u in np_units %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select><small>Smallest unit, e.g. Tablet</small></div>
+    <div class="fld"><label for="np-pack-unit">Pack unit (optional)</label><select id="np-pack-unit"><option value="">None</option>{% for u in np_units %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select></div>
+    <div class="fld"><label for="np-pack-factor">Base units in 1 pack</label><input id="np-pack-factor" type="number" min="2" inputmode="numeric"><small>e.g. 15 when 1 Strip = 15 Tablets</small></div>
+    <div class="fld"><label for="np-schedule">Drug schedule</label><select id="np-schedule">{% for v, l in np_schedules %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
+    <div class="fld"><label for="np-barcode">Barcode (optional)</label><input id="np-barcode" maxlength="64" autocomplete="off"></div>
+  </div>
+  <div class="msg error" id="np-err" style="display:none;margin:12px 0 0"></div>
+  <div class="bar"><button type="button" class="btn" id="np-save">Add product</button><button type="button" class="btn ghost" id="np-cancel">Cancel</button><span id="np-existing"></span></div>
+  <datalist id="np-cats">{% for c in np_cats %}<option value="{{ c }}">{% endfor %}</datalist>
+  <datalist id="np-brands">{% for b in np_brands %}<option value="{{ b }}">{% endfor %}</datalist>
+</dialog>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}{% if warnings %}
@@ -383,6 +406,79 @@ if (scan) {
     say(added ? 'Copied ' + added + ' item(s) from invoice ' + data.invoice + ' (' + data.date + '). Now enter the new prices and EXP dates.'
               : 'Those items are already in the table.');
   });
+  // ---- New product without leaving the page: small window -> /api/product_quick_add/ -> the product is selected in a row ----
+  const npDlg = document.getElementById('np-dialog'), npBtn = document.getElementById('new-product');
+  if (npDlg && npBtn && typeof npDlg.showModal === 'function') {
+    const $ = id => document.getElementById(id);
+    const el = {};
+    ['name', 'composition', 'category', 'brand', 'gst', 'unit', 'pack-unit', 'pack-factor', 'schedule', 'barcode'].forEach(k => { el[k] = $('np-' + k); });
+    const err = $('np-err'), note = $('np-note'), existingBox = $('np-existing'), saveBtn = $('np-save'), touched = new Set();
+    Object.keys(el).forEach(k => { const mark = () => touched.add(k); el[k].addEventListener('input', mark); el[k].addEventListener('change', mark); });
+    const showErr = (text, existing) => {
+      err.textContent = text; err.style.display = '';
+      existingBox.textContent = '';
+      if (existing) {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost';
+        b.textContent = 'Use "' + existing.label + '"';
+        b.onclick = () => { npDlg.close(); useProduct(existing.id, existing.label); };
+        existingBox.appendChild(b);
+      }
+    };
+    // Category / brand / GST / unit / pack are suggested from a similar product (same first word), else the last product
+    async function suggest() {
+      let d = null;
+      try {
+        const r = await fetch('/api/product_suggest/?name=' + encodeURIComponent(el.name.value.trim()), {credentials: 'same-origin'});
+        d = r.ok ? await r.json() : null;
+      } catch (e) { d = null; }
+      if (!d || !d.found) { note.textContent = ''; return; }
+      const set = (k, v) => { if (!touched.has(k) && v !== undefined && v !== null) el[k].value = v; };
+      set('category', d.category); set('brand', d.brand); set('gst', d.gst); set('unit', d.unit);
+      set('pack-unit', d.pack_unit); set('pack-factor', d.pack_factor);   // the drug schedule is never copied: choose it yourself
+      note.textContent = (d.similar ? 'Category, brand, GST and units are copied from "' : 'Copied from the last product "') + d.from + '". Change anything that is different.';
+    }
+    function useProduct(id, label) {
+      id = String(id);
+      const tpl = document.getElementById('tpl');
+      const sels = [...rowsBody.querySelectorAll('select[name$="-product"]')].concat(tpl ? [...tpl.content.querySelectorAll('select[name$="-product"]')] : []);
+      sels.forEach(s => { if (![...s.options].some(o => o.value === id)) s.add(new Option(label, id)); });
+      let tr = [...dataRows()].find(t => { const s = field(t, 'product'); return s && !s.value; });
+      if (!tr) { document.getElementById('add').click(); const all = dataRows(); tr = all[all.length - 1]; }
+      const sel = field(tr, 'product'); sel.value = id;
+      sel.dispatchEvent(new Event('change', {bubbles: true}));
+      const q = field(tr, 'qty'); if (q) q.focus();
+    }
+    async function save() {
+      err.style.display = 'none'; existingBox.textContent = '';
+      const fd = new FormData();
+      fd.append('name', el.name.value); fd.append('composition', el.composition.value); fd.append('category', el.category.value);
+      fd.append('brand', el.brand.value); fd.append('gst_rate', el.gst.value); fd.append('unit', el.unit.value);
+      fd.append('pack_unit', el['pack-unit'].value); fd.append('pack_factor', el['pack-factor'].value);
+      fd.append('schedule', el.schedule.value); fd.append('barcode', el.barcode.value);
+      const csrf = document.querySelector('input[name=csrfmiddlewaretoken]');
+      fd.append('csrfmiddlewaretoken', csrf ? csrf.value : '');
+      saveBtn.disabled = true;
+      let d = null;
+      try {
+        const r = await fetch('/api/product_quick_add/', {method: 'POST', body: fd, credentials: 'same-origin'});
+        d = await r.json();
+      } catch (e) { d = {ok: false, error: 'Could not save the product. Please check your connection and try again.'}; }
+      saveBtn.disabled = false;
+      if (!d || !d.ok) { showErr((d && d.error) || 'Could not save the product.', d && d.existing); return; }
+      npDlg.close(); useProduct(d.id, d.label);
+    }
+    npBtn.addEventListener('click', () => {
+      touched.clear(); err.style.display = 'none'; existingBox.textContent = '';
+      Object.keys(el).forEach(k => { el[k].value = ''; });
+      el.schedule.value = 'NONE'; note.textContent = '';
+      npDlg.showModal(); el.name.focus(); suggest();
+    });
+    el.name.addEventListener('change', () => { if (el.name.value.trim().length >= 3) suggest(); });
+    saveBtn.addEventListener('click', save);
+    $('np-cancel').addEventListener('click', () => npDlg.close());
+    $('np-close').addEventListener('click', () => npDlg.close());
+    npDlg.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); save(); } });
+  } else if (npBtn) npBtn.style.display = 'none';          // very old browser without <dialog>: use the Products page
   supplierSel.addEventListener('change', () => dataRows().forEach(refresh));
   dataRows().forEach(refresh);
 })();

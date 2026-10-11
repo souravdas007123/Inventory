@@ -616,8 +616,14 @@ def edit(request, key, pk=None):
                 form.instance._state.adding = True
 
     title = f"Edit {cfg['one']}" if obj else f"New {cfg['one']}"
+    quick = {}
+    if key == 'purchases':   # lists for the "New product" window on the purchase screen
+        quick = dict(np_units=list(Unit.objects.order_by('name').values('id', 'name')),
+                     np_cats=list(Category.objects.order_by('name').values_list('name', flat=True)[:500]),
+                     np_brands=list(Brand.objects.order_by('name').values_list('name', flat=True)[:500]),
+                     np_schedules=Product.SCHEDULE_CHOICES)
     return page(request, 'app/form.html', key=key, active=key, title=title, form=form, fs=fs, back_url=f'/{key}/',
-                inline_title=inl['title'] if inl else '', warnings=warnings,
+                inline_title=inl['title'] if inl else '', warnings=warnings, **quick,
                 note=f"{po.po_number} ({po.supplier.company}) has been pre-filled. Enter the invoice number, price and MFG/EXP dates. The PO will be marked Completed when you save." if po else '')
 
 

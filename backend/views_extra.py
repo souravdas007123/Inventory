@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import IntegrityError
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q, Sum
@@ -19,10 +20,10 @@ from django.views.decorators.http import require_POST
 
 from . import auditlog, backup, notify, reorder, reports, summary, supplier_prices
 from .models import (
-    Batch, Bill, Customer, InvoiceItem, Product, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem,
-    PurchaseReturn, PurchaseReturnItem, SalesReturn, Supplier, SalesReturnItem, ShopProfile, StockAudit, StockAuditItem, StockWriteOff,
+    Batch, Bill, Brand, Category, Customer, InvoiceItem, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
+    PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SalesReturn, Supplier, Unit, SalesReturnItem, ShopProfile, StockAudit, StockAuditItem, StockWriteOff,
 )
-from .imports import table_download
+from .imports import GST_ALLOWED, _fk, table_download
 from .views import page
 
 
@@ -324,6 +325,99 @@ def customer_lookup(request):
     return JsonResponse({'found': True, 'id': customer.pk, 'name': customer.name, 'phone': customer.phone or '',
                          'balance': str(balance.quantize(Decimal('0.01'))), 'limit': str(limit),
                          'over': bool(limit > 0 and balance >= limit)})
+
+
+# ======================================================
+# QUICK ADD PRODUCT (from the purchase form)
+# ======================================================
+
+@login_required
+def product_suggest(request):
+    """Defaults for a new product: copied from a similar product (same first word of the name),
+    otherwise from the most recently added product."""
+    name = request.GET.get('name', '').strip()
+    base = Product.objects.select_related('category', 'brand', 'unit').prefetch_related('unit_conversions__unit')
+    first = name.split()[0] if name else ''
+    similar = base.filter(name__istartswith=first).order_by('-id').first() if len(first) >= 3 else None
+    p = similar or base.order_by('-id').first()
+    if not p:
+        return JsonResponse({'found': False})
+    packs = [c for c in p.unit_conversions.all() if c.factor > 1]
+    pack = max(packs, key=lambda c: c.factor) if packs else None
+    return JsonResponse({
+        'found': True, 'similar': bool(similar), 'from': p.name or str(p),
+        'category': p.category.name if p.category_id else '', 'brand': p.brand.name if p.brand_id else '',
+        'gst': str(int(p.gst_rate)), 'unit': str(p.unit_id or ''), 'schedule': p.schedule,
+        'pack_unit': str(pack.unit_id) if pack else '', 'pack_factor': pack.factor if pack else ''})
+
+
+@login_required
+@require_POST
+def product_quick_add(request):
+    """Creates a product (and its pack conversion) from the small form on the purchase screen."""
+    def fail(msg, **extra):
+        return JsonResponse(dict(ok=False, error=msg, **extra), status=400)
+
+    post = request.POST
+    name = ' '.join(post.get('name', '').split())
+    if not name:
+        return fail('Product name is required.')
+    if len(name) > 255:
+        return fail('Product name is too long.')
+    twin = Product.objects.filter(name__iexact=name).first()
+    if twin:
+        return fail(f"'{twin.name}' already exists. Please use that product.", existing=dict(id=twin.pk, label=str(twin)))
+
+    try:
+        gst = Decimal(post.get('gst_rate', ''))
+    except Exception:
+        return fail('Please choose the GST rate.')
+    if gst not in GST_ALLOWED:
+        return fail('GST rate must be 0, 5, 12 or 18.')
+    unit = Unit.objects.filter(pk=post.get('unit', '')).first() if post.get('unit', '').isdigit() else None
+    if not unit:
+        return fail('Please choose the base unit (the smallest unit, e.g. Tablet).')
+
+    pack_unit, pack_factor = None, None
+    raw_pu, raw_pf = post.get('pack_unit', ''), post.get('pack_factor', '').strip()
+    if raw_pu or raw_pf:
+        pack_unit = Unit.objects.filter(pk=raw_pu).first() if raw_pu.isdigit() else None
+        if not pack_unit or not raw_pf.isdigit() or int(raw_pf) < 2:
+            return fail('For a pack, choose the pack unit and enter how many base units it holds (2 or more).')
+        if pack_unit.pk == unit.pk:
+            return fail('The pack unit must be different from the base unit.')
+        pack_factor = int(raw_pf)
+
+    schedule = post.get('schedule', 'NONE') or 'NONE'
+    if schedule not in dict(Product.SCHEDULE_CHOICES):
+        return fail('Invalid drug schedule.')
+    barcode = post.get('barcode', '').strip() or None
+    if barcode:
+        if len(barcode) > 64:
+            return fail('Barcode is too long.')
+        other = Product.objects.filter(barcode=barcode).first()
+        if other:
+            return fail(f"This barcode already belongs to '{other.name}'.", existing=dict(id=other.pk, label=str(other)))
+    reorder_raw = post.get('reorder_level', '').strip()
+    if reorder_raw and not reorder_raw.isdigit():
+        return fail('Reorder level must be a whole number.')
+
+    try:
+        with transaction.atomic():
+            product = Product(
+                name=name, composition=post.get('composition', '').strip()[:255] or None, gst_rate=gst, unit=unit,
+                schedule=schedule, barcode=barcode, reorder_level=int(reorder_raw) if reorder_raw else 5,
+                category=_fk(Category, post.get('category', '')[:255]), brand=_fk(Brand, post.get('brand', '')[:255]))
+            product.full_clean()
+            product.save()
+            if pack_unit:
+                ProductUnit.objects.create(product=product, unit=pack_unit, factor=pack_factor)
+    except ValidationError as e:
+        return fail(' '.join(e.messages))
+    except IntegrityError:
+        return fail('This product (or its barcode) already exists.')
+    auditlog.record(request, 'CREATE', 'Product', f"{product.name} (added from a purchase entry)")
+    return JsonResponse({'ok': True, 'id': product.pk, 'label': str(product)})
 
 
 @login_required
