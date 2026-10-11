@@ -36,10 +36,12 @@
 <div class="head"><h1>Dashboard</h1>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
     <a class="btn ghost" href="{{ wa_link }}" target="_blank" rel="noopener" title="Send stock alerts on WhatsApp">💬 Alerts WhatsApp</a>
+    {% if user.is_staff %}<a class="btn ghost" href="{% url 'summary_whatsapp' %}" target="_blank" rel="noopener" title="Open today's summary in WhatsApp (sent to your shop number)">💬 Today's summary</a>{% endif %}
     {% if user.is_staff %}<form method="post" action="{% url 'alerts_send' %}" style="margin:0">{% csrf_token %}<button class="btn ghost" title="Email a digest of low stock / expiry">✉️ Alerts Email</button></form>{% endif %}
     <a class="btn" href="/bills/new/">+ New Bill</a>
   </div>
 </div>
+{% if backup_note %}<div class="msg warning">💾 {{ backup_note }} <a class="link" href="/backup/">Back up now</a></div>{% endif %}
 <div class="sec">📊 Sales</div>
 <div class="stats">
   <div class="card stat"><small>Sales today (after returns)</small><b>₹{{ today_sales|floatformat:2 }}</b><span class="sub">{{ ov.bills_today }} bills</span></div>

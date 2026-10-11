@@ -1,7 +1,8 @@
 """Views for the newer features: customer ledger, returns, write-off, GST/drug reports, barcode lookup,
 alerts, Purchase Order share, stock audit."""
 import calendar
-from datetime import date as date_cls
+import re
+from datetime import date as date_cls, timedelta
 from decimal import Decimal
 from urllib.parse import urlencode
 
@@ -10,16 +11,16 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import auditlog, backup, notify, reports, supplier_prices
+from . import auditlog, backup, notify, reorder, reports, summary, supplier_prices
 from .models import (
-    Batch, Bill, Customer, Product, Purchase, PurchaseItem, PurchaseOrder, PurchaseReturn, PurchaseReturnItem,
-    SalesReturn, SalesReturnItem, ShopProfile, StockAudit, StockAuditItem, StockWriteOff,
+    Batch, Bill, Customer, InvoiceItem, Product, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem,
+    PurchaseReturn, PurchaseReturnItem, SalesReturn, Supplier, SalesReturnItem, ShopProfile, StockAudit, StockAuditItem, StockWriteOff,
 )
 from .imports import table_download
 from .views import page
@@ -303,6 +304,46 @@ def _unit_factors(p):
 
 
 @login_required
+def customer_lookup(request):
+    """Billing helper: find a customer by phone number (last 10 digits) or id; returns name and credit due."""
+    pid = request.GET.get('id', '').strip()
+    customer = None
+    if pid.isdigit():
+        customer = Customer.objects.filter(pk=int(pid), is_active=True).first()
+    else:
+        digits = re.sub(r'\D', '', request.GET.get('phone', ''))
+        if len(digits) >= 10:
+            tail = digits[-10:]
+            for cid, ph in Customer.objects.filter(is_active=True, phone__isnull=False).values_list('id', 'phone'):
+                if re.sub(r'\D', '', ph)[-10:] == tail:
+                    customer = Customer.objects.get(pk=cid)
+                    break
+    if not customer:
+        return JsonResponse({'found': False})
+    balance, limit = customer.balance(), customer.credit_limit or Decimal('0')
+    return JsonResponse({'found': True, 'id': customer.pk, 'name': customer.name, 'phone': customer.phone or '',
+                         'balance': str(balance.quantize(Decimal('0.01'))), 'limit': str(limit),
+                         'over': bool(limit > 0 and balance >= limit)})
+
+
+@login_required
+def last_purchase(request):
+    """Items of a supplier's latest invoice (product, qty, unit; no prices) so a repeat order can be copied."""
+    try:
+        sid = int(request.GET.get('supplier', ''))
+    except (TypeError, ValueError):
+        return JsonResponse({'found': False})
+    p = Purchase.objects.filter(supplier_id=sid).order_by('-invoice_date', '-id').first()
+    if not p:
+        return JsonResponse({'found': False})
+    items = [dict(product=str(i.product_id), name=i.product.name or str(i.product), qty=i.qty,
+                  unit=str(i.unit_id) if i.unit_id else '')
+             for i in p.items.select_related('product').order_by('id') if i.product.is_active is not False]
+    return JsonResponse({'found': bool(items), 'invoice': p.invoice_number,
+                         'date': p.invoice_date.strftime('%d %b %Y'), 'items': items})
+
+
+@login_required
 def product_lookup(request):
     q = request.GET.get('q', '').strip()
     pid = request.GET.get('id', '').strip()
@@ -319,6 +360,116 @@ def product_lookup(request):
                     stock=p.stock_display(), stock_qty=p.stock_qty, schedule=p.schedule) for p in qs]
     exact = any(r['barcode'] == q for r in results)
     return JsonResponse({'results': results, 'exact': exact})
+
+
+# ======================================================
+# REORDER SUGGESTIONS (from sales speed)
+# ======================================================
+
+def _choice(raw, allowed, default):
+    try:
+        v = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return v if v in allowed else default
+
+
+def _supplier_for(product_ids, defaults, today):
+    """product id -> supplier id: the product's default supplier, else the cheapest current supplier,
+    else the supplier of the last purchase (same rule as the automatic purchase order)."""
+    by_product = {}
+    for r in supplier_prices.rows_from_items(PurchaseItem.objects.filter(product_id__in=product_ids)):
+        by_product.setdefault(r['product_id'], []).append(r)
+    out = {}
+    for pid in product_ids:
+        sid = defaults.get(pid)
+        rows = by_product.get(pid, [])
+        if not sid and rows:
+            sid = supplier_prices.cheapest_supplier_id(rows, today)
+        if not sid and rows:
+            sid = max(rows, key=lambda r: (r['date'], r['id']))['supplier_id']
+        out[pid] = sid
+    return out
+
+
+def _reorder_suggestions(days, cover, today):
+    since = today - timedelta(days=days)
+    sold = {r['product_id']: r['s'] for r in InvoiceItem.objects.filter(
+        bill__status='FINAL', bill__date__gte=since, product__isnull=False).values('product_id').annotate(s=Sum('base_qty'))}
+    expired = {r['product_id']: r['s'] for r in Batch.objects.filter(
+        qty__gt=0, expire_date__lt=today, product__isnull=False).values('product_id').annotate(s=Sum('qty'))}
+    on_order = {r['product_id']: r['s'] for r in PurchaseOrderItem.objects.filter(
+        purchase_order__status__in=['PENDING', 'SENT']).values('product_id').annotate(s=Sum('order_qty'))}
+    products, defaults = [], {}
+    for p in Product.objects.exclude(is_active=False).select_related('unit').prefetch_related('unit_conversions__unit'):
+        packs = [c for c in p.unit_conversions.all() if c.factor > 1]
+        pack = max(packs, key=lambda c: c.factor) if packs else None
+        products.append(dict(id=p.pk, name=p.name or str(p), unit=p.unit.name if p.unit_id else '',
+                             stock_qty=p.stock_qty, reorder_level=p.reorder_level,
+                             pack_name=pack.unit.name if pack else '', pack_factor=pack.factor if pack else 0))
+        defaults[p.pk] = p.default_supplier_id
+    rows = reorder.suggest(products, sold, expired, on_order, days=days, cover=cover)
+    sup = _supplier_for([r['id'] for r in rows], defaults, today)
+    names = dict(Supplier.objects.filter(pk__in={s for s in sup.values() if s}).values_list('pk', 'company'))
+    for r in rows:
+        r['supplier_id'] = sup.get(r['id'])
+        r['supplier'] = names.get(r['supplier_id'], '')
+    return rows
+
+
+@login_required
+def reorder_view(request):
+    today = timezone.localdate()
+    if request.method == 'POST':
+        picked = {}
+        for raw in request.POST.getlist('pick'):
+            if raw.isdigit():
+                try:
+                    qty = int(request.POST.get(f'qty_{raw}', '0') or 0)
+                except ValueError:
+                    qty = 0
+                if 0 < qty <= 100_000_000:
+                    picked[int(raw)] = qty
+        if not picked:
+            messages.warning(request, 'Select at least one product with a quantity.')
+            return redirect('reorder')
+        products = {p.pk: p for p in Product.objects.filter(pk__in=picked).exclude(is_active=False)}
+        busy = set(PurchaseOrderItem.objects.filter(
+            product_id__in=picked, purchase_order__status__in=['PENDING', 'SENT']).values_list('product_id', flat=True))
+        sup = _supplier_for(list(products), {pk: p.default_supplier_id for pk, p in products.items()}, today)
+        made, no_supplier, skipped, pos = 0, [], [], {}
+        with transaction.atomic():
+            for pk, qty in picked.items():
+                p = products.get(pk)
+                if not p:
+                    continue
+                if pk in busy:
+                    skipped.append(p.name or str(p))
+                    continue
+                sid = sup.get(pk)
+                if not sid:
+                    no_supplier.append(p.name or str(p))
+                    continue
+                if sid not in pos:
+                    pos[sid] = (PurchaseOrder.objects.filter(supplier_id=sid, status='PENDING').first()
+                                or PurchaseOrder.objects.create(supplier_id=sid))
+                PurchaseOrderItem.objects.create(purchase_order=pos[sid], product=p, order_qty=qty)
+                made += 1
+        if made:
+            numbers = ', '.join(po.po_number for po in pos.values())
+            auditlog.record(request, 'CREATE', 'Purchase Order', f"{numbers} (reorder suggestions, {made} item(s))")
+            messages.success(request, f"{made} product(s) added to purchase order {numbers}. Review and send it from here.")
+        if skipped:
+            messages.info(request, 'Already on a pending purchase order: ' + ', '.join(skipped) + '.')
+        if no_supplier:
+            messages.warning(request, 'No supplier known yet (set a Default Supplier on the product): ' + ', '.join(no_supplier) + '.')
+        return redirect('list', key='purchase_orders') if made else redirect('reorder')
+
+    days = _choice(request.GET.get('days'), (15, 30, 60, 90), 30)
+    cover = _choice(request.GET.get('cover'), (15, 30, 45, 60), 30)
+    rows = _reorder_suggestions(days, cover, today)
+    return page(request, 'app/reorder.html', active='reorder', rows=rows, days=days, cover=cover,
+                days_opts=(15, 30, 60, 90), cover_opts=(15, 30, 45, 60), urgent=sum(1 for r in rows if r['urgent']))
 
 
 # ======================================================
@@ -374,6 +525,13 @@ def po_email(request, pk):
 def po_whatsapp(request, pk):
     po = get_object_or_404(PurchaseOrder.objects.select_related('supplier'), pk=pk)
     return redirect(notify.whatsapp_link(notify.po_text(po, ShopProfile.get()), po.supplier.phone or ''))
+
+
+@staff_required
+def summary_whatsapp(request):
+    """Opens WhatsApp with today's summary, addressed to the shop's own number (a message to yourself)."""
+    shop = ShopProfile.get()
+    return redirect(notify.whatsapp_link(summary.current_text(timezone.localdate()), shop.phone or ''))
 
 
 # ======================================================
@@ -546,9 +704,15 @@ def supplier_price_hint(request):
         factors[str(product.unit_id)] = 1
     data = supplier_prices.compare(_price_rows(PurchaseItem.objects.filter(product=product)),
                                    timezone.localdate(), pack.factor if pack else None, history_limit=0)
+    last = (PurchaseItem.objects.filter(product=product, unit__isnull=False)
+            .order_by('-purchase__invoice_date', '-id').values_list('unit_id', flat=True).first())
     return JsonResponse({
         'found': True, 'base_name': product.unit.name if product.unit_id else 'unit',
         'mrp': str(product.mrp) if product.mrp is not None else '',
+        # Smart defaults for the next entry: the unit used last time and where the product is kept
+        'defaults': dict(unit=str(last) if last and str(last) in factors else '', rack=product.rack or '',
+                         row=product.row or '', location=product.location or '',
+                         composition=product.composition or ''),
         'pack_name': pack.unit.name if pack else '', 'pack_factor': pack.factor if pack else 0,
         'factors': factors,
         'suppliers': [dict(id=s['supplier_id'], name=s['supplier'], rate=str(s['last_rate']),

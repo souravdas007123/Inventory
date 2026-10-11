@@ -350,6 +350,16 @@ class Purchase(models.Model):
     def clean(self):
         if self.invoice_number:
             self.invoice_number = self.invoice_number.strip()
+        if self.invoice_number and self.supplier_id:
+            # Friendly duplicate check (ignores upper/lower case), so the same bill is not entered twice
+            dup = Purchase.objects.filter(supplier_id=self.supplier_id, invoice_number__iexact=self.invoice_number)
+            if self.pk:
+                dup = dup.exclude(pk=self.pk)
+            other = dup.first()
+            if other:
+                raise ValidationError({'invoice_number': (
+                    f"Invoice {other.invoice_number} from {other.supplier.company} was already entered "
+                    f"on {other.invoice_date:%d %b %Y}. Please check it before adding it again.")})
 
     def save(self, *args, **kwargs):
         with transaction.atomic():

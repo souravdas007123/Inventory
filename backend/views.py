@@ -17,7 +17,7 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.views.decorators.http import require_POST
 
-from . import auditlog, notify
+from . import auditlog, backup, checks, notify, supplier_prices
 from .models import (
     AuditLog, Batch, Bill, Brand, Category, Customer, CustomerPayment, Expense, InvoiceItem, Order, Payment,
     Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem, PurchaseReturn,
@@ -41,6 +41,7 @@ NAV = [
     {'key': 'sales_returns', 'url': '/sales_returns/', 'label': 'Sales Returns', 'icon': '↩️', 'group': 'Customers'},
     {'key': 'suppliers', 'url': '/suppliers/', 'label': 'Suppliers', 'icon': '🏭', 'group': 'Suppliers'},
     {'key': 'purchase_orders', 'url': '/purchase_orders/', 'label': 'Purchase Orders', 'icon': '📋', 'group': 'Suppliers'},
+    {'key': 'reorder', 'url': '/reorder/', 'label': 'Reorder Suggestions', 'icon': '🔄', 'group': 'Suppliers'},
     {'key': 'supplier_prices', 'url': '/supplier_prices/', 'label': 'Supplier Prices', 'icon': '⚖️', 'group': 'Suppliers'},
     {'key': 'payments', 'url': '/payments/', 'label': 'Supplier Payments', 'icon': '💳', 'group': 'Suppliers'},
     {'key': 'purchase_returns', 'url': '/purchase_returns/', 'label': 'Purchase Returns', 'icon': '📤', 'group': 'Suppliers'},
@@ -329,7 +330,7 @@ CONFIG = {
     'audit': dict(
         title='Audit Log (who changed what)', one='Log', model=AuditLog, order=['-id'], readonly=True, staff=True,
         search=['user', 'action', 'target', 'detail'],
-        cols=[('Kab', lambda o: timezone.localtime(o.created_at).strftime('%d %b %Y, %I:%M %p')),
+        cols=[('When', lambda o: timezone.localtime(o.created_at).strftime('%d %b %Y, %I:%M %p')),
               ('User', lambda o: o.user or '-'), ('Action', lambda o: o.action),
               ('Target', lambda o: o.target or '-'), ('Detail', lambda o: o.detail or '-')],
         fields=[],
@@ -369,6 +370,19 @@ def get_cfg(key, request=None):
     return cfg
 
 
+def backup_warning(max_days=3):
+    """Text for the dashboard when the database has not been backed up for a while (staff only), else ''."""
+    try:
+        found = backup.list_backups()
+    except OSError:
+        return ''
+    if not found:
+        return 'No backup has been taken yet.'
+    from datetime import datetime
+    age = (datetime.now() - found[0]['when']).days   # both are naive local times (backup.list_backups uses mtime)
+    return f"The last backup was {age} days ago." if age >= max_days else ''
+
+
 @login_required
 def dashboard(request):
     today = timezone.localdate()
@@ -380,11 +394,13 @@ def dashboard(request):
     live = Batch.objects.filter(qty__gt=0, expire_date__isnull=False).select_related('product')
     active = Product.objects.exclude(is_active=False)
     low = active.filter(stock_qty__lte=F('reorder_level')).order_by('stock_qty')
+    backup_note = backup_warning() if request.user.is_staff else ''
     expiring = live.filter(expire_date__gte=today, expire_date__lte=soon).order_by('expire_date')
     return page(
         request, 'app/dashboard.html', active='dashboard',
         today_sales=total(date=today),
         month_sales=total(date__month=today.month, date__year=today.year),
+        backup_note=backup_note,
         low_count=low.count(), out_count=active.filter(stock_qty=0).count(),
         expired_count=live.filter(expire_date__lt=today).count(), expiring_count=expiring.count(),
         payable=Supplier.objects.aggregate(s=Sum('opening_balance'))['s'] or 0,
@@ -484,6 +500,32 @@ def bill_form_errors(form, fs):
     return errors
 
 
+def purchase_check_warnings(fs, obj):
+    """Soft warnings for a purchase invoice (odd price / quantity / EXP date). The user can still save."""
+    lines = []
+    for f in fs.forms:
+        cd = getattr(f, 'cleaned_data', None)
+        if not cd or cd.get('DELETE') or not cd.get('product'):
+            continue
+        p, qty = cd['product'], cd.get('qty') or 0
+        try:
+            factor = p.unit_factor(cd.get('unit'))
+        except ValidationError:
+            factor = 1
+        lines.append(dict(product_id=p.pk, name=p.name or str(p), qty=qty, base_qty=qty * factor,
+                          total=cd.get('purchase_price'), selling_price=cd.get('selling_price'),
+                          expire_date=cd.get('expire_date')))
+    if not lines:
+        return []
+    old = PurchaseItem.objects.filter(product_id__in={ln['product_id'] for ln in lines})
+    if obj is not None:
+        old = old.exclude(purchase=obj)
+    history = {}
+    for r in supplier_prices.rows_from_items(old):
+        history.setdefault(r['product_id'], []).append(r)
+    return checks.purchase_warnings(lines, history, timezone.localdate())
+
+
 @login_required
 def edit(request, key, pk=None):
     cfg = get_cfg(key, request)
@@ -540,11 +582,14 @@ def edit(request, key, pk=None):
         form.fields['order'].label_from_instance = lambda o: (
             f"{o.order_id} · {o.customers_name or '-'} · {o.customer_product or '-'} x {o.customer_qty or 0}")
 
+    warnings = []
     if post and form.is_valid() and (fs is None or fs.is_valid()):
         problems = bill_form_errors(form, fs) if key == 'bills' else []
         for problem in problems:
             form.add_error(None, problem)
-        if not problems:
+        if key == 'purchases' and not problems:
+            warnings = purchase_check_warnings(fs, obj)
+        if not problems and not (warnings and not request.POST.get('confirm_warnings')):
             try:
                 with transaction.atomic():
                     form.save()
@@ -572,7 +617,7 @@ def edit(request, key, pk=None):
 
     title = f"Edit {cfg['one']}" if obj else f"New {cfg['one']}"
     return page(request, 'app/form.html', key=key, active=key, title=title, form=form, fs=fs, back_url=f'/{key}/',
-                inline_title=inl['title'] if inl else '',
+                inline_title=inl['title'] if inl else '', warnings=warnings,
                 note=f"{po.po_number} ({po.supplier.company}) has been pre-filled. Enter the invoice number, price and MFG/EXP dates. The PO will be marked Completed when you save." if po else '')
 
 
@@ -670,7 +715,7 @@ def invoice(request, pk):
         taxable=s('taxable_value'), cgst=s('cgst'), sgst=s('sgst'), igst=s('igst'),
         total=total, round_off=grand - total, grand=grand,
         wa_link=notify.whatsapp_link(
-            f"{ShopProfile.get().name} - Bill {bill.display_number} ({bill.date:%d %b %Y}): Total \u20b9{grand}. Dhanyavaad!",
+            f"{ShopProfile.get().name} - Bill {bill.display_number} ({bill.date:%d %b %Y}): Total \u20b9{grand}. Thank you!",
             bill.customer.phone if bill.customer_id else ''),
         words=rupees_in_words(int(grand)),
         fmt='thermal' if request.GET.get('fmt') == 'thermal' else 'a4',

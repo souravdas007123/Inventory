@@ -5,6 +5,9 @@
 <form method="post" class="card">{% csrf_token %}
   {% if note %}<div class="msg success">{{ note }}</div>{% endif %}
   {{ form.non_field_errors }}
+  {% if warnings %}<div class="msg warning" id="warn-box"><b>Please double-check before saving:</b>
+    <ul style="margin:6px 0 0 18px">{% for w in warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+    <div style="margin-top:8px">Everything is correct? Press <b>Save anyway</b>. Otherwise fix the entry and save again.</div></div>{% endif %}
   {% for h in form.hidden_fields %}{{ h }}{% endfor %}
   <div class="grid">
     {% for f in form.visible_fields %}<div class="fld"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}
@@ -17,9 +20,12 @@
   {% if key == 'bills' %}
   <div id="scan-box" style="margin-bottom:12px">
     <input id="scan" type="text" autocomplete="off" placeholder="🔍 Scan a barcode or type a medicine name (press Enter to add)">
+    <small style="color:var(--mute);display:block;margin-top:4px">Shortcuts: <b>F2</b> search · <b>Enter</b> next field · <b>F9</b> save bill</small>
     <div id="scan-results" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
   </div>
   {% endif %}
+  {% if key == 'purchases' and not form.instance.pk %}<div style="margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <button type="button" class="btn ghost sm" id="copy-last">↻ Copy items from this supplier's last invoice</button><small id="copy-msg" style="color:var(--mute)"></small></div>{% endif %}
   {{ fs.management_form }}{{ fs.non_form_errors }}
   <div class="tw"><table class="t{% if key == 'purchases' %} hide-extra{% endif %}" id="items-table">
     <thead><tr>{% for f in fs.empty_form.visible_fields %}<th>{{ f.label }}</th>{% endfor %}</tr></thead>
@@ -35,11 +41,18 @@
   </div>
   {% endif %}
 
-  <div class="bar"><button class="btn">💾 Save</button><a class="btn ghost" href="{{ back_url }}">Cancel</a></div>
+  <div class="bar">{% if warnings %}<button class="btn" name="confirm_warnings" value="1">✔ Save anyway</button>{% else %}<button class="btn">💾 Save</button>{% endif %}<a class="btn ghost" href="{{ back_url }}">Cancel</a></div>
 </form>
 {% endblock %}
 
-{% block scripts %}{% if key == 'bills' %}
+{% block scripts %}{% if warnings %}
+<script>
+// Once the entry is changed, the warnings no longer apply: the button goes back to a normal Save (which checks again).
+(function () {
+  const btn = document.querySelector('button[name=confirm_warnings]'); if (!btn) return;
+  btn.form.addEventListener('input', () => { btn.removeAttribute('name'); btn.textContent = '💾 Save'; }, {once: true});
+})();
+</script>{% endif %}{% if key == 'bills' %}
 <script>
 const mode = document.getElementById('id_invoice_mode'), orderBox = document.getElementById('id_order'),
       itemsSec = document.getElementById('items-sec');
@@ -87,11 +100,12 @@ rowsBody.addEventListener('change', async e => {
   const p = await getInfo(sel.value);
   if (p && rowField(tr, 'product').value === sel.value) applyRate(tr, p);
 });
-function addProduct(p) {
+function addProduct(p, jump) {
+  const toQty = tr => { if (!jump) return; const q = rowField(tr, 'qty'); if (q) { q.focus(); q.select(); } };
   for (const tr of rowsBody.querySelectorAll('tr')) {          // if the row already exists, qty +1
     const sel = rowField(tr, 'product');
     if (sel && sel.value === String(p.id)) {
-      const q = rowField(tr, 'qty'); q.value = (parseInt(q.value || '0', 10) + 1); return;
+      const q = rowField(tr, 'qty'); q.value = (parseInt(q.value || '0', 10) + 1); toQty(tr); return;
     }
   }
   let target = null;                                           // find an empty row
@@ -106,6 +120,7 @@ function addProduct(p) {
   rowField(target, 'product').value = String(p.id);
   rowField(target, 'qty').value = 1;
   applyRate(target, p);
+  toQty(target);
 }
 function showResults(list) {
   resBox.textContent = '';
@@ -113,7 +128,7 @@ function showResults(list) {
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'btn ghost sm';
     b.textContent = p.name + (p.mrp ? ' · MRP ₹' + (+p.mrp).toFixed(2) : '') + ' · stock ' + p.stock + (p.schedule !== 'NONE' ? ' · Sch ' + p.schedule : '');
-    b.onclick = () => { addProduct(p); scan.value = ''; resBox.textContent = ''; scan.focus(); };
+    b.onclick = () => { addProduct(p, true); scan.value = ''; resBox.textContent = ''; };
     resBox.appendChild(b);
   });
 }
@@ -123,12 +138,81 @@ async function lookup(q, enter) {
   if (!r.ok) return;
   const data = await r.json();
   if (enter && (data.exact || data.results.length === 1)) {
-    addProduct(data.results.find(x => x.barcode === q) || data.results[0]);
+    // a barcode scan keeps the cursor in the scan box (scan the next item); a typed name jumps to the qty
+    addProduct(data.results.find(x => x.barcode === q) || data.results[0], !data.exact);
     scan.value = ''; resBox.textContent = ''; return;
   }
   showResults(data.results);
   if (enter && !data.results.length) resBox.textContent = 'No product found.';
 }
+// ---- Keyboard: F2 = search box, F9 / Ctrl+Enter = save, Enter in the items table = next field (never submits by accident) ----
+document.addEventListener('keydown', e => {
+  if (e.key === 'F2' && scan) { e.preventDefault(); scan.focus(); scan.select(); }
+  else if (e.key === 'F9' || (e.key === 'Enter' && e.ctrlKey)) {
+    e.preventDefault(); const f = document.querySelector('form.card'); if (f && f.requestSubmit) f.requestSubmit(); else if (f) f.submit();
+  }
+});
+rowsBody.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || e.ctrlKey || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') return;
+  e.preventDefault();
+  const tr = e.target.closest('tr'); if (!tr) return;
+  const fields = [...tr.querySelectorAll('input:not([type=hidden]):not([type=checkbox]),select')].filter(x => x.offsetParent !== null);
+  const i = fields.indexOf(e.target);
+  if (i >= 0 && i < fields.length - 1 && !(e.target.name || '').endsWith('-qty')) fields[i + 1].focus();
+  else if (scan) { scan.focus(); scan.select(); }
+});
+{% if not form.instance.pk %}if (scan) scan.focus();{% endif %}
+
+// ---- Customer: type the phone number to pick the customer and see the credit due ----
+(function () {
+  const custSel = document.getElementById('id_customer'), nameBox = document.getElementById('id_customer_name');
+  if (!custSel || !nameBox) return;
+  const fld = document.createElement('div'); fld.className = 'fld';
+  const lab = document.createElement('label'); lab.htmlFor = 'cust-phone'; lab.textContent = 'Customer phone (quick find)';
+  const phone = document.createElement('input'); phone.id = 'cust-phone'; phone.type = 'tel'; phone.autocomplete = 'off';
+  phone.inputMode = 'numeric'; phone.placeholder = 'Type the phone number to find the customer';
+  const info = document.createElement('small'); info.id = 'cust-info';
+  fld.append(lab, phone, info); custSel.closest('.fld').after(fld);
+  let autoName = '';
+  const say = (text, cls) => {
+    info.textContent = '';
+    if (!text) return;
+    const b = document.createElement('span'); b.className = 'badge ' + (cls || 'grey'); b.textContent = text;
+    b.style.cssText = 'white-space:normal;font-weight:500;font-size:12px;padding:3px 10px;margin-top:4px;display:inline-block';
+    info.appendChild(b);
+  };
+  const money = v => '₹' + (+v).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  function show(c) {
+    if (c.over) say('Credit due ' + money(c.balance) + ' · over the limit of ' + money(c.limit), 'red');
+    else if (+c.balance > 0) say('Credit due ' + money(c.balance) + (+c.limit > 0 ? ' · limit ' + money(c.limit) : ''), 'amber');
+    else say('No credit due', 'green');
+  }
+  async function get(qs) {
+    try { const r = await fetch('/api/customer_lookup/?' + qs, {credentials: 'same-origin'}); return r.ok ? await r.json() : null; }
+    catch (e) { return null; }
+  }
+  function pick(c) {
+    custSel.value = String(c.id);
+    if (!nameBox.value.trim() || nameBox.value.trim() === 'Cash' || nameBox.value === autoName) { nameBox.value = c.name; autoName = c.name; }
+    show(c);
+  }
+  let timer;
+  phone.addEventListener('input', () => {
+    clearTimeout(timer);
+    const digits = phone.value.replace(/\D/g, '');
+    if (digits.length < 10) { say(digits ? 'Type the full 10-digit number' : '', 'grey'); return; }
+    timer = setTimeout(async () => {
+      const c = await get('phone=' + encodeURIComponent(digits));
+      if (c && c.found) pick(c); else say('No customer with this number. Add the customer in Customers first (needed for credit bills).', 'amber');
+    }, 250);
+  });
+  custSel.addEventListener('change', async () => {
+    if (!custSel.value) { say(''); return; }
+    const c = await get('id=' + encodeURIComponent(custSel.value));
+    if (c && c.found && custSel.value === String(c.id)) pick(c);
+  });
+  if (custSel.value) custSel.dispatchEvent(new Event('change'));
+})();
 let scanTimer;
 if (scan) {
   scan.addEventListener('input', () => { clearTimeout(scanTimer); scanTimer = setTimeout(() => lookup(scan.value.trim(), false), 250); });
@@ -190,6 +274,21 @@ if (scan) {
     const uSel = field(tr, 'unit'), f = uSel && uSel.value ? d.factors[uSel.value] : 1; if (!f) return;
     if (!sellEl.value || sellEl.dataset.auto === '1') { sellEl.value = (parseFloat(d.mrp) * f).toFixed(2); sellEl.dataset.auto = '1'; }
   }
+  // Smart defaults, once per product pick: the unit used last time and where the product is kept (rack/row/...).
+  // Values the user typed or chose are never replaced; values filled here are replaced when the product changes.
+  const DEFAULT_FIELDS = ['rack', 'row', 'location', 'composition'];
+  function applyDefaults(tr, d, pid) {
+    if (tr.dataset.defaultsFor === pid) return;
+    tr.dataset.defaultsFor = pid;
+    const df = d.defaults || {}, uSel = field(tr, 'unit');
+    if (uSel && uSel.dataset.auto === '1') { uSel.value = ''; uSel.dataset.auto = '0'; }
+    if (uSel && !uSel.value && df.unit) { uSel.value = df.unit; if (uSel.value) uSel.dataset.auto = '1'; }
+    DEFAULT_FIELDS.forEach(n => {
+      const el = field(tr, n); if (!el) return;
+      if (el.dataset.auto === '1') { el.value = ''; el.dataset.auto = '0'; }
+      if (!el.value && df[n]) { el.value = df[n]; el.dataset.auto = '1'; }
+    });
+  }
   function sellChip(el, tr, d) {
     const sellEl = field(tr, 'selling_price'); if (!sellEl) return;
     const sell = parseFloat(sellEl.value), name = unitName(tr, d);
@@ -214,6 +313,7 @@ if (scan) {
     if (field(tr, 'product').value !== pid) return;          // the row changed while loading
     el.textContent = '';
     if (!d || !d.found) { show(el); return; }
+    applyDefaults(tr, d, pid);
     syncSell(tr, d);
     const packTip = s => s.pack_txt ? s.pack_txt + ' per ' + d.pack_name : '';
     const mine = d.suppliers.find(s => String(s.id) === supplierSel.value);
@@ -244,12 +344,45 @@ if (scan) {
   }
   let timer;
   const later = tr => { clearTimeout(timer); timer = setTimeout(() => refresh(tr), 250); };
-  rowsBody.addEventListener('change', e => { const tr = e.target.closest('tr'); if (tr && !tr.classList.contains('hintrow')) refresh(tr); });
+  rowsBody.addEventListener('change', e => {
+    if ((e.target.name || '').endsWith('-unit')) e.target.dataset.auto = '0';             // the user chose it
+    const tr = e.target.closest('tr'); if (tr && !tr.classList.contains('hintrow')) refresh(tr);
+  });
   rowsBody.addEventListener('input', e => {
-    if ((e.target.name || '').endsWith('-selling_price')) e.target.dataset.auto = '0';   // the user typed it
+    const nm = e.target.name || '';
+    if (nm.endsWith('-selling_price') || DEFAULT_FIELDS.some(n => nm.endsWith('-' + n))) e.target.dataset.auto = '0';   // the user typed it
     const tr = e.target.closest('tr'); if (tr && !tr.classList.contains('hintrow')) later(tr);
   });
   const dataRows = () => rowsBody.querySelectorAll('tr:not(.hintrow)');
+  // ---- Repeat order: copy product / qty / unit of the supplier's latest invoice (prices stay empty on purpose) ----
+  const copyBtn = document.getElementById('copy-last'), copyMsg = document.getElementById('copy-msg');
+  if (copyBtn) copyBtn.addEventListener('click', async () => {
+    const say = t => { copyMsg.textContent = t; };
+    if (!supplierSel.value) { say('Select a supplier first.'); return; }
+    let data = null;
+    try {
+      const r = await fetch('/api/last_purchase/?supplier=' + encodeURIComponent(supplierSel.value), {credentials: 'same-origin'});
+      data = r.ok ? await r.json() : null;
+    } catch (e) { data = null; }
+    if (!data) { say('Could not load the last invoice. Please try again.'); return; }
+    if (!data.found) { say('No earlier invoice found for this supplier.'); return; }
+    const have = new Set([...dataRows()].map(tr => (field(tr, 'product') || {}).value).filter(Boolean));
+    const known = new Set([...field(dataRows()[0], 'product').options].map(o => o.value));
+    let added = 0;
+    for (const it of data.items) {
+      if (have.has(it.product) || !known.has(it.product)) continue;
+      let tr = [...dataRows()].find(t => { const s = field(t, 'product'); return s && !s.value; });
+      if (!tr) { document.getElementById('add').click(); const all = dataRows(); tr = all[all.length - 1]; }
+      const sel = field(tr, 'product'); sel.value = it.product;
+      if (sel.value !== it.product) continue;
+      field(tr, 'qty').value = it.qty;
+      const u = field(tr, 'unit'); if (u && it.unit) { u.value = it.unit; u.dataset.auto = '0'; }
+      have.add(it.product); added++;
+      refresh(tr);
+    }
+    say(added ? 'Copied ' + added + ' item(s) from invoice ' + data.invoice + ' (' + data.date + '). Now enter the new prices and EXP dates.'
+              : 'Those items are already in the table.');
+  });
   supplierSel.addEventListener('change', () => dataRows().forEach(refresh));
   dataRows().forEach(refresh);
 })();

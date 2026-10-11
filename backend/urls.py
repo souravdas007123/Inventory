@@ -24,7 +24,10 @@ urlpatterns = [
     # Reports
     path('gst/', views_extra.gst_view, name='gst'),
     path('drug_register/', views_extra.drug_register_view, name='drug_register'),
+    path('api/customer_lookup/', views_extra.customer_lookup, name='customer_lookup'),
+    path('api/last_purchase/', views_extra.last_purchase, name='last_purchase'),
     path('api/supplier_price_hint/', views_extra.supplier_price_hint, name='supplier_price_hint'),
+    path('reorder/', views_extra.reorder_view, name='reorder'),
     path('supplier_prices/', views_extra.supplier_prices_view, name='supplier_prices'),
     path('supplier_prices/<int:pk>/', views_extra.supplier_prices_product, name='supplier_prices_product'),
 
@@ -33,6 +36,7 @@ urlpatterns = [
 
     # Alerts + Purchase Order share
     path('alerts/send/', views_extra.alerts_send, name='alerts_send'),
+    path('summary/whatsapp/', views_extra.summary_whatsapp, name='summary_whatsapp'),
     path('purchase_orders/<int:pk>/print/', views_extra.po_print, name='po_print'),
     path('purchase_orders/<int:pk>/email/', views_extra.po_email, name='po_email'),
     path('purchase_orders/<int:pk>/whatsapp/', views_extra.po_whatsapp, name='po_whatsapp'),

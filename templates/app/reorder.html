@@ -1,0 +1,51 @@
+{% extends "app/base.html" %}
+{% block title %}Reorder Suggestions{% endblock %}
+{% block content %}
+<div class="head"><h1>🔄 Reorder Suggestions</h1></div>
+<div class="msg info">
+  Based on what you actually sold in the last <b>{{ days }} days</b>, this shows the products that will run out soon and how much to order to have about <b>{{ cover }} days</b> of stock.
+  Expired stock and stock already on a pending purchase order are taken into account. Change a quantity if you like, tick the products and press <b>Create purchase order</b>.
+</div>
+<div class="card">
+  <form class="search" method="get" style="gap:12px;flex-wrap:wrap">
+    <label style="display:flex;align-items:center;gap:6px;white-space:nowrap">Sales of the last
+      <select name="days" onchange="this.form.submit()" style="width:auto">{% for o in days_opts %}<option value="{{ o }}" {% if o == days %}selected{% endif %}>{{ o }} days</option>{% endfor %}</select></label>
+    <label style="display:flex;align-items:center;gap:6px;white-space:nowrap">Keep stock for
+      <select name="cover" onchange="this.form.submit()" style="width:auto">{% for o in cover_opts %}<option value="{{ o }}" {% if o == cover %}selected{% endif %}>{{ o }} days</option>{% endfor %}</select></label>
+    {% if rows %}<span style="color:var(--mute)">{{ rows|length }} product{{ rows|length|pluralize }} to order{% if urgent %} · <b style="color:var(--red)">{{ urgent }} urgent</b>{% endif %}</span>{% endif %}
+  </form>
+
+  {% if rows %}
+  <form method="post">{% csrf_token %}
+  <div class="tw"><table class="t">
+    <thead><tr><th><input type="checkbox" id="pick-all" title="Select all" style="width:auto"></th><th>Product</th><th>In stock</th><th>Sold in {{ days }} days</th><th>On order</th><th>Order qty</th><th>Supplier</th></tr></thead>
+    <tbody>
+    {% for r in rows %}<tr>
+      <td><input type="checkbox" class="pick" name="pick" value="{{ r.id }}" style="width:auto" {% if r.cls != 'grey' and r.supplier_id %}checked{% endif %}></td>
+      <td><b>{{ r.name }}</b><br><span class="badge {{ r.cls }}">{{ r.status }}</span></td>
+      <td>{{ r.sellable }} {{ r.unit }}<br><small style="color:var(--mute)">{% if r.days_left is None %}no recent sales{% else %}lasts {{ r.days_left }} days{% endif %}</small></td>
+      <td>{{ r.sold }} {{ r.unit }}<br><small style="color:var(--mute)">{{ r.per_day }} per day</small></td>
+      <td>{% if r.ordered %}{{ r.ordered }} {{ r.unit }}{% else %}-{% endif %}</td>
+      <td><input type="number" min="1" name="qty_{{ r.id }}" value="{{ r.qty }}" style="width:100px"><br><small style="color:var(--mute)">{{ r.unit }}{% if r.pack_txt %} = {{ r.pack_txt }}{% endif %}</small></td>
+      <td>{% if r.supplier %}{{ r.supplier }}{% else %}<span class="badge amber" title="Set a Default Supplier on the product, or make a purchase from a supplier first">No supplier</span>{% endif %}</td>
+    </tr>{% endfor %}
+    </tbody>
+  </table></div>
+  <div class="bar"><button class="btn">📋 Create purchase order</button><small style="color:var(--mute)">Products of the same supplier go into one order. You can review and send it from Purchase Orders.</small></div>
+  </form>
+  {% else %}
+  <div class="empty">Nothing needs to be ordered right now. Stock is enough for the sales of the last {{ days }} days. 🎉</div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const all = document.getElementById('pick-all'); if (!all) return;
+  const boxes = () => [...document.querySelectorAll('.pick')];
+  all.checked = boxes().length > 0 && boxes().every(b => b.checked);
+  all.addEventListener('change', () => boxes().forEach(b => { b.checked = all.checked; }));
+  document.addEventListener('change', e => { if (e.target.classList && e.target.classList.contains('pick')) all.checked = boxes().every(b => b.checked); });
+})();
+</script>
+{% endblock %}
