@@ -1,4 +1,4 @@
-"""Naye features ke views: customer ledger, returns, write-off, GST/drug reports, barcode lookup,
+"""Views for the newer features: customer ledger, returns, write-off, GST/drug reports, barcode lookup,
 alerts, Purchase Order share, stock audit."""
 import calendar
 from datetime import date as date_cls
@@ -23,7 +23,7 @@ from .views import page
 
 
 def staff_required(view):
-    """Sirf staff/owner (login_required ke saath)."""
+    """Staff/owner only (together with login_required)."""
     @login_required
     def wrapper(request, *args, **kwargs):
         if not request.user.is_staff:
@@ -74,7 +74,7 @@ def customer_ledger(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     entries = []
     for b in customer.bills.filter(status='FINAL', payment_mode='CREDIT').prefetch_related('items'):
-        entries.append((b.date, 0, f"Udhar bill {b.display_number}", b.credit_due, Decimal('0')))
+        entries.append((b.date, 0, f"Credit bill {b.display_number}", b.credit_due, Decimal('0')))
     for p in customer.payments.all():
         entries.append((p.date, 1, f"Receipt ({p.get_mode_display()}){' - ' + p.note if p.note else ''}",
                         Decimal('0'), p.amount))
@@ -88,7 +88,7 @@ def customer_ledger(request, pk):
     for dt, _, text, debit, credit in entries:
         running += debit - credit
         rows.append(dict(date=dt, text=text, debit=debit, credit=credit, balance=running))
-    wa_link = (notify.udhar_reminder_link(ShopProfile.get().name, customer.name, customer.phone, running)
+    wa_link = (notify.credit_reminder_link(ShopProfile.get().name, customer.name, customer.phone, running)
                if running > 0 else '')
     return page(request, 'app/ledger.html', active='customers', customer=customer, rows=rows, balance=running,
                 wa_link=wa_link)
@@ -99,22 +99,22 @@ def customer_ledger(request, pk):
 # ======================================================
 
 def _read_return_qtys(request, rows):
-    """POST se 'qty_<item pk>' padhta hai. (qtys: {item: qty}, errors) return karta hai."""
+    """Reads 'qty_<item pk>' from POST. Returns (qtys: {item: qty}, errors)."""
     qtys, errors = {}, []
     for r in rows:
         raw = request.POST.get(f"qty_{r['item'].pk}", '').strip()
-        r['value'] = raw   # error aane par form me wapas dikhane ke liye
+        r['value'] = raw   # so it can be shown back in the form when there is an error
         if not raw:
             continue
         try:
             q = int(raw)
         except ValueError:
-            errors.append(f"'{r['name']}': qty number honi chahiye.")
+            errors.append(f"'{r['name']}': qty must be a number.")
             continue
         if q < 0:
-            errors.append(f"'{r['name']}': qty negative nahi ho sakti.")
+            errors.append(f"'{r['name']}': qty cannot be negative.")
         elif q > r['left']:
-            errors.append(f"'{r['name']}': sirf {r['left']} wapas ho sakta hai.")
+            errors.append(f"'{r['name']}': only {r['left']} can be returned.")
         elif q > 0:
             qtys[r['item']] = q
     return qtys, errors
@@ -124,7 +124,7 @@ def _read_return_qtys(request, rows):
 def sales_return_new(request, pk):
     bill = get_object_or_404(Bill.objects.select_related('customer'), pk=pk)
     if bill.status != 'FINAL':
-        messages.error(request, 'Cancelled bill par return nahi ban sakta.')
+        messages.error(request, 'A return cannot be created for a cancelled bill.')
         return redirect('list', key='bills')
     items = list(bill.items.select_related('product', 'unit').prefetch_related('return_items'))
     rows = []
@@ -136,7 +136,7 @@ def sales_return_new(request, pk):
     if request.method == 'POST':
         qtys, errors = _read_return_qtys(request, rows)
         if not errors and not qtys:
-            errors.append('Kam se kam ek item ki return qty bharein.')
+            errors.append('Enter a return qty for at least one item.')
         for e in errors:
             messages.error(request, e)
         if not errors:
@@ -150,7 +150,7 @@ def sales_return_new(request, pk):
                     for it, q in qtys.items():
                         SalesReturnItem(sales_return=sr, invoice_item=it, qty=q).save()
                 auditlog.record(request, 'RETURN', 'Sales return', f"{sr.note_number} (bill {bill.display_number})")
-                messages.success(request, f"{sr.note_number} ban gaya. Stock wapas add ho gaya ✅")
+                messages.success(request, f"{sr.note_number} created. Stock has been added back ✅")
                 return redirect('sales_return_note', pk=sr.pk)
             except ValidationError as e:
                 messages.error(request, ' '.join(e.messages))
@@ -172,12 +172,12 @@ def purchase_return_new(request, pk):
         in_stock = (batch.qty // (it.unit_factor or 1)) if batch else 0
         rows.append(dict(item=it, name=it.product.name, unit=it.unit or '', sold=it.qty, returned=returned,
                          left=max(min((it.qty or 0) - returned, in_stock), 0),
-                         note=f"Batch me abhi {batch.qty if batch else 0} (base unit) bacha hai"))
+                         note=f"This batch currently has {batch.qty if batch else 0} (base unit) left"))
 
     if request.method == 'POST':
         qtys, errors = _read_return_qtys(request, rows)
         if not errors and not qtys:
-            errors.append('Kam se kam ek item ki return qty bharein.')
+            errors.append('Enter a return qty for at least one item.')
         for e in errors:
             messages.error(request, e)
         if not errors:
@@ -190,7 +190,7 @@ def purchase_return_new(request, pk):
                     for it, q in qtys.items():
                         PurchaseReturnItem(purchase_return=pr, purchase_item=it, qty=q).save()
                 auditlog.record(request, 'RETURN', 'Purchase return', pr.note_number)
-                messages.success(request, f"{pr.note_number} ban gaya. Stock aur supplier balance adjust ho gaya ✅")
+                messages.success(request, f"{pr.note_number} created. Stock and supplier balance adjusted ✅")
                 return redirect('purchase_return_note', pk=pr.pk)
             except ValidationError as e:
                 messages.error(request, ' '.join(e.messages))
@@ -238,13 +238,13 @@ def purchase_return_note(request, pk):
 def batch_writeoff(request, pk):
     batch = get_object_or_404(Batch, pk=pk)
     if batch.qty <= 0:
-        messages.error(request, 'Is batch me kuch bacha nahi.')
+        messages.error(request, 'This batch has no stock left.')
         return redirect('list', key='batches')
     try:
         StockWriteOff(batch=batch, qty=batch.qty, reason='EXPIRED' if batch.expiry_status == 'Expired' else 'OTHER',
-                      note='Batch list se poora write-off').save()
+                      note='Full write-off from the Batch list').save()
         auditlog.record(request, 'WRITEOFF', 'Batch', f"{batch.batch_number} · qty {batch.qty}")
-        messages.success(request, f"{batch.batch_number} ka poora stock write-off ho gaya (P&L me loss ginega).")
+        messages.success(request, f"{batch.batch_number} fully written off (it will be counted as a loss in the P&L).")
     except ValidationError as e:
         messages.error(request, ' '.join(e.messages))
     return redirect('list', key='batches')
@@ -307,13 +307,13 @@ def product_lookup(request):
 def alerts_send(request):
     try:
         sent, recipients = notify.send_alert_digest()
-    except Exception as exc:   # SMTP/network error: user ko saaf message do
-        messages.error(request, f"Email nahi gaya: {exc}")
+    except Exception as exc:   # SMTP/network error: show the user a clear message
+        messages.error(request, f"Email could not be sent: {exc}")
         return redirect('dashboard')
     if not recipients:
-        messages.warning(request, 'Koi email address nahi mila. Shop Settings me email daalein ya DJANGO_ALERT_EMAILS set karein.')
+        messages.warning(request, 'No email address found. Add an email in Shop Settings or set DJANGO_ALERT_EMAILS.')
     else:
-        messages.success(request, f"Alert digest bhej diya: {', '.join(recipients)}")
+        messages.success(request, f"Alert digest sent: {', '.join(recipients)}")
     return redirect('dashboard')
 
 
@@ -329,7 +329,7 @@ def po_print(request, pk):
 def po_email(request, pk):
     po = get_object_or_404(PurchaseOrder.objects.select_related('supplier'), pk=pk)
     if not po.supplier.email:
-        messages.error(request, f"{po.supplier.company} ka email address Suppliers me nahi bhara hai.")
+        messages.error(request, f"{po.supplier.company} does not have an email address in Suppliers.")
         return redirect('list', key='purchase_orders')
     shop = ShopProfile.get()
     from django.core.mail import send_mail
@@ -338,12 +338,12 @@ def po_email(request, pk):
         send_mail(f"Purchase Order {po.po_number} - {shop.name}", notify.po_text(po, shop),
                   settings.DEFAULT_FROM_EMAIL, [po.supplier.email], fail_silently=False)
     except Exception as exc:
-        messages.error(request, f"Email nahi gaya: {exc}")
+        messages.error(request, f"Email could not be sent: {exc}")
         return redirect('list', key='purchase_orders')
     if po.status == 'PENDING':
         po.status = 'SENT'
         po.save(update_fields=['status'])
-    messages.success(request, f"{po.po_number} {po.supplier.email} par bhej diya ✅")
+    messages.success(request, f"{po.po_number} sent to {po.supplier.email} ✅")
     return redirect('list', key='purchase_orders')
 
 
@@ -361,7 +361,7 @@ def po_whatsapp(request, pk):
 @require_POST
 def audit_start(request):
     audit = StockAudit.start(note=request.POST.get('note', '').strip()[:255])
-    messages.success(request, f"Stock Audit #{audit.pk} shuru ho gaya. Ab har product ki asli ginti bharein.")
+    messages.success(request, f"Stock Audit #{audit.pk} started. Now enter the counted quantity of each product.")
     return redirect('audit_count', pk=audit.pk)
 
 
@@ -384,7 +384,7 @@ def audit_count(request, pk):
                     if new < 0:
                         raise ValueError
                 except ValueError:
-                    errors.append(f"'{it.product.name}': ginti 0 ya usse zyada poori sankhya honi chahiye.")
+                    errors.append(f"'{it.product.name}': the count must be a whole number, 0 or more.")
                     continue
             if new != it.counted_qty:
                 it.counted_qty = new
@@ -397,12 +397,12 @@ def audit_count(request, pk):
             if request.POST.get('action') == 'apply':
                 try:
                     audit.apply()
-                    auditlog.record(request, 'STOCK-AUDIT', 'Stock Audit', f"#{audit.pk} apply hua, stock ginti ke barabar")
-                    messages.success(request, 'Stock adjust ho gaya ✅ (jin products ki ginti bhari thi unka stock ginti ke barabar).')
+                    auditlog.record(request, 'STOCK-AUDIT', 'Stock Audit', f"#{audit.pk} applied; stock set to counted quantities")
+                    messages.success(request, 'Stock adjusted ✅ (products with a counted quantity now match their count).')
                 except ValidationError as e:
                     messages.error(request, ' '.join(e.messages))
             else:
-                messages.success(request, f"{len(changed)} product ki ginti save ho gayi.")
+                messages.success(request, f"Count saved for {len(changed)} product(s).")
             return redirect('audit_count', pk=audit.pk)
 
     shown = [it for it in items if not q or q in (it.product.name or '').lower()]
@@ -412,7 +412,7 @@ def audit_count(request, pk):
 
 
 # ======================================================
-# DATABASE BACKUP (sirf staff)
+# DATABASE BACKUP (staff only)
 # ======================================================
 
 @staff_required
@@ -426,7 +426,7 @@ def backup_page(request):
         auditlog.record(request, 'BACKUP', 'Database', path.name)
         if request.POST.get('action') == 'download':
             return redirect('backup_download', name=path.name)
-        messages.success(request, f"Backup ban gaya: {path.name}")
+        messages.success(request, f"Backup created: {path.name}")
         return redirect('backup')
     return page(request, 'app/backup.html', active='backup', backups=backup.list_backups(),
                 folder=str(backup.backup_dir()))

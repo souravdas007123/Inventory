@@ -1,9 +1,9 @@
 """
-Report calculations: ek hi jagah, taaki web page, admin aur Excel export sab same number dikhayein.
+Report calculations in one place, so the web page, admin and Excel export all show the same numbers.
 
-- profit_and_loss      : P&L (returns aur write-off ke saath)
+- profit_and_loss      : P&L (returns and write-offs included)
 - gst_report           : GSTR-1 (B2B/B2C/Credit notes), HSN summary, GSTR-3B summary
-- drug_register        : Schedule H/H1/X bikri register
+- drug_register        : Schedule H/H1/X sales register
 - dashboard_charts     : daily sales, top selling, dead stock
 - gst_workbook / register_workbook : Excel (.xlsx) export
 """
@@ -16,7 +16,7 @@ from django.db.models import Count, F, Min, Sum
 from django.db.models.functions import ExtractWeekDay, TruncMonth
 from django.utils import timezone
 
-from .notify import udhar_reminder_link
+from .notify import credit_reminder_link
 from .models import (
     Batch, Bill, Customer, CustomerPayment, Expense, InvoiceItem, Product, PurchaseItem,
     PurchaseReturnItem, Sale, SalesReturn, SalesReturnItem, ShopProfile, StockWriteOff, Supplier, Transaction,
@@ -40,12 +40,12 @@ def q2(x):
 
 def profit_and_loss(month, year):
     """
-    Income    = Net Sales ki taxable value (return ke baad; GST income nahi hai)
-    COGS      = jo maal bika uski purchase cost (batch_history se) - wapas aaye maal ki cost
-    Write-off = expired/damaged maal ki purchase cost (loss)
-    Purchases = sirf information ke liye (is mahine kharida hua taxable maal, return ke baad)
+    Income    = taxable value of Net Sales (after returns; GST is not income)
+    COGS      = purchase cost of goods sold (from batch_history) - cost of returned goods
+    Write-off = purchase cost of expired/damaged goods (loss)
+    Purchases = for information only (taxable goods purchased this month, after returns)
     """
-    # Sale rows me return ke liye negative rows hoti hain, to ye sum net hai
+    # Returns are stored as negative Sale rows, so this sum is net
     sales = dec(Sale.objects.filter(date__month=month, date__year=year)
                 .aggregate(s=Sum('taxable_value'))['s'])
 
@@ -97,8 +97,8 @@ def _add(row, taxable, cgst, sgst, igst, total, sign=1):
 
 def gst_report(month, year):
     """
-    Mahine ka GSTR-1 / GSTR-3B jaisa summary. Sirf FINAL bills aur us mahine ke credit notes ginte hain.
-    Note: ye accounting summary hai, return file karne se pehle apne CA se verify karein.
+    Monthly summary similar to GSTR-1 / GSTR-3B. Only FINAL bills and that month's credit notes are counted.
+    Note: this is an accounting summary; verify it with your CA before filing a return.
     """
     items = (InvoiceItem.objects
              .filter(bill__status='FINAL', bill__date__month=month, bill__date__year=year)
@@ -147,7 +147,7 @@ def gst_report(month, year):
         hrow = hsn.setdefault(key, dict(hsn=key[0], rate=key[1], qty=0, **_tax_row()))
         hrow['qty'] -= r.base_qty
         _add(hrow, r.taxable_value, r.cgst, r.sgst, r.igst, r.total, sign=-1)
-        # B2C return: rate wise net kam karo
+        # B2C return: reduce the net rate-wise
         if not gstin:
             crow = b2c.setdefault(ii.gst_rate, dict(rate=ii.gst_rate, **_tax_row()))
             _add(crow, r.taxable_value, r.cgst, r.sgst, r.igst, r.total, sign=-1)
@@ -207,7 +207,7 @@ def _n(x):
 
 
 def gst_workbook(rep):
-    """GST report ko Excel (.xlsx) bytes me badalta hai."""
+    """Converts the GST report to Excel (.xlsx) bytes."""
     from openpyxl import Workbook
     wb = Workbook()
     tax_h = ['Taxable', 'CGST', 'SGST', 'IGST', 'Total']
@@ -285,7 +285,7 @@ def register_workbook(rows):
 # ======================================================
 
 def dashboard_charts(today=None, days=14):
-    """Daily sales (last N din), top selling (30 din), dead stock (90 din se bikri nahi)."""
+    """Daily sales (last N days), top selling (30 days), dead stock (no sales in 90 days)."""
     today = today or timezone.localdate()
     start = today - timedelta(days=days - 1)
     daily = {d: dec(s) for d, s in Sale.objects.filter(date__gte=start, date__lte=today)
@@ -320,7 +320,7 @@ def dashboard_charts(today=None, days=14):
 # ======================================================
 
 def _cogs(start, end):
-    """[start, end] ke beech bike maal ki purchase cost (return ke baad)."""
+    """Purchase cost of goods sold between [start, end] (after returns)."""
     histories = list(InvoiceItem.objects.filter(sale__date__gte=start, sale__date__lte=end)
                      .values_list('batch_history', flat=True))
     batch_ids = {int(k) for h in histories for k in (h or {})}
@@ -341,13 +341,13 @@ def _pct(value, peak):
 
 def dashboard_overview(today=None, include_money=False):
     """
-    Dashboard ke extra numbers. include_money=False (non-staff) par profit / stock value nahi nikalte.
+    Extra dashboard numbers. With include_money=False (non-staff), profit / stock value are not computed.
     """
     today = today or timezone.localdate()
     month_start = today.replace(day=1)
     out = {}
 
-    # ---- Bills ki ginti ----
+    # ---- Bill counts ----
     final = Bill.objects.filter(status='FINAL')
     out['bills_today'] = final.filter(date=today).count()
     out['bills_month'] = final.filter(date__gte=month_start, date__lte=today).count()
@@ -356,33 +356,33 @@ def dashboard_overview(today=None, include_money=False):
     out['gst_today'] = dec(Sale.objects.filter(date=today).aggregate(s=Sum('gst'))['s'])
     out['gst_month'] = dec(Sale.objects.filter(date__gte=month_start, date__lte=today).aggregate(s=Sum('gst'))['s'])
 
-    # ---- Udhar (customers se lena) ----
+    # ---- Credit (to collect from customers) ----
     credit_ids = Customer.objects.filter(bills__payment_mode='CREDIT', bills__status='FINAL').distinct()[:300]
     first_credit = dict(Bill.objects.filter(status='FINAL', payment_mode='CREDIT', customer__isnull=False)
                         .values_list('customer_id').annotate(d=Min('date')).order_by())
     shop_name = ShopProfile.get().name
-    udhar = []
+    owing = []
     for c in credit_ids:
         bal = c.balance()
         if bal > 0:
             since = first_credit.get(c.pk)
-            udhar.append(dict(pk=c.pk, name=c.name, phone=c.phone or '', balance=bal,
+            owing.append(dict(pk=c.pk, name=c.name, phone=c.phone or '', balance=bal,
                               days=(today - since).days if since else 0,
                               over=bool(c.credit_limit and bal > c.credit_limit),
-                              wa=udhar_reminder_link(shop_name, c.name, c.phone, bal)))
-    udhar.sort(key=lambda r: r['balance'], reverse=True)
-    out['udhar_total'] = sum((r['balance'] for r in udhar), ZERO)
-    out['udhar_count'] = len(udhar)
-    out['udhar_rows'] = udhar[:6]
+                              wa=credit_reminder_link(shop_name, c.name, c.phone, bal)))
+    owing.sort(key=lambda r: r['balance'], reverse=True)
+    out['credit_total'] = sum((r['balance'] for r in owing), ZERO)
+    out['credit_count'] = len(owing)
+    out['credit_rows'] = owing[:6]
 
-    # ---- Supplier ko dene baaki ----
+    # ---- Payable to suppliers ----
     owed = Supplier.objects.filter(opening_balance__gt=0)
     out['payable_total'] = dec(owed.aggregate(s=Sum('opening_balance'))['s'])
     out['payable_count'] = owed.count()
     out['payable_rows'] = [dict(name=sp.company, phone=sp.phone or '', balance=dec(sp.opening_balance))
                            for sp in owed.order_by('-opening_balance')[:6]]
 
-    # ---- Payment mode split (is mahine ke bills) ----
+    # ---- Payment mode split (this month's bills) ----
     labels = dict(Bill.PAYMENT_CHOICES)
     colors = ['var(--pri)', 'var(--amber)', '#3b82f6', 'var(--red)']
     split = list(InvoiceItem.objects.filter(bill__status='FINAL', bill__date__gte=month_start,
@@ -400,7 +400,7 @@ def dashboard_overview(today=None, include_money=False):
     out['pay_total'] = split_total
     out['pay_gradient'] = ', '.join(f"{r['color']} {r['start']:.2f}% {r['end']:.2f}%" for r in rows)
 
-    # ---- Pichle 6 mahine: sale vs purchase ----
+    # ---- Last 6 months: sales vs purchases ----
     months = []
     y, m = today.year, today.month
     for _ in range(6):
@@ -423,7 +423,7 @@ def dashboard_overview(today=None, include_money=False):
                               sale_pct=_pct(sales_m.get((yy, mm), ZERO), peak),
                               buy_pct=_pct(buy_m.get((yy, mm), ZERO), peak)) for yy, mm in months]
 
-    # ---- Din ke hisaab se sale (pichle 8 hafte) ----
+    # ---- Sales by weekday (last 8 weeks) ----
     names = {2: 'Mon', 3: 'Tue', 4: 'Wed', 5: 'Thu', 6: 'Fri', 7: 'Sat', 1: 'Sun'}   # ExtractWeekDay: 1=Sunday
     wk = {r['w']: dec(r['s']) for r in
           Sale.objects.filter(date__gte=today - timedelta(days=55), date__lte=today)
@@ -432,7 +432,7 @@ def dashboard_overview(today=None, include_money=False):
     out['week_bars'] = [dict(label=names[k], value=wk.get(k, ZERO), pct=_pct(wk.get(k, ZERO), wpeak))
                         for k in (2, 3, 4, 5, 6, 7, 1)]
 
-    # ---- Top customers (30 din) ----
+    # ---- Top customers (30 days) ----
     topc = list(Bill.objects.filter(status='FINAL', date__gte=today - timedelta(days=29))
                 .exclude(customer_name__iexact='cash').exclude(customer_name='')
                 .values('customer_name').annotate(s=Sum('items__total'), n=Count('id', distinct=True))
@@ -462,7 +462,7 @@ def dashboard_overview(today=None, include_money=False):
     acts.sort(key=lambda a: a['date'] or today, reverse=True)
     out['activity'] = acts[:8]
 
-    # ---- Aaj ke Schedule H / H1 / X bills ----
+    # ---- Today's Schedule H / H1 / X bills ----
     out['schedule_rows'] = [dict(inv=i.bill.display_number, product=i.product.name if i.product_id else '-',
                                  schedule=i.product.schedule if i.product_id else '',
                                  patient=i.bill.patient_name, doctor=i.bill.doctor_name)
@@ -470,7 +470,7 @@ def dashboard_overview(today=None, include_money=False):
                                                                 product__schedule__in=['H', 'H1', 'X'])
                             .select_related('bill', 'product').order_by('-id')[:8]]
 
-    # ---- Sirf staff/owner ko: profit aur stock value ----
+    # ---- Staff/owner only: profit and stock value ----
     if include_money:
         out['money'] = True
         for key, start in (('today', today), ('month', month_start)):

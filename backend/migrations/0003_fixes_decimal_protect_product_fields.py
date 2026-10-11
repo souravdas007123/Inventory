@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 
 def sync_sale_dates(apps, schema_editor):
-    """Purani Sale rows ki date ko unke Bill ki date se match karo (pehle hamesha 'aaj' ki date lagti thi)."""
+    """Match the date of old Sale rows to their Bill's date (it used to always be today's date)."""
     Sale = apps.get_model('backend', 'Sale')
     Transaction = apps.get_model('backend', 'Transaction')
     qs = Sale.objects.filter(invoice_item__bill__date__isnull=False).select_related('invoice_item__bill')
@@ -42,7 +42,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='purchaseitem',
             name='purchase_price',
-            field=models.DecimalField(blank=True, decimal_places=2, max_digits=12, null=True, verbose_name='Price (GST ke saath total)'),
+            field=models.DecimalField(blank=True, decimal_places=2, max_digits=12, null=True, verbose_name='Price (total incl. GST)'),
         ),
         migrations.AlterField(
             model_name='purchaseitem',
@@ -81,7 +81,7 @@ class Migration(migrations.Migration):
             name='schedule',
             field=models.CharField(
                 choices=[('NONE', 'Normal (no schedule)'), ('H', 'Schedule H (prescription)'),
-                         ('H1', 'Schedule H1 (register zaroori)'), ('X', 'Schedule X (register zaroori)')],
+                         ('H1', 'Schedule H1 (register required)'), ('X', 'Schedule X (register required)')],
                 default='NONE', max_length=4, verbose_name='Drug Schedule'),
         ),
         migrations.AddField(
@@ -94,7 +94,7 @@ class Migration(migrations.Migration):
             name='mrp',
             field=models.DecimalField(
                 blank=True, decimal_places=2, max_digits=10, null=True,
-                help_text='Billing me scan/search karne par rate yahin se bharta hai',
+                help_text='Used to fill the rate when scanning/searching in billing',
                 verbose_name='MRP / Sale rate (per base unit)'),
         ),
 

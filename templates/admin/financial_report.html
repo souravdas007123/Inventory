@@ -27,13 +27,13 @@
     <table style="width: 100%; font-size: 16px; text-align: left; border-collapse: collapse;">
         <!-- SALES -->
         <tr style="background-color: #212122;">
-            <td style="padding: 12px; border-bottom: 1px solid #3a3a3a;"><strong>Total Income (Sales, GST ke bina)</strong></td>
+            <td style="padding: 12px; border-bottom: 1px solid #3a3a3a;"><strong>Total Income (Sales, excluding GST)</strong></td>
             <td style="padding: 12px; border-bottom: 1px solid #3a3a3a; color: rgb(18, 227, 18); text-align: right;"><strong>₹{{ sales|floatformat:2 }}</strong></td>
         </tr>
 
         <!-- COGS -->
         <tr>
-            <td style="padding: 12px; border-bottom: 1px solid #3a3a3a;">Less: Cost of Goods Sold (bika hua maal)</td>
+            <td style="padding: 12px; border-bottom: 1px solid #3a3a3a;">Less: Cost of Goods Sold (items sold)</td>
             <td style="padding: 12px; border-bottom: 1px solid #3a3a3a; color: red; text-align: right;">- ₹{{ cogs|floatformat:2 }}</td>
         </tr>
 
@@ -67,8 +67,8 @@
     </table>
 
     <p style="margin-top: 15px; color: #999; font-size: 13px;">
-        Info: Is mahine ki total purchase (GST ke bina): ₹{{ purchases|floatformat:2 }}
-        (ye P&amp;L me nahi ginti, kyunki maal abhi stock me ho sakta hai).
+        Info: This month's total purchases (excluding GST): ₹{{ purchases|floatformat:2 }}
+        (not counted in the P&amp;L, because the goods may still be in stock).
     </p>
 </div>
 {% endblock %}

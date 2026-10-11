@@ -13,8 +13,8 @@ button{width:100%;margin-top:20px;padding:12px;border:0;border-radius:10px;backg
 .err{background:#e11d4822;color:var(--red);padding:10px;border-radius:10px;margin-bottom:8px}
 </style></head>
 <body><form class="box" method="post">{% csrf_token %}
-<h1 style="display:flex;align-items:center;gap:10px">{% include "app/logo.html" with size=36 %}MedSync</h1><p>Apne account se login karein</p>
-{% if locked %}<div class="err">Bahut zyada galat koshishein hui. 15 minute baad dobara try karein.</div>{% elif form.errors %}<div class="err">Username ya password galat hai.</div>{% endif %}
+<h1 style="display:flex;align-items:center;gap:10px">{% include "app/logo.html" with size=36 %}MedSync</h1><p>Sign in to your account</p>
+{% if locked %}<div class="err">Too many failed attempts. Please try again after 15 minutes.</div>{% elif form.errors %}<div class="err">Incorrect username or password.</div>{% endif %}
 <label>Username</label>{{ form.username }}
 <label>Password</label>{{ form.password }}
 <input type="hidden" name="next" value="{{ next }}">

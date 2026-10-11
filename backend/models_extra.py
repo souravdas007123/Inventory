@@ -1,9 +1,9 @@
 """
-Naye models: Customer + udhar receipts, Sales/Purchase Return (credit/debit note),
+Newer models: Customer + credit receipts, Sales/Purchase Return (credit/debit note),
 Stock write-off, Physical stock audit.
 
-Ye `backend/models.py` ke end se import hote hain (isliye Django inhe isi app ke models maanta hai).
-Saare stock/ledger effects model ke save()/delete() me hain, taaki UI aur admin dono me same rahe.
+These are imported at the end of `backend/models.py` (so Django treats them as models of this app).
+All stock/ledger effects live in the model's save()/delete(), so the UI and admin behave the same.
 """
 from decimal import Decimal
 
@@ -24,7 +24,7 @@ from .models import (
 # ======================================================
 
 class DocCounter(models.Model):
-    """Har series (CN, DN) ka financial-year wise gap-free counter."""
+    """A gap-free counter per series (CN, DN) for each financial year."""
     series = models.CharField(max_length=10)
     fiscal_year = models.CharField(max_length=7)
     last_number = models.PositiveIntegerField(default=0)
@@ -39,7 +39,7 @@ class DocCounter(models.Model):
 
 
 def next_doc_number(series, on=None):
-    """CN/2026-27/0001 jaisa agla number (invoice counter jaisa hi tareeka)."""
+    """The next number, like CN/2026-27/0001 (works the same way as the invoice counter)."""
     fy = fiscal_year(on)
     with transaction.atomic():
         counter, _ = DocCounter.objects.get_or_create(series=series, fiscal_year=fy)
@@ -49,7 +49,7 @@ def next_doc_number(series, on=None):
 
 
 # ======================================================
-# CUSTOMER + UDHAR LEDGER
+# CUSTOMER + CREDIT LEDGER
 # ======================================================
 
 class Customer(models.Model):
@@ -57,9 +57,9 @@ class Customer(models.Model):
     phone = models.CharField(max_length=15, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     gstin = models.CharField(max_length=15, blank=True, null=True, verbose_name="GSTIN",
-                             help_text="B2B bill ke liye (optional)")
+                             help_text="For B2B bills (optional)")
     credit_limit = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'),
-                                       help_text="Udhar ki limit. 0 = koi limit nahi")
+                                       help_text="Credit limit. 0 = no limit")
     is_active = models.BooleanField(default=True)
     created_at = models.DateField(auto_now_add=True, null=True)
 
@@ -67,9 +67,9 @@ class Customer(models.Model):
         if self.gstin:
             self.gstin = self.gstin.strip().upper()
             if len(self.gstin) != 15:
-                raise ValidationError({'gstin': 'GSTIN 15 characters ka hona chahiye.'})
+                raise ValidationError({'gstin': 'GSTIN must be 15 characters.'})
         if self.credit_limit is not None and self.credit_limit < 0:
-            raise ValidationError({'credit_limit': 'Limit negative nahi ho sakti.'})
+            raise ValidationError({'credit_limit': 'Limit cannot be negative.'})
 
     def save(self, *args, **kwargs):
         self.gstin = (self.gstin or '').strip().upper() or None
@@ -77,9 +77,9 @@ class Customer(models.Model):
 
     def balance(self, exclude_payment=None):
         """
-        Customer se kitna lena baaki hai:
-        (udhar bills ka baaki hissa) - (receipts) - (udhar me adjust hue returns).
-        Ye hamesha calculate hota hai (store nahi), isliye kabhi out-of-sync nahi hota.
+        How much is still to be collected from the customer:
+        (due portion of credit bills) - (receipts) - (returns adjusted against credit).
+        This is always calculated (not stored), so it can never go out of sync.
         """
         credit_bills = self.bills.filter(status='FINAL', payment_mode='CREDIT').prefetch_related('items')
         due = sum((b.credit_due for b in credit_bills), Decimal('0'))
@@ -101,7 +101,7 @@ class Customer(models.Model):
 
 
 class CustomerPayment(models.Model):
-    """Customer se udhar ka paisa wapas mila (receipt)."""
+    """Payment received back from the customer against credit (receipt)."""
     MODES = (
         ('CASH', 'Cash'),
         ('UPI', 'UPI'),
@@ -116,11 +116,11 @@ class CustomerPayment(models.Model):
 
     def clean(self):
         if self.amount is not None and self.amount <= 0:
-            raise ValidationError({'amount': 'Amount 0 se zyada hona chahiye.'})
+            raise ValidationError({'amount': 'Amount must be greater than 0.'})
         if self.customer_id and self.amount:
             balance = self.customer.balance(exclude_payment=self.pk)
             if self.amount > balance:
-                raise ValidationError({'amount': f'Amount baaki udhar (₹{balance}) se zyada hai.'})
+                raise ValidationError({'amount': f'Amount exceeds the outstanding credit (₹{balance}).'})
 
     def __str__(self):
         return f"Receipt #{self.pk} - {self.customer} ₹{self.amount}"
@@ -136,8 +136,8 @@ class CustomerPayment(models.Model):
 
 class SalesReturn(models.Model):
     REFUND_CHOICES = (
-        ('CASH', 'Cash / UPI wapas diya'),
-        ('ADJUST', 'Customer ke udhar me adjust'),
+        ('CASH', 'Refunded in cash / UPI'),
+        ('ADJUST', 'Adjust against customer credit'),
     )
     note_number = models.CharField(max_length=30, unique=True, null=True, blank=True, editable=False)
     bill = models.ForeignKey('Bill', on_delete=models.PROTECT, related_name='returns')
@@ -149,9 +149,9 @@ class SalesReturn(models.Model):
     def clean(self):
         if self.bill_id:
             if self.bill.status != 'FINAL':
-                raise ValidationError({'bill': 'Cancelled bill par return nahi ban sakta.'})
+                raise ValidationError({'bill': 'A return cannot be created for a cancelled bill.'})
             if self.refund_mode == 'ADJUST' and not self.bill.customer_id:
-                raise ValidationError({'refund_mode': 'Udhar me adjust ke liye bill par Customer hona zaroori hai.'})
+                raise ValidationError({'refund_mode': 'To adjust against credit, the bill must have a Customer.'})
 
     def save(self, *args, **kwargs):
         if not self.note_number:
@@ -161,7 +161,7 @@ class SalesReturn(models.Model):
     def delete(self, *args, **kwargs):
         with transaction.atomic():
             for item in self.items.all():
-                item.delete()   # stock/batch/sale wapas ulta
+                item.delete()   # stock/batch/sale reversed
             super().delete(*args, **kwargs)
 
     def _sum(self, field):
@@ -190,7 +190,7 @@ class SalesReturn(models.Model):
 class SalesReturnItem(models.Model):
     sales_return = models.ForeignKey(SalesReturn, on_delete=models.CASCADE, related_name='items')
     invoice_item = models.ForeignKey(InvoiceItem, on_delete=models.PROTECT, related_name='return_items')
-    qty = models.IntegerField(verbose_name="Return Qty", help_text="Bill me jis unit me becha tha, usi me")
+    qty = models.IntegerField(verbose_name="Return Qty", help_text="In the same unit used on the bill")
     base_qty = models.PositiveIntegerField(editable=False, default=0)
     taxable_value = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=0)
     gst = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=0)
@@ -199,29 +199,29 @@ class SalesReturnItem(models.Model):
     igst = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=0)
     total = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=0)
     batch_returns = models.JSONField(default=dict, editable=False, blank=True)   # {batch_id: base qty}
-    cost = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=0)   # wapas aaye maal ki purchase cost
+    cost = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=0)   # purchase cost of the returned goods
 
     def save(self, *args, **kwargs):
         if self.pk:
-            raise ValidationError('Return item edit nahi hota. Galti ho to return delete karke naya banayein.')
+            raise ValidationError('A return item cannot be edited. If there is a mistake, delete the return and create a new one.')
         if not self.qty or self.qty <= 0:
-            raise ValidationError('Return qty 0 se zyada honi chahiye.')
+            raise ValidationError('Return qty must be greater than 0.')
 
         with transaction.atomic():
             item = InvoiceItem.objects.select_for_update().select_related('product', 'unit').get(pk=self.invoice_item_id)
             bill = self.sales_return.bill
             if item.bill_id != bill.pk:
-                raise ValidationError('Ye item is bill ka nahi hai.')
+                raise ValidationError('This item does not belong to this bill.')
             if not item.product_id or not item.qty:
-                raise ValidationError('Is bill item me product/qty nahi hai.')
+                raise ValidationError('This bill item has no product/qty.')
 
             previous = list(SalesReturnItem.objects.filter(invoice_item=item))
             returned_qty = sum(p.qty for p in previous)
             if self.qty + returned_qty > item.qty:
                 raise ValidationError(
-                    f"'{item.product}' me sirf {item.qty - returned_qty} {item.unit or ''} wapas ho sakta hai.")
+                    f"Only {item.qty - returned_qty} {item.unit or ''} of '{item.product}' can be returned.")
 
-            # ---- Amounts (aakhri hissa = baaki sab, taaki rounding ka paisa na bache) ----
+            # ---- Amounts (the last portion = the remainder, so no rounding paise are left over) ----
             if self.qty + returned_qty == item.qty:
                 taxable = item.taxable_value - sum((p.taxable_value for p in previous), Decimal('0'))
                 gst = item.gst - sum((p.gst for p in previous), Decimal('0'))
@@ -240,7 +240,7 @@ class SalesReturnItem(models.Model):
             self.total = taxable + gst
             self.base_qty = self.qty * (item.unit_factor or 1)
 
-            # ---- Stock + batch wapas (jis batch se nikla tha usi me, last se pehle) ----
+            # ---- Restore stock + batch (into the batch it came from, latest first) ----
             product = Product.objects.select_for_update().get(pk=item.product_id)
             product.stock_qty += self.base_qty
             product.save(update_fields=['stock_qty'])
@@ -266,7 +266,7 @@ class SalesReturnItem(models.Model):
                 batch.save(update_fields=['qty'])
                 restored[key] = give
                 remaining -= give
-            if remaining > 0:   # purane bill jinme batch history nahi thi
+            if remaining > 0:   # older bills that have no batch history
                 fallback = (Batch.objects.select_for_update().filter(product_id=item.product_id)
                             .order_by(F('expire_date').desc(nulls_last=True), '-id').first())
                 if fallback:
@@ -282,7 +282,7 @@ class SalesReturnItem(models.Model):
 
             super().save(*args, **kwargs)
 
-            # Negative Sale row: dashboard, P&L aur ledger apne aap net ho jaate hain
+            # Negative Sale row: dashboard, P&L and ledger net out automatically
             Sale.objects.create(
                 date=self.sales_return.date, name=bill.customer_name, invoice_mode=bill.invoice_mode,
                 taxable_value=-self.taxable_value, gst=-self.gst, total=-self.total, sales_return_item=self,
@@ -293,22 +293,22 @@ class SalesReturnItem(models.Model):
             product = Product.objects.select_for_update().filter(pk=self.invoice_item.product_id).first()
             if product is not None:
                 if product.stock_qty < self.base_qty:
-                    raise ValidationError('Is return ka maal ab stock me nahi hai (dobara bik chuka), '
-                                          'isliye return delete nahi ho sakta.')
+                    raise ValidationError('The goods from this return are no longer in stock (sold again), '
+                                          'so the return cannot be deleted.')
                 batches = []
                 for key, q in (self.batch_returns or {}).items():
                     batch = Batch.objects.select_for_update().filter(pk=int(key)).first()
                     if batch is not None:
                         if batch.qty < q:
-                            raise ValidationError('Is return ka maal ab batch me nahi hai (dobara bik chuka), '
-                                                  'isliye return delete nahi ho sakta.')
+                            raise ValidationError('The goods from this return are no longer in the batch (sold again), '
+                                                  'so the return cannot be deleted.')
                         batches.append((batch, q))
                 product.stock_qty -= self.base_qty
                 product.save(update_fields=['stock_qty'])
                 for batch, q in batches:
                     batch.qty -= q
                     batch.save(update_fields=['qty'])
-            super().delete(*args, **kwargs)   # Sale + Transaction cascade se hat jaate hain
+            super().delete(*args, **kwargs)   # Sale + Transaction are removed by cascade
 
     def __str__(self):
         return f"{self.invoice_item} (return {self.qty})"
@@ -366,30 +366,30 @@ class PurchaseReturn(models.Model):
 class PurchaseReturnItem(models.Model):
     purchase_return = models.ForeignKey(PurchaseReturn, on_delete=models.CASCADE, related_name='items')
     purchase_item = models.ForeignKey(PurchaseItem, on_delete=models.PROTECT, related_name='return_items')
-    qty = models.IntegerField(verbose_name="Return Qty", help_text="Purchase me jis unit me aaya tha, usi me")
+    qty = models.IntegerField(verbose_name="Return Qty", help_text="In the same unit used on the purchase")
     base_qty = models.PositiveIntegerField(editable=False, default=0)
     taxable_value = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=0)
     gst = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=0)
     amount = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=0,
-                                 verbose_name="Amount (GST ke saath)")
+                                 verbose_name="Amount (incl. GST)")
 
     def save(self, *args, **kwargs):
         if self.pk:
-            raise ValidationError('Return item edit nahi hota. Galti ho to return delete karke naya banayein.')
+            raise ValidationError('A return item cannot be edited. If there is a mistake, delete the return and create a new one.')
         if not self.qty or self.qty <= 0:
-            raise ValidationError('Return qty 0 se zyada honi chahiye.')
+            raise ValidationError('Return qty must be greater than 0.')
 
         with transaction.atomic():
             pi = PurchaseItem.objects.select_for_update().select_related('product', 'unit').get(pk=self.purchase_item_id)
             header = self.purchase_return.purchase
             if pi.purchase_id != header.pk:
-                raise ValidationError('Ye item is purchase ka nahi hai.')
+                raise ValidationError('This item does not belong to this purchase.')
 
             previous = list(PurchaseReturnItem.objects.filter(purchase_item=pi))
             returned_qty = sum(p.qty for p in previous)
             if self.qty + returned_qty > pi.qty:
                 raise ValidationError(
-                    f"'{pi.product}' me sirf {pi.qty - returned_qty} {pi.unit or ''} wapas ho sakta hai.")
+                    f"Only {pi.qty - returned_qty} {pi.unit or ''} of '{pi.product}' can be returned.")
 
             price = Decimal(pi.purchase_price or 0)
             if self.qty + returned_qty == pi.qty:
@@ -407,18 +407,18 @@ class PurchaseReturnItem(models.Model):
             if batch is None or batch.qty < self.base_qty:
                 have = batch.qty if batch else 0
                 raise ValidationError(
-                    f"'{pi.product}' ka itna maal batch me nahi bacha (bacha: {have}, wapas karna: {self.base_qty}). "
-                    f"Baaki bik/kharch ho chuka hai.")
+                    f"Not enough of '{pi.product}' is left in the batch (available: {have}, to return: {self.base_qty}). "
+                    f"The rest has already been sold/used.")
             product = Product.objects.select_for_update().get(pk=pi.product_id)
             if product.stock_qty < self.base_qty:
-                raise ValidationError(f"'{product}' ka stock kam hai, return nahi ho sakta.")
+                raise ValidationError(f"Insufficient stock of '{product}'; the return cannot be made.")
 
             product.stock_qty -= self.base_qty
             product.save(update_fields=['stock_qty'])
             batch.qty -= self.base_qty
             batch.save(update_fields=['qty'])
 
-            adjust_supplier_balance(header.supplier_id, -self.amount)   # supplier ko ab itna kam dena hai
+            adjust_supplier_balance(header.supplier_id, -self.amount)   # the supplier is now owed this much less
             super().save(*args, **kwargs)
             Transaction.objects.create(
                 purchase_return_item=self, purchase_date=self.purchase_return.date,
@@ -436,7 +436,7 @@ class PurchaseReturnItem(models.Model):
                 batch.qty += self.base_qty
                 batch.save(update_fields=['qty'])
             adjust_supplier_balance(pi.purchase.supplier_id, self.amount)
-            super().delete(*args, **kwargs)   # Transaction cascade se hat jata hai
+            super().delete(*args, **kwargs)   # the Transaction is removed by cascade
 
     def __str__(self):
         return f"{self.purchase_item} (return {self.qty})"
@@ -457,27 +457,27 @@ class StockWriteOff(models.Model):
         ('OTHER', 'Other'),
     )
     batch = models.ForeignKey(Batch, on_delete=models.PROTECT, related_name='writeoffs')
-    qty = models.PositiveIntegerField(validators=[MinValueValidator(1)], help_text="Base unit me (jaise Tablet)")
+    qty = models.PositiveIntegerField(validators=[MinValueValidator(1)], help_text="In base unit (e.g. Tablet)")
     reason = models.CharField(max_length=10, choices=REASONS, default='EXPIRED')
     date = models.DateField(default=timezone.localdate)
     note = models.CharField(max_length=255, blank=True, default='')
     cost = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=0,
-                               help_text="Is maal ki purchase cost (P&L me loss)")
+                               help_text="Purchase cost of these goods (loss in P&L)")
 
     def clean(self):
         if self.batch_id and self.qty and not self.pk and self.qty > self.batch.qty:
-            raise ValidationError({'qty': f'Is batch me sirf {self.batch.qty} bacha hai.'})
+            raise ValidationError({'qty': f'This batch has only {self.batch.qty} left.'})
 
     def save(self, *args, **kwargs):
         if self.pk:
-            raise ValidationError('Write-off edit nahi hota. Galti ho to delete karke naya banayein.')
+            raise ValidationError('A write-off cannot be edited. If there is a mistake, delete it and create a new one.')
         with transaction.atomic():
             batch = Batch.objects.select_for_update().select_related('purchase_item').get(pk=self.batch_id)
             if not self.qty or self.qty <= 0 or self.qty > batch.qty:
-                raise ValidationError(f'Qty 1 se {batch.qty} ke beech honi chahiye.')
+                raise ValidationError(f'Qty must be between 1 and {batch.qty}.')
             product = Product.objects.select_for_update().get(pk=batch.product_id)
             if product.stock_qty < self.qty:
-                raise ValidationError(f"'{product}' ka stock kam hai, write-off nahi ho sakta.")
+                raise ValidationError(f"Insufficient stock of '{product}'; the write-off cannot be made.")
             rate = batch.purchase_item.rate if batch.purchase_item_id else Decimal('0')
             self.cost = (Decimal(rate) * self.qty).quantize(TWO)
             batch.qty -= self.qty
@@ -510,8 +510,8 @@ class StockWriteOff(models.Model):
 
 class StockAudit(models.Model):
     STATUS_CHOICES = (
-        ('OPEN', 'Open (ginti chal rahi hai)'),
-        ('APPLIED', 'Applied (stock adjust ho gaya)'),
+        ('OPEN', 'Open (counting in progress)'),
+        ('APPLIED', 'Applied (stock adjusted)'),
     )
     date = models.DateField(default=timezone.localdate)
     note = models.CharField(max_length=255, blank=True, default='')
@@ -520,7 +520,7 @@ class StockAudit(models.Model):
 
     @classmethod
     def start(cls, note=''):
-        """Naya audit: sab active products ka abhi ka system stock snapshot."""
+        """New audit: a snapshot of the current system stock of all active products."""
         with transaction.atomic():
             audit = cls.objects.create(note=note)
             products = Product.objects.exclude(is_active=False).order_by('name')
@@ -531,12 +531,12 @@ class StockAudit(models.Model):
 
     def apply(self):
         """
-        Jin products ki ginti (counted) bhari hai unka stock ginti ke barabar kar do.
-        Diff abhi ke stock se nikalta hai (snapshot ke baad bikri hui ho to bhi sahi rahe).
-        Kam ginti: batches se (jo pehle expire ho) ghatata hai. Zyada ginti: 'ADJ-' naya batch banata hai.
+        Set the stock of every product that has a counted quantity to match that count.
+        The difference is computed from the current stock (so it stays correct even if sales happened after the snapshot).
+        Lower count: reduces from batches (earliest expiry first). Higher count: creates a new 'ADJ-' batch.
         """
         if self.status == 'APPLIED':
-            raise ValidationError('Ye audit pehle hi apply ho chuka hai.')
+            raise ValidationError('This audit has already been applied.')
         with transaction.atomic():
             for item in self.items.select_related('product'):
                 if item.counted_qty is None:
@@ -578,8 +578,8 @@ class StockAudit(models.Model):
 class StockAuditItem(models.Model):
     audit = models.ForeignKey(StockAudit, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.PROTECT)
-    system_qty = models.PositiveIntegerField(help_text="Audit shuru hote waqt system me stock (base unit)")
-    counted_qty = models.PositiveIntegerField(null=True, blank=True, help_text="Asli ginti (base unit)")
+    system_qty = models.PositiveIntegerField(help_text="System stock when the audit started (base unit)")
+    counted_qty = models.PositiveIntegerField(null=True, blank=True, help_text="Counted quantity (base unit)")
     system_qty_at_apply = models.PositiveIntegerField(null=True, blank=True, editable=False)
     applied_diff = models.IntegerField(null=True, blank=True, editable=False)
 
@@ -590,7 +590,7 @@ class StockAuditItem(models.Model):
 
 
 # ======================================================
-# AUDIT LOG (kisne kya badla)
+# AUDIT LOG (who changed what)
 # ======================================================
 
 class AuditLog(models.Model):

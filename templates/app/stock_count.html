@@ -4,26 +4,26 @@
 <div class="head">
   <div><h1>🔎 Stock Audit #{{ audit.pk }}
     {% if audit.status == 'APPLIED' %}<span class="badge green">Applied</span>{% else %}<span class="badge amber">Open</span>{% endif %}</h1>
-    <small style="color:var(--mute)">{{ audit.date|date:"d M Y" }}{% if audit.note %} · {{ audit.note }}{% endif %} · Ginti bhari: {{ counted }} / {{ total }}</small></div>
+    <small style="color:var(--mute)">{{ audit.date|date:"d M Y" }}{% if audit.note %} · {{ audit.note }}{% endif %} · Counted: {{ counted }} / {{ total }}</small></div>
   <a class="btn ghost" href="/stock_audits/">← Back</a>
 </div>
-{% if editable %}<div class="msg info">Har product ki asli ginti <b>base unit</b> me bharein (jaise Tablet). Khali chhodne par us product ka stock nahi badlega. Ginti ke waqt billing band rakhein.</div>{% endif %}
+{% if editable %}<div class="msg info">Enter the actual counted quantity of each product in its <b>base unit</b> (e.g. Tablet). Products left blank keep their current stock. Pause billing while counting.</div>{% endif %}
 <form method="get" class="search"><input name="q" value="{{ q }}" placeholder="Product search..."><button class="btn ghost">Search</button></form>
 <form method="post" class="card">{% csrf_token %}
   <div class="tw"><table class="t">
-    <thead><tr><th>Product</th><th style="text-align:right">System stock</th><th style="text-align:right">Asli ginti</th><th style="text-align:right">Farq</th></tr></thead>
+    <thead><tr><th>Product</th><th style="text-align:right">System stock</th><th style="text-align:right">Counted qty</th><th style="text-align:right">Difference</th></tr></thead>
     <tbody>
     {% for it in items %}<tr>
       <td>{{ it.product.name }}{% if it.product.unit %} <small>({{ it.product.unit }})</small>{% endif %}</td>
       <td style="text-align:right">{{ it.system_qty }}</td>
       <td style="text-align:right">{% if editable %}<input type="number" min="0" name="count_{{ it.pk }}" value="{{ it.counted_qty|default_if_none:'' }}" data-sys="{{ it.system_qty }}" class="cnt" style="max-width:120px;text-align:right">{% else %}{{ it.counted_qty|default_if_none:"-" }}{% endif %}</td>
       <td style="text-align:right" class="diff">{% if not editable %}{% if it.applied_diff is not None %}{{ it.applied_diff }}{% else %}-{% endif %}{% endif %}</td>
-    </tr>{% empty %}<tr><td class="empty" colspan="4">Koi product nahi mila.</td></tr>{% endfor %}
+    </tr>{% empty %}<tr><td class="empty" colspan="4">No products found.</td></tr>{% endfor %}
     </tbody>
   </table></div>
   {% if editable %}<div class="bar">
-    <button class="btn" name="action" value="save">💾 Ginti save karo</button>
-    <button class="btn red" name="action" value="apply" onclick="return confirm('Stock ginti ke barabar ho jayega aur ye audit band ho jayega. Pakka?')">✅ Save + Stock adjust (Apply)</button>
+    <button class="btn" name="action" value="save">💾 Save count</button>
+    <button class="btn red" name="action" value="apply" onclick="return confirm('Stock will be set to the counted quantities and this audit will be closed. Continue?')">✅ Save + Stock adjust (Apply)</button>
   </div>{% endif %}
 </form>
 {% endblock %}

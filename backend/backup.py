@@ -1,6 +1,6 @@
 """
-SQLite database ka safe backup (chalte hue DB par bhi theek rehta hai, sqlite3 ka online backup use hota hai).
-Backup .sqlite3.gz file me banta hai. Purane backups apne aap saaf (keep = kitne rakhne hain).
+Safe backup of the SQLite database (works on a live DB; uses the sqlite3 online backup).
+Backups are written as .sqlite3.gz files. Old backups are cleaned up automatically (keep = how many to retain).
 """
 import gzip
 import re
@@ -28,14 +28,14 @@ def backup_dir():
 def _db_path():
     db = settings.DATABASES['default']
     if 'sqlite' not in db['ENGINE']:
-        raise BackupError('Ye backup sirf SQLite ke liye hai. Doosre database ka apna dump tool use karein.')
+        raise BackupError('This backup works only with SQLite. For another database, use its own dump tool.')
     return Path(db['NAME'])
 
 
 def make_backup(keep=14):
     src_path = _db_path()
     if not src_path.exists():
-        raise BackupError('Database file nahi mili.')
+        raise BackupError('Database file not found.')
     name = f"medsync_{datetime.now():%Y%m%d_%H%M%S}.sqlite3.gz"
     target = backup_dir() / name
     with tempfile.TemporaryDirectory() as tmp:
@@ -73,7 +73,7 @@ def prune(keep):
 
 
 def backup_path(name):
-    """Sirf apne banaye hue backup ka path (path traversal se bachav)."""
+    """Path of a backup created by this app only (guards against path traversal)."""
     if not NAME_RE.match(name or ''):
         return None
     p = backup_dir() / name

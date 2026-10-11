@@ -1,32 +1,32 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Dropdown aur Order field ko select karein
+    // Select the dropdown and the Order field
     const modeSelect = document.querySelector('#id_invoice_mode');
-    const orderFieldRow = document.querySelector('.field-order'); // Django admin is class ke andar field rakhta hai
+    const orderFieldRow = document.querySelector('.field-order'); // Django admin places the field inside this class
 
     function toggleFields() {
         if (modeSelect.value === 'offline') {
-            // Agar Offline hai toh Order wale dabbe ko hide kar dein
+            // If Offline, hide the Order field
             if (orderFieldRow) {
                 orderFieldRow.style.display = 'none';
             }
-            // Agar pehle se koi order select tha, toh use clear kar dein
+            // If an order was already selected, clear it
             const orderDropdown = document.querySelector('#id_order');
             if (orderDropdown) {
                 orderDropdown.value = '';
             }
         } else {
-            // Agar Online hai toh Order wale dabbe ko show karein
+            // If Online, show the Order field
             if (orderFieldRow) {
-                orderFieldRow.style.display = ''; // Default display wapas le aayein
+                orderFieldRow.style.display = ''; // Restore default display
             }
         }
     }
 
-    // Page load hone par check karein (Edit karte time kaam aayega)
+    // Check on page load (useful when editing)
     if (modeSelect) {
         toggleFields();
         
-        // Jab bhi dropdown change ho, tab check karein
+        // Check whenever the dropdown changes
         modeSelect.addEventListener('change', toggleFields);
     }
 });

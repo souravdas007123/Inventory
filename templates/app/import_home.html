@@ -2,28 +2,28 @@
 {% block title %}Import / Export{% endblock %}
 {% block content %}
 <div class="head"><h1>📥 Import / Export</h1></div>
-<div class="msg info">Ek-ek karke entry karne ki jagah Excel (.xlsx) ya CSV file se poora data ek saath daalein. Pehle template download karein, bharein, phir upload karein. Upload ke baad pehle <b>preview</b> dikhega, tab tak kuch save nahi hota.</div>
+<div class="msg info">Instead of entering records one by one, add all your data at once from an Excel (.xlsx) or CSV file. Download the template, fill it in, then upload it. A <b>preview</b> is shown after upload, and nothing is saved until you confirm.</div>
 <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))">
   {% for it in items %}
   <div class="card" style="display:flex;flex-direction:column;gap:10px">
     <h3 style="margin:0">{{ it.icon }} {{ it.title }}</h3>
     <p style="margin:0;color:var(--mute);flex:1">{{ it.desc }}</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <a class="btn" href="{% url 'import' it.key %}">⬆ Import karein</a>
+      <a class="btn" href="{% url 'import' it.key %}">⬆ Import</a>
       <a class="btn ghost" href="{% url 'import' it.key %}?template=1">Template</a>
       {% if it.can_export %}<a class="btn ghost" href="{% url 'import' it.key %}?export=xlsx">⬇ Export</a>{% endif %}
     </div>
   </div>
   {% endfor %}
 </div>
-<div class="card" style="margin-top:14px"><h3 style="margin-top:0">Sahi order</h3>
+<div class="card" style="margin-top:14px"><h3 style="margin-top:0">Recommended order</h3>
   <ol style="margin:0;padding-left:20px;line-height:1.8">
-    <li><i>(Optional)</i> <b>Units, Categories, Brands</b> import karein. Products import me ye apne aap bhi ban jate hain</li>
-    <li><b>Suppliers</b> import karein</li>
-    <li><b>Products</b> import karein (naam, unit, GST, MRP, pack)</li>
+    <li><i>(Optional)</i> Import <b>Units, Categories, Brands</b>. They are also created automatically during the Products import</li>
+    <li>Import <b>Suppliers</b></li>
+    <li>Import <b>Products</b> (name, unit, GST, MRP, pack)</li>
     <li><b>Stock Entry</b> se supplier bills / opening stock chadhayein</li>
-    <li><b>Customers</b> import karein (kabhi bhi)</li>
+    <li>Import <b>Customers</b> (any time)</li>
   </ol>
-  <p style="color:var(--mute);margin:10px 0 0">Har list page (Products, Bills, Purchases...) par <b>⬇ Excel</b> / <b>CSV</b> button se wo poori list download ho jati hai.</p>
+  <p style="color:var(--mute);margin:10px 0 0">On every list page (Products, Bills, Purchases...), the <b>⬇ Excel</b> / <b>CSV</b> button downloads the whole list.</p>
 </div>
 {% endblock %}

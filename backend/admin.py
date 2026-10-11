@@ -20,7 +20,7 @@ from .models import (
 
 
 class SafeDeleteMixin:
-    """Bulk delete me bhi har object ka apna delete() chalega (stock/balance sahi rahe)."""
+    """Bulk delete also runs each object's own delete() (so stock/balances stay correct)."""
 
     def delete_queryset(self, request, queryset):
         for obj in queryset:
@@ -28,7 +28,7 @@ class SafeDeleteMixin:
 
 
 class ReadOnlyLedgerMixin:
-    """Auto-generated records: admin se manually add nahi hone chahiye."""
+    """Auto-generated records: should not be added manually from the admin."""
 
     def has_add_permission(self, request):
         return False
@@ -91,13 +91,13 @@ class TransactionAdmin(ReadOnlyLedgerMixin, admin.ModelAdmin):
 # PRODUCT
 # ======================================================
 
-from .imports import UNIT_ALIASES  # noqa: E402  (Excel ke short unit naam -> asli Unit)
+from .imports import UNIT_ALIASES  # noqa: E402  (short unit names from Excel -> actual Unit)
 
 
 class GetOrCreateFKWidget(ForeignKeyWidget):
     """
-    Import me Category/Brand/Unit ka naam agar pehle se nahi hai to khud bana deta hai
-    (spelling/capital ka farak ignore karta hai), warna 'matching query does not exist' aata hai.
+    During import, creates a Category/Brand/Unit automatically if the name does not exist yet
+    (ignoring spelling/case differences); otherwise 'matching query does not exist' is raised.
     """
 
     def clean(self, value, row=None, **kwargs):
@@ -128,7 +128,7 @@ class ProductResource(resources.ModelResource):
         widget=GetOrCreateFKWidget(Unit, field='name'),
     )
 
-    # Stock / batch / SKU system khud sambhalta hai: import se kabhi overwrite nahi hone chahiye
+    # Stock / batch / SKU are managed by the system and must never be overwritten by an import
     PROTECTED = ('stock_qty', 'batch', 'sku')
 
     def import_field(self, field, *args, **kwargs):
@@ -178,7 +178,7 @@ class ProductAdmin(ImportExportModelAdmin):
     stock_packs.short_description = 'Stock (Packs)'
 
     def get_readonly_fields(self, request, obj=None):
-        # Stock/transactions ban chuke ho to base unit badalna khatarnak hai
+        # Changing the base unit is dangerous once stock/transactions exist
         if obj and obj.pk and (
             obj.stock_qty > 0
             or PurchaseItem.objects.filter(product=obj).exists()
@@ -400,12 +400,12 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
     @admin.action(description="Mark selected POs as SENT")
     def mark_as_sent(self, request, queryset):
         count = queryset.update(status='SENT')
-        self.message_user(request, f"{count} PO(s) SENT mark ho gaye.", messages.SUCCESS)
+        self.message_user(request, f"{count} PO(s) marked as SENT.", messages.SUCCESS)
 
     @admin.action(description="Mark selected POs as COMPLETED")
     def mark_as_completed(self, request, queryset):
         count = queryset.update(status='COMPLETED')
-        self.message_user(request, f"{count} PO(s) COMPLETED mark ho gaye.", messages.SUCCESS)
+        self.message_user(request, f"{count} PO(s) marked as COMPLETED.", messages.SUCCESS)
 
 
 @admin.register(ShopProfile)
@@ -417,7 +417,7 @@ class ShopProfileAdmin(admin.ModelAdmin):
 
 
 # ======================================================
-# CUSTOMER / UDHAR
+# CUSTOMER / CREDIT
 # ======================================================
 
 @admin.register(Customer)
@@ -438,8 +438,8 @@ class CustomerPaymentAdmin(admin.ModelAdmin):
 
 
 # ======================================================
-# RETURNS / WRITE-OFF / AUDIT  (stock par asar model.save()/delete() se aata hai, isliye
-# ye records admin me sirf dekhne ke liye hain; naye banane ke liye app ke screens use karein)
+# RETURNS / WRITE-OFF / AUDIT  (stock effects come from model.save()/delete(), so
+# these records are view-only in the admin; use the app screens to create new ones)
 # ======================================================
 
 class ViewOnlyMixin:
@@ -488,7 +488,7 @@ class StockWriteOffAdmin(SafeDeleteMixin, admin.ModelAdmin):
     list_per_page = 10
 
     def has_change_permission(self, request, obj=None):
-        return False   # edit nahi hota; galti ho to delete karke dobara banayein
+        return False   # cannot be edited; if there is a mistake, delete and recreate
 
 
 class StockAuditItemInline(ViewOnlyMixin, admin.TabularInline):

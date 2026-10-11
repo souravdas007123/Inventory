@@ -1,5 +1,5 @@
 """
-Excel / CSV padhne aur banane ke chhote helpers (Django se independent, isliye alag se test ho sakte hain).
+Small helpers to read and build Excel / CSV files (independent of Django, so they can be tested separately).
 """
 import calendar
 import csv
@@ -14,7 +14,7 @@ MAX_BYTES = 5 * 1024 * 1024
 
 
 class ImportFileError(Exception):
-    """File hi padhne layak nahi (galat format, bahut badi, header nahi mila...)."""
+    """The file itself cannot be read (wrong format, too large, no header found...)."""
 
 
 # ------------------------------------------------------------------
@@ -32,11 +32,11 @@ def txt(v):
     if isinstance(v, bool):
         return 'yes' if v else 'no'
     if isinstance(v, float) and v.is_integer():
-        v = int(v)                      # Excel me 9876543210 -> 9876543210.0 na bane
+        v = int(v)                      # so Excel's 9876543210 does not become 9876543210.0
     if isinstance(v, (datetime, date)):
         return v.isoformat()
     s = str(v).strip()
-    if len(s) > 1 and s[0] == "'" and s[1] in '=+@-':   # hamari export ne formula-safe banane ko ' lagaya tha
+    if len(s) > 1 and s[0] == "'" and s[1] in '=+@-':   # our export added ' to make the cell formula-safe
         s = s[1:]
     return s
 
@@ -45,7 +45,7 @@ def to_dec(v, label, errors, required=False, minimum=None, maximum=None):
     s = txt(v)
     if not s:
         if required:
-            errors.append(f"{label} zaroori hai")
+            errors.append(f"{label} is required")
         return None
     s = s.replace('₹', '').replace(',', '').replace('%', '').replace('Rs.', '').replace('Rs', '').strip()
     try:
@@ -53,13 +53,13 @@ def to_dec(v, label, errors, required=False, minimum=None, maximum=None):
         if not d.is_finite():
             raise InvalidOperation
     except InvalidOperation:
-        errors.append(f"{label}: '{txt(v)}' number nahi hai")
+        errors.append(f"{label}: '{txt(v)}' is not a number")
         return None
     if minimum is not None and d < minimum:
-        errors.append(f"{label} {minimum} se kam nahi ho sakta")
+        errors.append(f"{label} cannot be less than {minimum}")
         return None
     if maximum is not None and d > maximum:
-        errors.append(f"{label} {maximum} se zyada nahi ho sakta")
+        errors.append(f"{label} cannot be more than {maximum}")
         return None
     return d
 
@@ -69,7 +69,7 @@ def to_int(v, label, errors, required=False, minimum=None):
     if d is None:
         return None
     if d != d.to_integral_value():
-        errors.append(f"{label}: '{txt(v)}' poora number hona chahiye (decimal nahi)")
+        errors.append(f"{label}: '{txt(v)}' must be a whole number (no decimals)")
         return None
     return int(d)
 
@@ -78,11 +78,11 @@ def to_bool(v, label, errors, default=None):
     s = txt(v).lower()
     if not s:
         return default
-    if s in ('1', 'yes', 'y', 'true', 'haan', 'ha', 'active'):
+    if s in ('1', 'yes', 'y', 'true', 'haan', 'ha', 'active'):  # Hindi spellings are still accepted as input
         return True
     if s in ('0', 'no', 'n', 'false', 'nahi', 'inactive'):
         return False
-    errors.append(f"{label}: 'yes' ya 'no' likhein")
+    errors.append(f"{label}: enter 'yes' or 'no'")
     return default
 
 
@@ -93,8 +93,8 @@ _MONTH_ONLY = ('%m/%Y', '%m/%y', '%m-%Y', '%m-%y', '%b-%y', '%b-%Y', '%b %Y', '%
 
 def to_date(v, label, errors, required=False, month_end=False):
     """
-    Date: 2027-08-31, 31/08/2027, 31-08-27 ... Expiry me aksar sirf mahina likha hota hai (08/27, Aug-27):
-    month_end=True par us mahine ki aakhri tareekh maani jaati hai (expiry), warna pehli.
+    Date: 2027-08-31, 31/08/2027, 31-08-27 ... Expiry often has only the month (08/27, Aug-27):
+    with month_end=True the last day of that month is used (expiry), otherwise the first.
     """
     if isinstance(v, datetime):
         d = v.date()
@@ -104,7 +104,7 @@ def to_date(v, label, errors, required=False, month_end=False):
         s = txt(v)
         if not s:
             if required:
-                errors.append(f"{label} zaroori hai")
+                errors.append(f"{label} is required")
             return None
         d = None
         for fmt in _FULL_DATE:
@@ -122,26 +122,26 @@ def to_date(v, label, errors, required=False, month_end=False):
                 d = date(p.year, p.month, calendar.monthrange(p.year, p.month)[1] if month_end else 1)
                 break
         if d is None:
-            errors.append(f"{label}: '{s}' date samajh nahi aayi (jaise 31/08/2027 ya 08/27 likhein)")
+            errors.append(f"{label}: '{s}' is not a recognised date (use e.g. 31/08/2027 or 08/27)")
             return None
     if not 2000 <= d.year <= 2100:
-        errors.append(f"{label}: saal {d.year} galat lag raha hai")
+        errors.append(f"{label}: the year {d.year} looks wrong")
         return None
     return d
 
 
 # ------------------------------------------------------------------
-# File padhna
+# Reading files
 # ------------------------------------------------------------------
 
 def read_table(upload, max_rows=3000):
     """
-    .xlsx ya .csv se (headers, rows) nikalta hai.
-    headers: normalized naam ki list. rows: [(sheet_row_number, {header: value}), ...]
+    Reads (headers, rows) from an .xlsx or .csv file.
+    headers: list of normalized names. rows: [(sheet_row_number, {header: value}), ...]
     """
     name = (getattr(upload, 'name', '') or '').lower()
     if getattr(upload, 'size', 0) > MAX_BYTES:
-        raise ImportFileError('File 5 MB se badi hai. Isse chhote hisson me baant kar daalein.')
+        raise ImportFileError('The file is larger than 5 MB. Please split it into smaller files.')
 
     if name.endswith(('.xlsx', '.xlsm')):
         try:
@@ -151,7 +151,7 @@ def read_table(upload, max_rows=3000):
             raw = list(itertools.islice(ws.iter_rows(values_only=True), max_rows + 50))
             wb.close()
         except Exception:
-            raise ImportFileError('Excel file padhi nahi ja saki. Template wali .xlsx file hi upload karein.')
+            raise ImportFileError('The Excel file could not be read. Please upload the .xlsx file from the template.')
     elif name.endswith('.csv'):
         data = upload.read()
         try:
@@ -162,16 +162,16 @@ def read_table(upload, max_rows=3000):
         delim = max(',;\t', key=first.count) if first else ','
         raw = list(csv.reader(io.StringIO(text), delimiter=delim))
     elif name.endswith('.xls'):
-        raise ImportFileError("Purani .xls file nahi chalegi. Excel me 'Save As' se .xlsx bana kar daalein.")
+        raise ImportFileError("Old .xls files are not supported. In Excel use 'Save As' to convert it to .xlsx and upload that.")
     else:
-        raise ImportFileError('Sirf .xlsx ya .csv file upload karein.')
+        raise ImportFileError('Please upload an .xlsx or .csv file only.')
 
     def blank(row):
         return all(txt(c) == '' for c in row)
 
     start = next((i for i, r in enumerate(raw) if not blank(r)), None)
     if start is None:
-        raise ImportFileError('File khali hai.')
+        raise ImportFileError('The file is empty.')
     headers = [norm_header(h) for h in raw[start]]
     rows = []
     for i, r in enumerate(raw[start + 1:], start=start + 2):
@@ -179,26 +179,26 @@ def read_table(upload, max_rows=3000):
             continue
         rows.append((i, {h: (r[j] if j < len(r) else None) for j, h in enumerate(headers) if h}))
     if not rows:
-        raise ImportFileError('File me header ke neeche koi data row nahi mili.')
+        raise ImportFileError('No data rows were found below the header.')
     if len(rows) > max_rows:
-        raise ImportFileError(f'Ek baar me zyada se zyada {max_rows} rows import ho sakti hain '
-                              f'(aapki file me {len(rows)} hain). File ko hisson me baant lein.')
+        raise ImportFileError(f'A maximum of {max_rows} rows can be imported at a time '
+                              f'(your file has {len(rows)}). Please split the file into parts.')
     return headers, rows
 
 
 # ------------------------------------------------------------------
-# File banana
+# Building files
 # ------------------------------------------------------------------
 
 def safe_cell(v):
-    """Excel formula injection se bachav: =, +, @ (ya letters ke saath -) se shuru text ke aage ' laga do."""
+    """Protection against Excel formula injection: prefix text starting with =, +, @ (or - followed by letters) with '."""
     if isinstance(v, str) and v and (v[0] in '=+@' or (v[0] == '-' and not re.match(r'-[\d.]', v))):
         return "'" + v
     return v
 
 
 def plain(v):
-    """List page ke HTML cell (badge etc.) ko plain text banata hai."""
+    """Turns a list-page HTML cell (badge etc.) into plain text."""
     if v is None:
         return ''
     s = str(v)
@@ -219,7 +219,7 @@ def _xl_value(v):
 def build_xlsx(sheets):
     """
     sheets: [dict(title, headers, rows, required=set(), widths=None, notes=[...])]
-    required headers amber, baaki grey. notes = sheet ke upar nahi, alag 'Help' sheet jaisa simple rows list.
+    required headers are highlighted, the rest are grey. notes = a simple list of rows like a separate 'Help' sheet.
     """
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Font, PatternFill
@@ -251,7 +251,7 @@ def build_xlsx(sheets):
 
 def build_csv(headers, rows):
     out = io.StringIO()
-    out.write('﻿')                      # Excel me Hindi/₹ sahi dikhe
+    out.write('﻿')                      # so that Hindi/₹ display correctly in Excel
     w = csv.writer(out)
     w.writerow(headers)
     for r in rows:

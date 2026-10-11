@@ -16,7 +16,7 @@
   <h3>{{ inline_title }}</h3>
   {% if key == 'bills' %}
   <div id="scan-box" style="margin-bottom:12px">
-    <input id="scan" type="text" autocomplete="off" placeholder="🔍 Barcode scan karein ya dawa ka naam likhein (Enter dabane par add ho jayega)">
+    <input id="scan" type="text" autocomplete="off" placeholder="🔍 Scan a barcode or type a medicine name (press Enter to add)">
     <div id="scan-results" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
   </div>
   {% endif %}
@@ -50,7 +50,7 @@ function toggleMode() {
 }
 mode.onchange = toggleMode; toggleMode();
 
-// Udhar (credit) bill me hi "Abhi diya" field dikhao
+// Show the "Paid now" field only on credit bills
 const payMode = document.getElementById('id_payment_mode'), paidBox = document.getElementById('id_amount_paid');
 function togglePay() { if (payMode && paidBox) paidBox.closest('.fld').style.display = payMode.value === 'CREDIT' ? '' : 'none'; }
 if (payMode) { payMode.addEventListener('change', togglePay); togglePay(); }
@@ -60,13 +60,13 @@ const scan = document.getElementById('scan'), resBox = document.getElementById('
       rowsBody = document.getElementById('rows');
 const rowField = (tr, name) => tr.querySelector('[name$="-' + name + '"]');
 function addProduct(p) {
-  for (const tr of rowsBody.querySelectorAll('tr')) {          // pehle se row hai to qty +1
+  for (const tr of rowsBody.querySelectorAll('tr')) {          // if the row already exists, qty +1
     const sel = rowField(tr, 'product');
     if (sel && sel.value === String(p.id)) {
       const q = rowField(tr, 'qty'); q.value = (parseInt(q.value || '0', 10) + 1); return;
     }
   }
-  let target = null;                                           // khali row dhundo
+  let target = null;                                           // find an empty row
   for (const tr of rowsBody.querySelectorAll('tr')) {
     const sel = rowField(tr, 'product');
     if (sel && !sel.value) { target = tr; break; }
@@ -100,7 +100,7 @@ async function lookup(q, enter) {
     scan.value = ''; resBox.textContent = ''; return;
   }
   showResults(data.results);
-  if (enter && !data.results.length) resBox.textContent = 'Koi product nahi mila.';
+  if (enter && !data.results.length) resBox.textContent = 'No product found.';
 }
 let scanTimer;
 if (scan) {

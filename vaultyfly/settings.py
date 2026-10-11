@@ -21,7 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 def _load_env_file(path):
-    """Chhota .env loader (koi extra package nahi). Pehle se set environment variable ko override nahi karta."""
+    """Small .env loader (no extra package). Does not override environment variables that are already set."""
     if not path.exists():
         return
     for line in path.read_text(encoding='utf-8').splitlines():
@@ -43,20 +43,20 @@ def env_list(name, default=''):
     return [x.strip() for x in os.environ.get(name, default).split(',') if x.strip()]
 
 
-# SECURITY: DEBUG default me BAND hai. Local development ke liye .env me DJANGO_DEBUG=1 rakhein.
+# SECURITY: DEBUG is OFF by default. For local development, set DJANGO_DEBUG=1 in .env.
 DEBUG = env_bool('DJANGO_DEBUG', False)
 
 _DEV_SECRET_KEY = 'django-insecure-dev-key-change-me'
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY') or _DEV_SECRET_KEY
 if not DEBUG and SECRET_KEY == _DEV_SECRET_KEY:
     raise ImproperlyConfigured(
-        "DJANGO_SECRET_KEY set nahi hai. Production me apni secret key environment variable (ya .env) me daalein. "
-        "Sirf local development ke liye .env me DJANGO_DEBUG=1 rakh sakte hain (.env.example dekhein)."
+        "DJANGO_SECRET_KEY is not set. In production, put your secret key in an environment variable (or .env). "
+        "For local development only, you can set DJANGO_DEBUG=1 in .env (see .env.example)."
     )
 
-# Production me apna domain DJANGO_ALLOWED_HOSTS me daalein (comma se alag), jaise: shop.example.com,www.example.com
+# In production, put your domain in DJANGO_ALLOWED_HOSTS (comma-separated), e.g.: shop.example.com,www.example.com
 ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,[::1]')
-CSRF_TRUSTED_ORIGINS = env_list('DJANGO_CSRF_TRUSTED_ORIGINS')  # jaise: https://shop.example.com
+CSRF_TRUSTED_ORIGINS = env_list('DJANGO_CSRF_TRUSTED_ORIGINS')  # e.g. https://shop.example.com
 
 
 # Application definition
@@ -74,7 +74,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # DEBUG off hone par bhi static files serve karta hai
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # serves static files even when DEBUG is off
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -151,7 +151,7 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-STATIC_ROOT = BASE_DIR / 'staticfiles'   # `python manage.py collectstatic` yahin files banata hai (git me nahi hai)
+STATIC_ROOT = BASE_DIR / 'staticfiles'   # `python manage.py collectstatic` writes the files here (not in git)
 
 STORAGES = {
     'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
@@ -178,11 +178,11 @@ if env_bool('DJANGO_HTTPS', False):
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 3600
-    if env_bool('DJANGO_BEHIND_PROXY', False):  # nginx/Render/Heroku jaise proxy ke peeche
+    if env_bool('DJANGO_BEHIND_PROXY', False):  # behind a proxy such as nginx/Render/Heroku
         SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# ---- Email (alerts aur Purchase Order bhejne ke liye) ----
-# DJANGO_EMAIL_HOST set na ho to email console me print hota hai (test ke liye).
+# ---- Email (for alerts and sending Purchase Orders) ----
+# If DJANGO_EMAIL_HOST is not set, emails are printed to the console (for testing).
 EMAIL_HOST = os.environ.get('DJANGO_EMAIL_HOST', '')
 if EMAIL_HOST:
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -194,10 +194,10 @@ else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = os.environ.get('DJANGO_FROM_EMAIL', 'MedSync <noreply@localhost>')
 
-# Daily alert digest (low stock / expiry) kin ko jaye. Khali ho to Shop Settings ka email use hota hai.
+# Recipients of the daily alert digest (low stock / expiry). If empty, the Shop Settings email is used.
 ALERT_EMAILS = env_list('DJANGO_ALERT_EMAILS')
 
-# Cache: sab workers ke beech shared rahe isliye file based (login lock ke liye zaroori)
+# Cache: file-based so it is shared across all workers (needed for the login lock)
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
@@ -205,5 +205,5 @@ CACHES = {
     }
 }
 
-# Database backups yahan jayenge (DJANGO_BACKUP_DIR se badal sakte hain)
+# Database backups are stored here (can be changed with DJANGO_BACKUP_DIR)
 BACKUP_DIR = Path(os.environ.get('DJANGO_BACKUP_DIR') or (BASE_DIR / 'backups'))

@@ -2,20 +2,20 @@
 {% block title %}Backup{% endblock %}
 {% block content %}
 <div class="head"><h1>💾 Database Backup</h1></div>
-<div class="msg info">Aapka poora data ek database file me hai. Isliye roz ka backup zaroori hai. Backup compress hokar server par <code>{{ folder }}</code> me rakha jata hai, aur sirf latest 14 bachte hain.</div>
+<div class="msg info">All of your data is stored in a single database file, so a daily backup is essential. Backups are compressed and saved on the server in <code>{{ folder }}</code>; only the latest 14 are kept.</div>
 <div class="card" style="margin-bottom:14px">
-  <h3 style="margin-top:0">Abhi backup lein</h3>
+  <h3 style="margin-top:0">Back up now</h3>
   <form method="post" style="display:flex;gap:8px;flex-wrap:wrap">{% csrf_token %}
-    <button class="btn" name="action" value="save">💾 Backup banao</button>
-    <button class="btn ghost" name="action" value="download">⬇ Banao aur apne computer par download karo</button>
+    <button class="btn" name="action" value="save">💾 Create backup</button>
+    <button class="btn ghost" name="action" value="download">⬇ Create and download to my computer</button>
   </form>
-  <p style="color:var(--mute);margin:12px 0 0">Server par rakha backup server ke saath hi khatam ho sakta hai, isliye hafte me ek baar download karke apne computer / Google Drive me rakhein.</p>
+  <p style="color:var(--mute);margin:12px 0 0">A backup kept on the server can be lost along with the server, so download one at least once a week and store it on your computer or Google Drive.</p>
 </div>
 <div class="card" style="margin-bottom:14px">
-  <h3 style="margin-top:0">Roz apne aap backup (PythonAnywhere)</h3>
+  <h3 style="margin-top:0">Automatic daily backup (PythonAnywhere)</h3>
   <ol style="margin:0;padding-left:20px;line-height:1.8">
-    <li>PythonAnywhere me <b>Tasks</b> tab kholein.</li>
-    <li>Daily time chuniye (jaise raat ka koi time) aur ye command daalein:<br><code>~/.virtualenvs/inv/bin/python ~/Inventory/manage.py backup_db</code></li>
+    <li>Open the <b>Tasks</b> tab in PythonAnywhere.</li>
+    <li>Choose a daily time (for example, late at night) and enter this command:<br><code>~/.virtualenvs/inv/bin/python ~/Inventory/manage.py backup_db</code></li>
   </ol>
 </div>
 <div class="card">
@@ -24,8 +24,8 @@
     <thead><tr><th>File</th><th>Kab</th><th>Size</th><th></th></tr></thead>
     {% for b in backups %}<tr><td>{{ b.name }}</td><td>{{ b.when|date:"d M Y, h:i A" }}</td><td>{{ b.size_kb }} KB</td>
       <td><a class="btn ghost sm" href="{% url 'backup_download' b.name %}">⬇ Download</a></td></tr>
-    {% empty %}<tr><td class="empty" colspan="4">Abhi koi backup nahi bana.</td></tr>{% endfor %}
+    {% empty %}<tr><td class="empty" colspan="4">No backups have been created yet.</td></tr>{% endfor %}
   </table></div>
-  <p style="color:var(--mute);margin:12px 0 0">Restore: backup file (.gz) ko unzip karke <code>db.sqlite3</code> ki jagah rakhein, phir site Reload karein. Pehle purani file ka alag backup le lein.</p>
+  <p style="color:var(--mute);margin:12px 0 0">To restore: unzip the backup file (.gz), place it in the location of <code>db.sqlite3</code>, then reload the site. Make a separate copy of the current file first.</p>
 </div>
 {% endblock %}

@@ -1,6 +1,6 @@
 # MedSync — Pharmacy Inventory & Billing (Django)
 
-Medical store ke liye inventory, purchase, GST billing, batch/expiry (FEFO) aur P&L.
+Inventory, purchase, GST billing, batch/expiry (FEFO) and P&L for a medical store.
 
 ## Setup (local)
 
@@ -9,7 +9,7 @@ python -m venv venv
 source venv/bin/activate            # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-cp .env.example .env                # .env me DJANGO_DEBUG=1 rehne dein (local development)
+cp .env.example .env                # keep DJANGO_DEBUG=1 in .env (local development)
 python manage.py migrate
 python manage.py seed_master        # common Units + Categories (optional)
 python manage.py createsuperuser
@@ -20,26 +20,26 @@ App: http://127.0.0.1:8000/ — Admin: http://127.0.0.1:8000/admin/
 
 ## Configuration (environment variables / `.env`)
 
-| Variable | Matlab |
+| Variable | Meaning |
 |---|---|
-| `DJANGO_DEBUG` | `1` = development. **Default band (0)** hai. |
-| `DJANGO_SECRET_KEY` | Production me zaroori (DEBUG band ho to bina iske app start nahi hota). |
-| `DJANGO_ALLOWED_HOSTS` | Comma se alag domains. Default: localhost. |
-| `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://your-domain` (agar HTTPS par chalate ho). |
-| `DJANGO_HTTPS` / `DJANGO_BEHIND_PROXY` | `1` karne par secure cookies + HTTPS redirect. |
+| `DJANGO_DEBUG` | `1` = development. **Off (0) by default.** |
+| `DJANGO_SECRET_KEY` | Required in production (with DEBUG off, the app will not start without it). |
+| `DJANGO_ALLOWED_HOSTS` | Comma-separated domains. Default: localhost. |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://your-domain` (if you serve over HTTPS). |
+| `DJANGO_HTTPS` / `DJANGO_BEHIND_PROXY` | Set to `1` for secure cookies + HTTPS redirect. |
 
-Production me static files ke liye: `python manage.py collectstatic` (files `staticfiles/` me banti hain, git me nahi jaati).
+For static files in production: `python manage.py collectstatic` (files are created in `staticfiles/` and are not committed to git).
 
 ## Project structure
 
 - `backend/models.py` — Product, Batch, Purchase, Bill/InvoiceItem, Payment, Sale, Transaction...
-- `backend/views.py` — custom UI (list/new/edit/delete ek hi config se: `CONFIG`)
-- `backend/reports.py` — Profit & Loss calculation (web page aur admin dono yahin se)
-- `backend/admin.py` — Django admin (import/export ke saath)
+- `backend/views.py` — custom UI (list/new/edit/delete all driven by a single config: `CONFIG`)
+- `backend/reports.py` — Profit & Loss calculation (used by both the web page and the admin)
+- `backend/admin.py` — Django admin (with import/export)
 
 ## Features
 
-- **Customers & udhar**: Customer master, credit limit, payment mode (Cash/UPI/Card/Udhar), partial payment, customer ledger (`/customers/<id>/ledger/`), customer payments.
+- **Customers & credit**: Customer master, credit limit, payment mode (Cash/UPI/Card/Credit), partial payment, customer ledger (`/customers/<id>/ledger/`), customer payments.
 - **Returns**: Sales return (credit note) from the bill list, purchase return (debit note) from the purchase list, expired/damaged stock write-off from the batch list. Stock, batches, supplier/customer balances and P&L adjust automatically. Returns are create-only; delete reverses them.
 - **GST reports** (`/gst/`): GSTR-1 (B2B/B2C/credit notes), GSTR-3B summary, HSN summary, Excel export.
 - **Drug register** (`/drug_register/`): Schedule H/H1/X sales with doctor/patient details, Excel export. Billing enforces these fields for scheduled drugs.
@@ -55,20 +55,20 @@ After pulling: `python manage.py migrate` (migrations 0003, 0004).
 
 Menu: **Master Data → Import / Export** (`/import/`).
 
-- Import: **Products, Customers, Suppliers, Stock Entry (purchases / opening stock), Categories, Brands, Units** — Excel (.xlsx) ya CSV.
-  Template download → bharein → upload → **preview** (kuch save nahi hota) → confirm.
-- Galat rows skip hoti hain aur wajah dikhti hai. Stock Entry me ek invoice ki koi row galat ho to poora invoice skip hota hai; supplier ka same invoice number dobara entry nahi hota.
-- Update mode: "Jo pehle se hain unhe update karo" tick karne par naam / barcode / phone / company se match hokar sirf bhare hue columns badalte hain.
-- Har list page par **⬇ Excel / CSV** (search ke hisaab se poori list). Products / Customers / Suppliers ka export wapas import bhi ho sakta hai.
-- Stock Entry sahi order: Suppliers → Products → Stock Entry.
-- Limits: 5 MB, 3000 rows (Stock Entry 1500). Preview ka temp data server ke temp folder me rehta hai (24 ghante me saaf).
+- Import: **Products, Customers, Suppliers, Stock Entry (purchases / opening stock), Categories, Brands, Units** — Excel (.xlsx) or CSV.
+  Download the template → fill it in → upload → **preview** (nothing is saved) → confirm.
+- Rows with errors are skipped and the reason is shown. In Stock Entry, if any row of an invoice is invalid the whole invoice is skipped; the same supplier invoice number cannot be entered twice.
+- Update mode: when "Update records that already exist" is ticked, rows are matched by name / barcode / phone / company and only the filled-in columns are changed.
+- Every list page has **⬇ Excel / CSV** (the whole list, matching the current search). Exports of Products / Customers / Suppliers can be imported back.
+- Recommended order for Stock Entry: Suppliers → Products → Stock Entry.
+- Limits: 5 MB, 3000 rows (Stock Entry 1500). Preview data is kept in the server's temp folder (cleaned within 24 hours).
 
 ## Backup, Audit Log, Login lock
 
-- **Backup**: Master Data → Backup (staff). Compressed SQLite backup banta hai, latest 14 rehte hain (`DJANGO_BACKUP_DIR` se folder badal sakte hain).
-  Roz apne aap ke liye PythonAnywhere **Tasks** me: `~/.virtualenvs/inv/bin/python ~/Inventory/manage.py backup_db` (`--keep 30` se zyada rakh sakte hain).
-  Restore: `.gz` unzip karke `db.sqlite3` ki jagah rakhein.
-- **Audit Log**: Master Data → Audit Log (staff). Record, edit, delete, bill cancel, returns, write-off, stock audit, import aur backup ka user-wise log. Migration `0005` chalayein.
-- **Login lock**: 5 galat koshish ke baad 15 minute ke liye (IP + username). Cache shared file-cache me hai (`DJANGO_CACHE_DIR` se badal sakte hain). `/admin/` login par ye lock nahi hai.
-- **WhatsApp**: udhar reminder (dashboard aur customer ledger) aur invoice share. Ye wa.me link hai, koi API nahi.
-- **Import**: ab Expenses, Categories, Brands, Units bhi.
+- **Backup**: Master Data → Backup (staff). Creates a compressed SQLite backup; the latest 14 are kept (change the folder with `DJANGO_BACKUP_DIR`).
+  For an automatic daily backup, add this in PythonAnywhere **Tasks**: `~/.virtualenvs/inv/bin/python ~/Inventory/manage.py backup_db` (use `--keep 30` to retain more).
+  Restore: unzip the `.gz` file and place it where `db.sqlite3` is.
+- **Audit Log**: Master Data → Audit Log (staff). A per-user log of record creates, edits, deletes, bill cancellations, returns, write-offs, stock audits, imports and backups. Run migration `0005`.
+- **Login lock**: Login is blocked for 15 minutes after 5 failed attempts (per IP + username). The counter is kept in a shared file cache (change the folder with `DJANGO_CACHE_DIR`). The lock does not apply to the `/admin/` login.
+- **WhatsApp**: credit reminders (dashboard and customer ledger) and invoice sharing. These are wa.me links; no API is needed.
+- **Import**: Expenses, Categories, Brands and Units can also be imported.

@@ -3,7 +3,7 @@ from django.urls import path
 
 from . import security, views, views_extra, views_import
 
-# NOTE: specific paths hamesha neeche wale generic '<str:key>/...' patterns se PEHLE aane chahiye.
+# NOTE: specific paths must always come BEFORE the generic '<str:key>/...' patterns below.
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
     path('login/', security.ThrottledLoginView.as_view(), name='login'),

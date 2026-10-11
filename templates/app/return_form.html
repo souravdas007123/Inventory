@@ -9,18 +9,18 @@
   <div class="grid">
     <div class="fld"><label for="r_date">Return date</label><input id="r_date" type="date" name="date" value="{{ post.date|default:today }}"></div>
     {% if kind == 'sales' %}
-    <div class="fld"><label for="r_mode">Paisa kaise wapas?</label>
+    <div class="fld"><label for="r_mode">How is the money refunded?</label>
       <select id="r_mode" name="refund_mode">
-        <option value="CASH" {% if post.refund_mode == 'CASH' %}selected{% endif %}>Cash / UPI wapas diya</option>
-        {% if can_adjust %}<option value="ADJUST" {% if post.refund_mode == 'ADJUST' %}selected{% endif %}>Customer ke udhar me adjust</option>{% endif %}
+        <option value="CASH" {% if post.refund_mode == 'CASH' %}selected{% endif %}>Refunded in cash / UPI</option>
+        {% if can_adjust %}<option value="ADJUST" {% if post.refund_mode == 'ADJUST' %}selected{% endif %}>Adjust against customer credit</option>{% endif %}
       </select>
-      {% if not can_adjust %}<small>Udhar me adjust ke liye bill par Customer select hona chahiye.</small>{% endif %}</div>
+      {% if not can_adjust %}<small>To adjust against credit, a Customer must be selected on the bill.</small>{% endif %}</div>
     {% endif %}
-    <div class="fld"><label for="r_reason">Reason</label><input id="r_reason" name="reason" maxlength="255" value="{{ post.reason }}" placeholder="Jaise: galat dawa / damaged / expire"></div>
+    <div class="fld"><label for="r_reason">Reason</label><input id="r_reason" name="reason" maxlength="255" value="{{ post.reason }}" placeholder="e.g. wrong medicine / damaged / expired"></div>
   </div>
-  <h3>Kitna wapas ho raha hai?</h3>
+  <h3>Quantity being returned</h3>
   <div class="tw"><table class="t">
-    <thead><tr><th>Item</th><th>{% if kind == 'sales' %}Becha{% else %}Kharida{% endif %}</th><th>Pehle wapas</th><th>Abhi wapas ho sakta hai</th><th>Return qty</th></tr></thead>
+    <thead><tr><th>Item</th><th>{% if kind == 'sales' %}Sold{% else %}Purchased{% endif %}</th><th>Already returned</th><th>Can still return</th><th>Return qty</th></tr></thead>
     <tbody>
     {% for r in rows %}<tr>
       <td>{{ r.name }}{% if r.note %}<br><small>{{ r.note }}</small>{% endif %}</td>
@@ -29,6 +29,6 @@
     </tr>{% endfor %}
     </tbody>
   </table></div>
-  <div class="bar"><button class="btn">↩ Return save karo</button><a class="btn ghost" href="{{ back_url }}">Cancel</a></div>
+  <div class="bar"><button class="btn">↩ Save return</button><a class="btn ghost" href="{{ back_url }}">Cancel</a></div>
 </form>
 {% endblock %}

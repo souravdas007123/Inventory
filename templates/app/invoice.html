@@ -107,7 +107,7 @@ table{width:100%;border-collapse:collapse}
     <tr class="g"><td>Grand Total</td><td class="r">₹{{ grand }}</td></tr>
     <tr><td>Payment</td><td class="r">{{ bill.get_payment_mode_display }}</td></tr>
     {% if bill.payment_mode == 'CREDIT' %}<tr><td>Paid now</td><td class="r">₹{{ bill.amount_paid }}</td></tr>
-    <tr><td><b>Udhar (due)</b></td><td class="r"><b>₹{{ bill.credit_due }}</b></td></tr>{% endif %}
+    <tr><td><b>Credit due</b></td><td class="r"><b>₹{{ bill.credit_due }}</b></td></tr>{% endif %}
   </table>
 
   <div class="words"><b>Amount in words:</b> Rupees {{ words }} Only</div>

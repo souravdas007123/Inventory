@@ -4,7 +4,7 @@
 <div class="head"><h1>{{ cfg.title }}</h1>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
     {% if import_kind %}<a class="btn ghost" href="{% url 'import' import_kind %}">⬆ Import</a>{% endif %}
-    <a class="btn ghost" href="?{{ base }}&export=xlsx" title="Ye poori list (search ke hisaab se) Excel me">⬇ Excel</a>
+    <a class="btn ghost" href="?{{ base }}&export=xlsx" title="Download this whole list (matching the current search) as Excel">⬇ Excel</a>
     <a class="btn ghost" href="?{{ base }}&export=csv">CSV</a>
     {% if cfg.start_url %}<form method="post" action="{{ cfg.start_url }}" style="margin:0">{% csrf_token %}<button class="btn">+ New {{ cfg.one }}</button></form>
     {% elif not cfg.readonly and not cfg.no_new %}<a class="btn" href="{% url 'new' key %}">+ New {{ cfg.one }}</a>{% endif %}
@@ -27,7 +27,7 @@
         {% if key == 'bills' %}
           <a class="btn sm" href="{% url 'invoice' r.pk %}">🖨️ Invoice</a>
           {% if r.obj.status == 'FINAL' %}<a class="btn ghost sm" href="{% url 'sales_return_new' r.pk %}">↩ Return</a>{% endif %}
-          {% if r.obj.status == 'FINAL' and user.is_staff %}<form method="post" action="{% url 'bill_cancel' r.pk %}" style="display:inline" onsubmit="return confirm('Bill cancel karna hai? Stock wapas add ho jayega.')">{% csrf_token %}<button class="btn red sm">Cancel</button></form>{% endif %}
+          {% if r.obj.status == 'FINAL' and user.is_staff %}<form method="post" action="{% url 'bill_cancel' r.pk %}" style="display:inline" onsubmit="return confirm('Cancel this bill? The stock will be added back.')">{% csrf_token %}<button class="btn red sm">Cancel</button></form>{% endif %}
         {% else %}
           {% for a in r.acts %}
             {% if a.post %}<form method="post" action="{{ a.url }}" style="display:inline"{% if a.confirm %} onsubmit="return confirm('{{ a.confirm|escapejs }}')"{% endif %}>{% csrf_token %}<button class="btn {% if a.cls %}{{ a.cls }}{% endif %} sm">{{ a.label }}</button></form>
@@ -35,11 +35,11 @@
           {% endfor %}
           {% if not cfg.readonly %}
             {% if not cfg.no_edit %}<a class="btn ghost sm" href="{% url 'edit' key r.pk %}">Edit</a>{% endif %}
-            <form method="post" action="{% url 'delete' key r.pk %}" style="display:inline" onsubmit="return confirm('Pakka delete karna hai?')">{% csrf_token %}<button class="btn red sm">Delete</button></form>
+            <form method="post" action="{% url 'delete' key r.pk %}" style="display:inline" onsubmit="return confirm('Are you sure you want to delete this?')">{% csrf_token %}<button class="btn red sm">Delete</button></form>
           {% endif %}
         {% endif %}
       </td>{% endif %}
-    </tr>{% empty %}<tr><td class="empty" colspan="9">Abhi kuch nahi mila.</td></tr>{% endfor %}
+    </tr>{% empty %}<tr><td class="empty" colspan="9">Nothing found.</td></tr>{% endfor %}
     </tbody>
   </table></div>
   <div class="pager">

@@ -10,7 +10,7 @@
 </div>
 
 <div class="stats">
-  <div class="card stat"><small>Net Sales (return ke baad, GST ke bina)</small><b>₹{{ sales|floatformat:2 }}</b></div>
+  <div class="card stat"><small>Net Sales (after returns, excluding GST)</small><b>₹{{ sales|floatformat:2 }}</b></div>
   <div class="card stat"><small>Gross Profit</small><b>₹{{ gross|floatformat:2 }}</b></div>
   <div class="card stat"><small>Expenses</small><b style="color:var(--red)">₹{{ expenses|floatformat:2 }}</b></div>
   <div class="card stat"><small>Net Profit / Loss</small>
@@ -19,8 +19,8 @@
 
 <div class="card" style="max-width:640px">
   <table class="t">
-    <tr><td>Total Income (Sales, GST ke bina)</td><td style="text-align:right;color:var(--green)"><b>₹{{ sales|floatformat:2 }}</b></td></tr>
-    <tr><td>Less: Cost of Goods Sold (bika hua maal)</td><td style="text-align:right;color:var(--red)">- ₹{{ cogs|floatformat:2 }}</td></tr>
+    <tr><td>Total Income (Sales, excluding GST)</td><td style="text-align:right;color:var(--green)"><b>₹{{ sales|floatformat:2 }}</b></td></tr>
+    <tr><td>Less: Cost of Goods Sold (items sold)</td><td style="text-align:right;color:var(--red)">- ₹{{ cogs|floatformat:2 }}</td></tr>
     <tr><td><b>Gross Profit</b></td><td style="text-align:right"><b>₹{{ gross|floatformat:2 }}</b></td></tr>
     <tr><td>Less: Other Expenses (Rent, Salary, etc.)</td><td style="text-align:right;color:var(--red)">- ₹{{ expenses|floatformat:2 }}</td></tr>
     <tr><td>Less: Expired / Damaged stock write-off (purchase cost)</td><td style="text-align:right;color:var(--red)">- ₹{{ writeoffs|floatformat:2 }}</td></tr>
@@ -28,7 +28,7 @@
       <td style="text-align:right;color:{% if net >= 0 %}var(--green){% else %}var(--red){% endif %}"><b>₹{{ net|floatformat:2 }}</b></td></tr>
   </table>
   <p style="color:var(--mute);font-size:13px;margin:14px 0 0">
-    Info: is mahine ki total purchase (GST ke bina) ₹{{ purchases|floatformat:2 }} hai. Ye P&amp;L me nahi ginti, kyunki maal abhi stock me ho sakta hai.
+    Info: this month's total purchases (excluding GST) are ₹{{ purchases|floatformat:2 }}. They are not counted in the P&amp;L, because the goods may still be in stock.
   </p>
 </div>
 {% endblock %}

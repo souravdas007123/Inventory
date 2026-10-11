@@ -161,7 +161,7 @@ class Migration(migrations.Migration):
                 ('sku', models.CharField(blank=True, editable=False, max_length=50, null=True, unique=True)),
                 ('gst_rate', models.DecimalField(choices=[(5.0, '5%'), (18.0, '18%')], decimal_places=2, default=18.0, max_digits=4, verbose_name='GST (%)')),
                 ('stock_qty', models.PositiveIntegerField(default=0, editable=False, verbose_name='Stock')),
-                ('reorder_level', models.PositiveIntegerField(default=5, help_text='Base unit me')),
+                ('reorder_level', models.PositiveIntegerField(default=5, help_text='In base unit')),
                 ('location', models.CharField(blank=True, max_length=100, null=True, verbose_name='Location/Godown')),
                 ('rack', models.CharField(blank=True, max_length=50, null=True, verbose_name='Rack No.')),
                 ('row', models.CharField(blank=True, max_length=50, null=True, verbose_name='Row No.')),
@@ -169,7 +169,7 @@ class Migration(migrations.Migration):
                 ('brand', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='backend.brand')),
                 ('category', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='backend.category')),
                 ('default_supplier', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='backend.supplier', verbose_name='Default Supplier for PO')),
-                ('unit', models.ForeignKey(blank=True, help_text='Sabse chhoti unit (e.g. Tablet). Stock hamesha isi me store hota hai.', null=True, on_delete=django.db.models.deletion.SET_NULL, to='backend.unit', verbose_name='Base Unit')),
+                ('unit', models.ForeignKey(blank=True, help_text='Smallest unit (e.g. Tablet). Stock is always stored in this unit.', null=True, on_delete=django.db.models.deletion.SET_NULL, to='backend.unit', verbose_name='Base Unit')),
             ],
             options={
                 'verbose_name': '05. Product',
@@ -186,7 +186,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('batch_history', models.JSONField(blank=True, default=dict, null=True)),
-                ('rate', models.DecimalField(blank=True, decimal_places=2, help_text='Rate chuni hui unit ke hisaab se', max_digits=10, null=True)),
+                ('rate', models.DecimalField(blank=True, decimal_places=2, help_text='Rate per the selected unit', max_digits=10, null=True)),
                 ('qty', models.IntegerField(blank=True, null=True)),
                 ('unit_factor', models.PositiveIntegerField(default=1, editable=False)),
                 ('base_qty', models.PositiveIntegerField(default=0, editable=False, verbose_name='Qty (base unit)')),
@@ -202,7 +202,7 @@ class Migration(migrations.Migration):
                 ('total', models.DecimalField(blank=True, decimal_places=2, editable=False, max_digits=10, null=True)),
                 ('bill', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='items', to='backend.bill')),
                 ('product', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='backend.product')),
-                ('unit', models.ForeignKey(blank=True, help_text='Khali chhodne par product ki base unit maani jayegi', null=True, on_delete=django.db.models.deletion.SET_NULL, to='backend.unit')),
+                ('unit', models.ForeignKey(blank=True, help_text='If left blank, the product\'s base unit is used', null=True, on_delete=django.db.models.deletion.SET_NULL, to='backend.unit')),
             ],
         ),
         migrations.CreateModel(
@@ -215,7 +215,7 @@ class Migration(migrations.Migration):
                 ('qty', models.IntegerField(verbose_name='Qty')),
                 ('unit_factor', models.PositiveIntegerField(default=1, editable=False)),
                 ('base_qty', models.PositiveIntegerField(default=0, editable=False, verbose_name='Qty (base unit)')),
-                ('purchase_price', models.IntegerField(blank=True, null=True, verbose_name='Price (GST ke saath total)')),
+                ('purchase_price', models.IntegerField(blank=True, null=True, verbose_name='Price (total incl. GST)')),
                 ('rate', models.DecimalField(decimal_places=2, default=0, editable=False, max_digits=10, verbose_name='Rate (per base unit)')),
                 ('tax', models.DecimalField(decimal_places=2, default=0, editable=False, max_digits=10, verbose_name='Taxable Value')),
                 ('gst', models.DecimalField(decimal_places=2, default=0, editable=False, max_digits=10)),
@@ -228,7 +228,7 @@ class Migration(migrations.Migration):
                 ('composition', models.CharField(blank=True, help_text='Example: Paracetamol 500mg', max_length=255, null=True)),
                 ('product', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='backend.product')),
                 ('purchase', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='items', to='backend.purchase')),
-                ('unit', models.ForeignKey(blank=True, help_text='Khali chhodne par product ki base unit maani jayegi', null=True, on_delete=django.db.models.deletion.SET_NULL, to='backend.unit')),
+                ('unit', models.ForeignKey(blank=True, help_text='If left blank, the product\'s base unit is used', null=True, on_delete=django.db.models.deletion.SET_NULL, to='backend.unit')),
             ],
             options={
                 'verbose_name': 'Purchase Item',
@@ -239,7 +239,7 @@ class Migration(migrations.Migration):
             name='PurchaseOrderItem',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('order_qty', models.PositiveIntegerField(default=10, help_text='Base unit me quantity')),
+                ('order_qty', models.PositiveIntegerField(default=10, help_text='Quantity in base unit')),
                 ('product', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='backend.product')),
                 ('purchase_order', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='items', to='backend.purchaseorder')),
             ],
@@ -308,7 +308,7 @@ class Migration(migrations.Migration):
             name='ProductUnit',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('factor', models.PositiveIntegerField(help_text='1 is unit me kitni base unit hoti hain (e.g. 1 Strip = 15 Tablet to 15)', validators=[django.core.validators.MinValueValidator(1)])),
+                ('factor', models.PositiveIntegerField(help_text='How many base units are in 1 of this unit (e.g. 1 Strip = 15 Tablets, so enter 15)', validators=[django.core.validators.MinValueValidator(1)])),
                 ('product', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='unit_conversions', to='backend.product')),
                 ('unit', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='backend.unit', verbose_name='Bada Unit (Strip/Box)')),
             ],

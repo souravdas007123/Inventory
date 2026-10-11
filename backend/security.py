@@ -1,4 +1,4 @@
-"""Login par galat password ki baar-baar koshish rokna (brute-force)."""
+"""Blocks repeated wrong-password attempts at login (brute force)."""
 import hashlib
 import os
 
@@ -18,7 +18,7 @@ def client_ip(request):
 
 
 class ThrottledLoginView(LoginView):
-    """5 galat koshish ke baad 15 minute ke liye (IP + username par) login band."""
+    """Login is blocked for 15 minutes (per IP + username) after 5 failed attempts."""
     template_name = 'app/login.html'
 
     def _key(self):
@@ -28,7 +28,7 @@ class ThrottledLoginView(LoginView):
 
     def post(self, request, *args, **kwargs):
         if cache.get(self._key(), 0) >= MAX_ATTEMPTS:
-            form = self.get_form_class()(request=request)          # unbound: dobara authenticate nahi hoga
+            form = self.get_form_class()(request=request)          # unbound: will not authenticate again
             resp = self.render_to_response(self.get_context_data(form=form, locked=True))
             resp.status_code = 429
             return resp

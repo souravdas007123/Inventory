@@ -1,11 +1,11 @@
 """
 Bulk import: Products, Customers, Suppliers, Stock-in (Purchases).
 
-Flow (har importer ke liye same):
-  1. validate()  -> file ki har row check hoti hai, DB me kuch nahi likhta (preview ke liye)
-  2. stash()     -> saaf ki hui rows temp file me
-  3. commit()    -> sirf sahi rows save hoti hain (har row/invoice apne transaction me, model ke save() se,
-                    isliye stock / batch / supplier balance / ledger sab apne aap sahi bante hain)
+Flow (the same for every importer):
+  1. validate()  -> checks every row of the file, writes nothing to the DB (for the preview)
+  2. stash()     -> cleaned rows saved to a temp file
+  3. commit()    -> only valid rows are saved (each row/invoice in its own transaction, via the model's save(),
+                    so stock / batch / supplier balance / ledger are all produced correctly)
 """
 import json
 import os
@@ -28,7 +28,7 @@ from .models import (
 )
 from .tabular import build_csv, build_xlsx, plain, to_bool, to_date, to_dec, to_int, txt
 
-# Excel me aksar short naam likhe hote hain. Ye unhe sahi Unit se jod deta hai.
+# Excel files often use short names. This maps them to the correct Unit.
 UNIT_ALIASES = {
     'pcs': 'Piece', 'pc': 'Piece', 'pieces': 'Piece', 'nos': 'Piece', 'no': 'Piece',
     'tab': 'Tablet', 'tabs': 'Tablet', 'tablets': 'Tablet',
@@ -69,7 +69,7 @@ def _result(n, action, data=None, errors=None, warnings=None, label=''):
 
 
 def _fk(model, name):
-    """Naam se Category/Brand/Unit lo, na mile to bana do (iexact)."""
+    """Get a Category/Brand/Unit by name, creating it if missing (iexact)."""
     name = (name or '').strip()
     if not name:
         return None
@@ -81,26 +81,26 @@ def _fk(model, name):
 # ======================================================
 
 PRODUCT_COLS = [
-    _col('name', True, 'Dawa ka naam', 'Dolo 650', 'Azithral 500'),
-    _col('unit', True, 'Sabse chhoti unit (stock isi me count hota hai): Tablet, Capsule, Bottle, ML...', 'Tablet', 'Tablet'),
-    _col('gst_rate', True, 'GST %: sirf 0, 5, 12 ya 18', '12', '12'),
+    _col('name', True, 'Medicine name', 'Dolo 650', 'Azithral 500'),
+    _col('unit', True, 'Smallest unit (stock is counted in this): Tablet, Capsule, Bottle, ML...', 'Tablet', 'Tablet'),
+    _col('gst_rate', True, 'GST %: only 0, 5, 12 or 18', '12', '12'),
     _col('composition', False, 'Salt / composition', 'Paracetamol 650mg', 'Azithromycin 500mg'),
     _col('hsn_code', False, 'HSN code', '3004', '3004'),
-    _col('category', False, 'Category (nayi ho to bana di jayegi)', 'Tablet', 'Tablet'),
-    _col('brand', False, 'Brand / company (nayi ho to bana di jayegi)', 'Micro Labs', 'Alembic'),
-    _col('mrp', False, 'MRP / sale rate per base unit (billing me yahi rate bharta hai)', '2.10', '19.50'),
-    _col('barcode', False, 'Barcode (har product ka alag)', '8901234567890', ''),
-    _col('schedule', False, 'Drug schedule: khali/NONE, H, H1 ya X', '', 'H'),
-    _col('reorder_level', False, 'Itna ya kam stock bache to low-stock alert (base unit me). Khali = 5', '100', '50'),
+    _col('category', False, 'Category (created if it is new)', 'Tablet', 'Tablet'),
+    _col('brand', False, 'Brand / company (created if it is new)', 'Micro Labs', 'Alembic'),
+    _col('mrp', False, 'MRP / sale rate per base unit (used as the rate in billing)', '2.10', '19.50'),
+    _col('barcode', False, 'Barcode (unique for each product)', '8901234567890', ''),
+    _col('schedule', False, 'Drug schedule: blank/NONE, H, H1 or X', '', 'H'),
+    _col('reorder_level', False, 'Low-stock alert when stock falls to this level or below (in base unit). Blank = 5', '100', '50'),
     _col('rack', False, 'Rack', 'A1', 'A2'),
     _col('row', False, 'Row', '2', '1'),
     _col('location', False, 'Godown / location', 'Counter', 'Counter'),
-    _col('default_supplier', False, 'Supplier ka naam (pehle se Suppliers me hona chahiye)', '', ''),
-    _col('pack1_unit', False, 'Bada pack, jaise Strip', 'Strip', 'Strip'),
-    _col('pack1_factor', False, '1 pack1 me kitni base unit (jaise 15)', '15', '5'),
-    _col('pack2_unit', False, 'Doosra bada pack, jaise Box', 'Box', ''),
-    _col('pack2_factor', False, '1 pack2 me kitni base unit (jaise 150)', '150', ''),
-    _col('is_active', False, 'yes / no (khali = yes)', 'yes', 'yes'),
+    _col('default_supplier', False, 'Supplier name (must already exist in Suppliers)', '', ''),
+    _col('pack1_unit', False, 'Larger pack, e.g. Strip', 'Strip', 'Strip'),
+    _col('pack1_factor', False, 'Base units in 1 pack1 (e.g. 15)', '15', '5'),
+    _col('pack2_unit', False, 'Second larger pack, e.g. Box', 'Box', ''),
+    _col('pack2_factor', False, 'Base units in 1 pack2 (e.g. 150)', '150', ''),
+    _col('is_active', False, 'yes / no (blank = yes)', 'yes', 'yes'),
 ]
 PRODUCT_ALIASES = {
     'product': 'name', 'product_name': 'name', 'medicine': 'name', 'medicine_name': 'name', 'item': 'name',
@@ -124,23 +124,23 @@ def validate_products(rows, opts):
         errors, warnings = [], []
         name = txt(raw.get('name'))
         if not name:
-            errors.append('name zaroori hai')
+            errors.append('name is required')
         barcode = txt(raw.get('barcode')) or None
         if barcode and len(barcode) > 64:
-            errors.append('barcode 64 characters se bada hai')
+            errors.append('barcode is longer than 64 characters')
 
         pb = by_barcode.get(barcode) if barcode else None
         pn = by_name.get(name.lower()) if name else None
         if pb and pn and pb.pk != pn.pk:
-            errors.append(f"barcode '{barcode}' kisi aur product ('{pb.name}') ka hai")
+            errors.append(f"barcode '{barcode}' belongs to another product ('{pb.name}')")
         if pb and not pn and name and (pb.name or '').strip().lower() != name.lower():
-            errors.append(f"barcode '{barcode}' system me '{pb.name}' ka hai, file me naam alag hai. Naam/barcode check karein")
+            errors.append(f"barcode '{barcode}' belongs to '{pb.name}' in the system, but the name in the file is different. Please check the name/barcode")
         existing = pb or pn
 
         if name and name.lower() in seen_name:
-            errors.append(f"is naam ki row {seen_name[name.lower()]} pehle aa chuki hai (file me duplicate)")
+            errors.append(f"a row with this name already appears at row {seen_name[name.lower()]} (duplicate in file)")
         if barcode and barcode in seen_code:
-            errors.append(f"barcode '{barcode}' row {seen_code[barcode]} me bhi hai")
+            errors.append(f"barcode '{barcode}' also appears in row {seen_code[barcode]}")
         if name:
             seen_name.setdefault(name.lower(), n)
         if barcode:
@@ -148,23 +148,23 @@ def validate_products(rows, opts):
 
         unit = _unit_name(raw.get('unit'))
         if not unit and not existing:
-            errors.append('unit zaroori hai (jaise Tablet)')
+            errors.append('unit is required (e.g. Tablet)')
         gst = to_dec(raw.get('gst_rate'), 'gst_rate', errors, required=not existing)
         if gst is not None and gst not in GST_ALLOWED:
-            errors.append(f"gst_rate {gst} nahi chalega, sirf 0, 5, 12 ya 18")
+            errors.append(f"gst_rate {gst} is not allowed; use only 0, 5, 12 or 18")
         mrp = to_dec(raw.get('mrp'), 'mrp', errors, minimum=Decimal('0'))
         reorder = to_int(raw.get('reorder_level'), 'reorder_level', errors, minimum=0)
 
         sched_raw = txt(raw.get('schedule')).lower()
         schedule = SCHEDULE_MAP.get(sched_raw, 'BAD')
         if schedule == 'BAD':
-            errors.append(f"schedule '{txt(raw.get('schedule'))}' galat hai (NONE, H, H1 ya X)")
+            errors.append(f"schedule '{txt(raw.get('schedule'))}' is invalid (NONE, H, H1 or X)")
             schedule = None
 
         sup_name = txt(raw.get('default_supplier'))
         sup = suppliers.get(sup_name.lower()) if sup_name else None
         if sup_name and not sup:
-            errors.append(f"supplier '{sup_name}' Suppliers me nahi mila")
+            errors.append(f"supplier '{sup_name}' was not found in Suppliers")
 
         base_name = unit or (existing.unit.name if existing and existing.unit_id else '')
         packs = []
@@ -173,13 +173,13 @@ def validate_products(rows, opts):
             pf = to_int(raw.get(f'pack{i}_factor'), f'pack{i}_factor', errors, minimum=2)
             if pu or pf is not None:
                 if not pu or pf is None:
-                    errors.append(f'pack{i}_unit aur pack{i}_factor dono bharein')
+                    errors.append(f'fill in both pack{i}_unit and pack{i}_factor')
                 elif pu.lower() == base_name.lower():
-                    errors.append(f"pack{i}_unit base unit ('{base_name}') se alag hona chahiye")
+                    errors.append(f"pack{i}_unit must be different from the base unit ('{base_name}')")
                 else:
                     packs.append([pu, pf])
         if len(packs) == 2 and packs[0][0].lower() == packs[1][0].lower():
-            errors.append('pack1 aur pack2 ki unit alag-alag honi chahiye')
+            errors.append('pack1 and pack2 must use different units')
 
         active = to_bool(raw.get('is_active'), 'is_active', errors)
 
@@ -197,7 +197,7 @@ def validate_products(rows, opts):
         elif existing:
             action = 'update' if update else 'skip'
             if action == 'skip':
-                warnings.append('pehle se hai, chhod diya (update ke liye "Jo pehle se hain unhe update karo" tick karein)')
+                warnings.append('already exists, skipped (tick "Update records that already exist" to update it)')
         else:
             action = 'create'
         results.append(_result(n, action, data, errors, warnings, label=name))
@@ -266,12 +266,12 @@ def export_products():
 # ======================================================
 
 CUSTOMER_COLS = [
-    _col('name', True, 'Customer ka naam', 'Ramesh Kumar', 'Sharma Medical'),
+    _col('name', True, 'Customer name', 'Ramesh Kumar', 'Sharma Medical'),
     _col('phone', False, 'Mobile number', '9876543210', '9123456789'),
     _col('address', False, 'Pata', 'Salt Lake, Kolkata', ''),
-    _col('gstin', False, '15 character GSTIN (B2B ke liye)', '', '19ABCDE1234F1Z5'),
-    _col('credit_limit', False, 'Udhar ki limit (0 / khali = koi limit nahi)', '5000', '0'),
-    _col('is_active', False, 'yes / no (khali = yes)', 'yes', 'yes'),
+    _col('gstin', False, '15-character GSTIN (for B2B)', '', '19ABCDE1234F1Z5'),
+    _col('credit_limit', False, 'Credit limit (0 / blank = no limit)', '5000', '0'),
+    _col('is_active', False, 'yes / no (blank = yes)', 'yes', 'yes'),
 ]
 CUSTOMER_ALIASES = {'customer': 'name', 'customer_name': 'name', 'mobile': 'phone', 'mobile_no': 'phone',
                     'phone_number': 'phone', 'contact': 'phone', 'limit': 'credit_limit', 'gst': 'gstin',
@@ -281,7 +281,7 @@ CUSTOMER_ALIASES = {'customer': 'name', 'customer_name': 'name', 'mobile': 'phon
 def _gstin(raw, errors):
     g = txt(raw).upper().replace(' ', '')
     if g and len(g) != 15:
-        errors.append(f"GSTIN '{g}' 15 characters ka hona chahiye")
+        errors.append(f"GSTIN '{g}' must be 15 characters")
         return ''
     return g
 
@@ -298,13 +298,13 @@ def validate_customers(rows, opts):
         errors, warnings = [], []
         name = txt(raw.get('name'))
         if not name:
-            errors.append('name zaroori hai')
+            errors.append('name is required')
         phone = txt(raw.get('phone'))
         if phone and len(_digits(phone)) < 10:
-            errors.append(f"phone '{phone}' me 10 digit hone chahiye")
+            errors.append(f"phone '{phone}' must have 10 digits")
         key = _digits(phone) or name.lower()
         if key and key in seen:
-            errors.append(f"ye customer row {seen[key]} me bhi hai (file me duplicate)")
+            errors.append(f"this customer also appears in row {seen[key]} (duplicate in file)")
         if key:
             seen.setdefault(key, n)
         existing = (by_phone.get(_digits(phone)) if _digits(phone) else None) or by_name.get(name.lower())
@@ -318,7 +318,7 @@ def validate_customers(rows, opts):
         elif existing:
             action = 'update' if update else 'skip'
             if action == 'skip':
-                warnings.append('pehle se hai, chhod diya')
+                warnings.append('already exists, skipped')
         else:
             action = 'create'
         results.append(_result(n, action, data, errors, warnings, label=name))
@@ -354,14 +354,14 @@ def export_customers():
 # ======================================================
 
 SUPPLIER_COLS = [
-    _col('company', True, 'Supplier / company ka naam', 'ABC Pharma Distributors', 'XYZ Medico'),
+    _col('company', True, 'Supplier / company name', 'ABC Pharma Distributors', 'XYZ Medico'),
     _col('person', False, 'Contact person', 'Rakesh', ''),
     _col('phone', False, 'Phone', '9876500000', ''),
     _col('email', False, 'Email', 'abc@example.com', ''),
     _col('address', False, 'Pata', 'Burrabazar', ''),
     _col('city', False, 'Sheher', 'Kolkata', 'Howrah'),
-    _col('gstin', False, '15 character GSTIN (state / PAN apne aap nikal jayega)', '19ABCDE1234F1Z5', ''),
-    _col('is_active', False, 'yes / no (khali = yes)', 'yes', 'yes'),
+    _col('gstin', False, '15-character GSTIN (state / PAN are filled in automatically)', '19ABCDE1234F1Z5', ''),
+    _col('is_active', False, 'yes / no (blank = yes)', 'yes', 'yes'),
 ]
 SUPPLIER_ALIASES = {'supplier': 'company', 'supplier_name': 'company', 'name': 'company', 'company_name': 'company',
                     'contact_person': 'person', 'mobile': 'phone', 'gst': 'gstin', 'gst_no': 'gstin'}
@@ -376,9 +376,9 @@ def validate_suppliers(rows, opts):
         errors, warnings = [], []
         company = txt(raw.get('company'))
         if not company:
-            errors.append('company zaroori hai')
+            errors.append('company is required')
         if company and company.lower() in seen:
-            errors.append(f"ye supplier row {seen[company.lower()]} me bhi hai (file me duplicate)")
+            errors.append(f"this supplier also appears in row {seen[company.lower()]} (duplicate in file)")
         if company:
             seen.setdefault(company.lower(), n)
         existing = by_name.get(company.lower()) if company else None
@@ -386,14 +386,14 @@ def validate_suppliers(rows, opts):
         if gstin:
             other = by_gstin.get(gstin)
             if (other and (not existing or other.pk != existing.pk)) or (gstin in seen_g and seen_g[gstin] != n):
-                errors.append(f"GSTIN '{gstin}' kisi aur supplier ka hai (har supplier ka GSTIN alag hota hai)")
+                errors.append(f"GSTIN '{gstin}' belongs to another supplier (every supplier has a unique GSTIN)")
             seen_g.setdefault(gstin, n)
         email = txt(raw.get('email'))
         if email:
             try:
                 validate_email(email)
             except ValidationError:
-                errors.append(f"email '{email}' sahi nahi hai")
+                errors.append(f"email '{email}' is not valid")
         data = dict(existing_id=existing.pk if existing else None, company=company, person=txt(raw.get('person')),
                     phone=txt(raw.get('phone')), email=email, address=txt(raw.get('address')),
                     city=txt(raw.get('city')), gstin=gstin,
@@ -403,7 +403,7 @@ def validate_suppliers(rows, opts):
         elif existing:
             action = 'update' if update else 'skip'
             if action == 'skip':
-                warnings.append('pehle se hai, chhod diya')
+                warnings.append('already exists, skipped')
         else:
             action = 'create'
         results.append(_result(n, action, data, errors, warnings, label=company))
@@ -437,15 +437,15 @@ def export_suppliers():
 # ======================================================
 
 STOCK_COLS = [
-    _col('supplier', True, 'Supplier ka naam (pehle se Suppliers me hona chahiye)', 'ABC Pharma Distributors', 'ABC Pharma Distributors'),
-    _col('invoice_number', True, 'Supplier ke bill ka number. Ek bill ki sab rows me same likhein', 'INV-1001', 'INV-1001'),
-    _col('product', True, 'Dawa ka naam ya barcode (pehle se Products me hona chahiye)', 'Dolo 650', 'Azithral 500'),
-    _col('qty', True, 'Quantity (neeche di unit me)', '20', '10'),
-    _col('purchase_price', True, 'Is row ki TOTAL price, GST ke saath (per-piece rate nahi)', '2100', '1850'),
+    _col('supplier', True, 'Supplier name (must already exist in Suppliers)', 'ABC Pharma Distributors', 'ABC Pharma Distributors'),
+    _col('invoice_number', True, 'The supplier\'s bill number. Use the same value on every row of one bill', 'INV-1001', 'INV-1001'),
+    _col('product', True, 'Medicine name or barcode (must already exist in Products)', 'Dolo 650', 'Azithral 500'),
+    _col('qty', True, 'Quantity (in the unit given below)', '20', '10'),
+    _col('purchase_price', True, 'TOTAL price of this row, including GST (not the per-piece rate)', '2100', '1850'),
     _col('exp_date', True, 'Expiry: 31/08/2027 ya 08/27', '08/27', '12/26'),
-    _col('invoice_date', False, 'Bill ki date (khali = aaj). Ek bill me same rakhein', '05/10/2026', '05/10/2026'),
-    _col('unit', False, 'qty kis unit me hai, jaise Strip (khali = product ki base unit)', 'Strip', 'Strip'),
-    _col('batch', False, 'Batch number (khali = apne aap ban jayega)', 'B2301', 'AZ778'),
+    _col('invoice_date', False, 'Bill date (blank = today). Keep it the same within one bill', '05/10/2026', '05/10/2026'),
+    _col('unit', False, 'Unit of the qty, e.g. Strip (blank = the product\'s base unit)', 'Strip', 'Strip'),
+    _col('batch', False, 'Batch number (blank = generated automatically)', 'B2301', 'AZ778'),
     _col('mfg_date', False, 'Manufacturing date', '09/25', '06/25'),
     _col('rack', False, 'Rack', 'A1', 'A2'),
     _col('row', False, 'Row', '2', '1'),
@@ -478,19 +478,19 @@ def validate_stock(rows, opts):
         sup_name = txt(raw.get('supplier'))
         sup = suppliers.get(sup_name.lower()) if sup_name else None
         if not sup_name:
-            errors.append('supplier zaroori hai')
+            errors.append('supplier is required')
         elif not sup:
-            errors.append(f"supplier '{sup_name}' nahi mila (pehle Suppliers import/add karein)")
+            errors.append(f"supplier '{sup_name}' was not found (import/add Suppliers first)")
         invoice = txt(raw.get('invoice_number'))
         if not invoice:
-            errors.append('invoice_number zaroori hai')
+            errors.append('invoice_number is required')
 
         pname = txt(raw.get('product'))
         prod = (products_by_code.get(pname) or products_by_name.get(pname.lower())) if pname else None
         if not pname:
-            errors.append('product zaroori hai')
+            errors.append('product is required')
         elif not prod:
-            errors.append(f"product '{pname}' nahi mila (pehle Products import/add karein)")
+            errors.append(f"product '{pname}' was not found (import/add Products first)")
 
         qty = to_int(raw.get('qty'), 'qty', errors, required=True, minimum=1)
         price = to_dec(raw.get('purchase_price'), 'purchase_price', errors, required=True, minimum=Decimal('0'))
@@ -498,18 +498,18 @@ def validate_stock(rows, opts):
         mfg = to_date(raw.get('mfg_date'), 'mfg_date', errors)
         inv_date = to_date(raw.get('invoice_date'), 'invoice_date', errors) or today
         if mfg and exp and exp < mfg:
-            errors.append('exp_date, mfg_date se pehle nahi ho sakti')
+            errors.append('exp_date cannot be before mfg_date')
         if exp and exp < today:
-            warnings.append('ye batch pehle se expire hai')
+            warnings.append('this batch has already expired')
         if inv_date > today:
-            errors.append('invoice_date aage ki nahi ho sakti')
+            errors.append('invoice_date cannot be in the future')
 
         unit_name = _unit_name(raw.get('unit'))
         unit = None
         if unit_name:
             unit = units.get(unit_name.lower())
             if not unit:
-                errors.append(f"unit '{unit_name}' system me nahi hai")
+                errors.append(f"unit '{unit_name}' does not exist in the system")
         if prod and not errors:
             try:
                 prod.unit_factor(unit)
@@ -519,10 +519,10 @@ def validate_stock(rows, opts):
         gkey = ((sup.pk if sup else sup_name.lower()), invoice.lower())
         if sup and invoice:
             if (sup.pk, invoice.lower()) in existing_invoices:
-                errors.append(f"is supplier ka invoice '{invoice}' pehle se entered hai (double entry se bachne ke liye)")
+                errors.append(f"invoice '{invoice}' for this supplier has already been entered (to avoid double entry)")
             first = group_date.setdefault(gkey, (inv_date, n))
             if first[0] != inv_date and txt(raw.get('invoice_date')):
-                errors.append(f"is invoice ki date row {first[1]} se alag hai; ek invoice ki ek hi date hogi")
+                errors.append(f"the date of this invoice differs from row {first[1]}; one invoice can have only one date")
         groups.setdefault(gkey, []).append(len(results))
 
         data = dict(
@@ -538,14 +538,14 @@ def validate_stock(rows, opts):
         results.append(_result(n, 'error' if errors else 'create', data, errors, warnings,
                                label=f"{invoice} · {data['product']}"))
 
-    # Ek invoice ki koi bhi row galat ho to poora invoice skip (adhura bill stock me na chadhe)
+    # If any row of an invoice is invalid, the whole invoice is skipped (so a half bill is never added to stock)
     for idxs in groups.values():
         if any(results[i]['action'] == 'error' for i in idxs):
             first_bad = next(results[i]['n'] for i in idxs if results[i]['action'] == 'error')
             for i in idxs:
                 if results[i]['action'] != 'error':
                     results[i]['action'] = 'error'
-                    results[i]['errors'].append(f"is invoice ki row {first_bad} me galti hai, isliye poora invoice skip")
+                    results[i]['errors'].append(f"row {first_bad} of this invoice has an error, so the whole invoice is skipped")
     return results
 
 
@@ -582,7 +582,7 @@ def commit_stock(results, opts):
             msg = ' '.join(e.messages) if isinstance(e, ValidationError) else str(e)
             for r in rs:
                 summary['failed'].append((r['n'], f"invoice '{d0['invoice']}': {msg}"))
-    summary['notes'].append(f"{invoices} invoice / purchase ban gaye.")
+    summary['notes'].append(f"{invoices} invoice(s) / purchase(s) created.")
     return summary
 
 
@@ -591,9 +591,9 @@ def commit_stock(results, opts):
 # ======================================================
 
 EXPENSE_COLS = [
-    _col('name', True, 'Kharche ka type: Rent, Salary, Electricity, Water, Maintenance ya Other', 'Rent', 'Electricity'),
+    _col('name', True, 'Expense type: Rent, Salary, Electricity, Water, Maintenance or Other', 'Rent', 'Electricity'),
     _col('amount', True, 'Rupaye', '15000', '2350.50'),
-    _col('date', False, 'Date (khali = aaj)', '01/10/2026', '05/10/2026'),
+    _col('date', False, 'Date (blank = today)', '01/10/2026', '05/10/2026'),
 ]
 EXPENSE_ALIASES = {'type': 'name', 'expense': 'name', 'expense_type': 'name', 'head': 'name', 'category': 'name',
                    'amt': 'amount', 'rs': 'amount', 'rupees': 'amount'}
@@ -610,22 +610,22 @@ def validate_expenses(rows, opts):
         type_raw = txt(raw.get('name'))
         code = types.get(type_raw.lower())
         if not type_raw:
-            errors.append('name (kharche ka type) zaroori hai')
+            errors.append('name (expense type) is required')
         elif not code:
-            errors.append(f"type '{type_raw}' sahi nahi (Rent, Salary, Electricity, Water, Maintenance ya Other)")
+            errors.append(f"type '{type_raw}' is invalid (Rent, Salary, Electricity, Water, Maintenance or Other)")
         amount = to_dec(raw.get('amount'), 'amount', errors, required=True)
         if amount is not None and amount <= 0:
-            errors.append('amount 0 se zyada hona chahiye')
+            errors.append('amount must be greater than 0')
             amount = None
         when = to_date(raw.get('date'), 'date', errors) or today
         if when > today:
-            errors.append('date aage ki nahi ho sakti')
+            errors.append('date cannot be in the future')
         data = dict(name=code, amount=str(amount) if amount is not None else None, date=when.isoformat())
         if errors:
             action = 'error'
         elif (when, code, amount) in have:
             action = 'skip'
-            warnings.append('same date, type aur amount ka kharcha pehle se hai, chhod diya')
+            warnings.append('an expense with the same date, type and amount already exists, skipped')
         else:
             action = 'create'
         results.append(_result(n, action, data, errors, warnings, label=f"{type_raw} · ₹{amount}"))
@@ -645,7 +645,7 @@ def export_expenses():
 
 
 # ======================================================
-# CATEGORIES / BRANDS / UNITS  (sirf naam)
+# CATEGORIES / BRANDS / UNITS  (name only)
 # ======================================================
 
 def _simple_importer(model, samples, alias_units=False):
@@ -658,18 +658,18 @@ def _simple_importer(model, samples, alias_units=False):
             errors, warnings = [], []
             name = _unit_name(raw.get('name')) if alias_units else txt(raw.get('name'))
             if not name:
-                errors.append('name zaroori hai')
+                errors.append('name is required')
             elif len(name) > 255:
-                errors.append('naam 255 characters se chhota rakhein')
+                errors.append('name must be 255 characters or fewer')
             elif name.lower() in seen:
-                errors.append(f"ye naam row {seen[name.lower()]} me bhi hai (file me duplicate)")
+                errors.append(f"this name also appears in row {seen[name.lower()]} (duplicate in file)")
             if name:
                 seen.setdefault(name.lower(), n)
             if errors:
                 action = 'error'
             elif name.lower() in have:
                 action = 'skip'
-                warnings.append(f'ye {existing_label} pehle se hai, chhod diya')
+                warnings.append(f'this {existing_label} already exists, skipped')
             else:
                 action = 'create'
             results.append(_result(n, action, dict(name=name), errors, warnings, label=name))
@@ -685,7 +685,7 @@ def _simple_importer(model, samples, alias_units=False):
     def export():
         return ['name'], [[o.name] for o in model.objects.order_by('name')]
 
-    return dict(cols=[_col('name', True, f'{existing_label.capitalize()} ka naam', *samples)],
+    return dict(cols=[_col('name', True, f'{existing_label.capitalize()} name', *samples)],
                 aliases={existing_label: 'name', f'{existing_label}_name': 'name'},
                 validate=validate, commit=commit, export=export, has_update=False, max_rows=3000)
 
@@ -714,45 +714,45 @@ IMPORTERS = {
     'products': dict(
         title='Products', icon='🧴', cols=PRODUCT_COLS, aliases=PRODUCT_ALIASES, validate=validate_products,
         commit=commit_products, export=export_products, has_update=True, max_rows=3000,
-        desc='Dawaon ki list ek saath. Naam, unit aur GST zaroori hain. Barcode, MRP, pack (Strip/Box) bhi bhar sakte hain.',
-        after='Ab Stock Entry se maal ka stock chadhayein.'),
+        desc='Add a whole list of medicines at once. Name, unit and GST are required. You can also fill in barcode, MRP and packs (Strip/Box).',
+        after='Next, add stock using Stock Entry.'),
     'customers': dict(
         title='Customers', icon='👥', cols=CUSTOMER_COLS, aliases=CUSTOMER_ALIASES, validate=validate_customers,
         commit=commit_customers, export=export_customers, has_update=True, max_rows=3000,
-        desc='Regular customers aur unki udhar limit. Purana udhar baaki yahan nahi bharta, wo bill/receipt se banta hai.',
+        desc='Regular customers and their credit limits. Existing credit balances are not entered here; they build up from bills and receipts.',
         after=''),
     'suppliers': dict(
         title='Suppliers', icon='🏭', cols=SUPPLIER_COLS, aliases=SUPPLIER_ALIASES, validate=validate_suppliers,
         commit=commit_suppliers, export=export_suppliers, has_update=True, max_rows=3000,
-        desc='Distributors / suppliers ki list. GSTIN dene par state aur PAN apne aap bhar jata hai.',
-        after='Stock Entry se pehle suppliers aur products import ho chuke hone chahiye.'),
+        desc='List of distributors / suppliers. When a GSTIN is given, the state and PAN are filled in automatically.',
+        after='Suppliers and products must be imported before Stock Entry.'),
     'stock': dict(
         title='Stock Entry (Purchases)', icon='📦', cols=STOCK_COLS, aliases=STOCK_ALIASES, validate=validate_stock,
         commit=commit_stock, export=None, has_update=False, max_rows=1500,
-        desc='Supplier bills ki rows se purchase aur stock/batch ek saath. Ek invoice ki sab rows me same supplier aur invoice number likhein. '
-             'Opening stock ke liye bhi yahi use karein.',
-        after='Purchases page par bane hue bills dikhenge. Galti ho to wahan se Purchase Return karein.'),
+        desc='Create purchases and stock/batches at once from supplier bill rows. Use the same supplier and invoice number on every row of one invoice. '
+             'Use this for opening stock as well.',
+        after='The created bills will appear on the Purchases page. If there is a mistake, create a Purchase Return from there.'),
 }
 IMPORTERS['expenses'] = dict(
     title='Expenses', icon='💸', cols=EXPENSE_COLS, aliases=EXPENSE_ALIASES, validate=validate_expenses,
     commit=commit_expenses, export=export_expenses, has_update=False, max_rows=3000,
-    desc='Kharche (Rent, Salary, Bijli...) ek saath. Same date, type aur amount wali row dobara import nahi hoti.',
-    after='Ye kharche Profit & Loss me apne aap ginte jayenge.')
+    desc='Add expenses (Rent, Salary, Electricity...) at once. A row with the same date, type and amount is not imported again.',
+    after='These expenses are included in Profit & Loss automatically.')
 IMPORTERS['categories'] = dict(
-    title='Categories', icon='🗂️', desc='Dawa ki categories (Tablet, Syrup, Injection...). Products import me category likhne par apne aap ban bhi jati hai.',
+    title='Categories', icon='🗂️', desc='Medicine categories (Tablet, Syrup, Injection...). A category written in the Products import is also created automatically.',
     after='', **_simple_importer(Category, ('Tablet', 'Syrup')))
 IMPORTERS['brands'] = dict(
-    title='Brands', icon='🏷️', desc='Brand / company ke naam (Cipla, Sun Pharma...). Products import me brand likhne par apne aap ban bhi jata hai.',
+    title='Brands', icon='🏷️', desc='Brand / company names (Cipla, Sun Pharma...). A brand written in the Products import is also created automatically.',
     after='', **_simple_importer(Brand, ('Cipla', 'Sun Pharma')))
 IMPORTERS['units'] = dict(
-    title='Units', icon='📏', desc='Units (Tablet, Strip, Box, Bottle...). Chhote naam (tab, strips, btl) apne aap sahi naam me badal jate hain.',
-    after='Strip/Box jaise bade pack ka conversion Products import ke pack1/pack2 columns se set hota hai.',
+    title='Units', icon='📏', desc='Units (Tablet, Strip, Box, Bottle...). Short names (tab, strips, btl) are converted to the correct name automatically.',
+    after='Conversions for larger packs such as Strip/Box are set from the pack1/pack2 columns of the Products import.',
     **_simple_importer(Unit, ('Tablet', 'Strip'), alias_units=True))
-IMPORTERS['stock']['desc_extra'] = 'Ek invoice me ek bhi row galat ho to poora invoice skip hota hai.'
+IMPORTERS['stock']['desc_extra'] = 'If even one row of an invoice is invalid, the whole invoice is skipped.'
 
 
 def canonical_columns(imp, headers):
-    """File ke headers ko importer ke standard column naam se map karo. (mapped_rows ke liye)"""
+    """Map the file's headers to the importer's standard column names (for mapped_rows)."""
     names = {c['name'] for c in imp['cols']}
     out = {}
     for h in headers:
@@ -763,7 +763,7 @@ def canonical_columns(imp, headers):
 
 
 def prepare_rows(imp, headers, rows):
-    """Aliases ke hisaab se header badal kar rows ko standard naam wali dict me badalta hai."""
+    """Renames headers using the aliases and converts rows into dicts with standard names."""
     mapping = canonical_columns(imp, headers)
     missing = [c['name'] for c in imp['cols'] if c['required'] and c['name'] not in mapping.values()]
     ignored = [h for h in headers if h and h not in mapping]
@@ -772,7 +772,7 @@ def prepare_rows(imp, headers, rows):
 
 
 # ======================================================
-# Temp store (preview -> confirm ke beech)
+# Temp store (between preview and confirm)
 # ======================================================
 
 STORE = Path(tempfile.gettempdir()) / 'medsync_imports'
@@ -782,7 +782,7 @@ _TOKEN = re.compile(r'^[0-9a-f]{32}$')
 def stash(payload):
     STORE.mkdir(parents=True, exist_ok=True)
     cutoff = time.time() - 24 * 3600
-    for f in STORE.glob('*.json'):          # purani files saaf
+    for f in STORE.glob('*.json'):          # clean up old files
         try:
             if f.stat().st_mtime < cutoff:
                 f.unlink()
@@ -812,14 +812,14 @@ def drop_stash(token):
 
 
 # ======================================================
-# Download helpers (import page + har list page ka Export)
+# Download helpers (import page + Export on every list page)
 # ======================================================
 
 _NUM = re.compile(r'^-?\u20b9?\s?(0|[1-9]\d{0,8})(\.\d+)?$')
 
 
 def export_value(v):
-    """List page ka text ('₹1,250.00', '12') Excel me number ban kar jaye, taaki sum/sort kar sakein."""
+    """Turns list-page text ('₹1,250.00', '12') into a real number in Excel, so it can be summed/sorted."""
     s = plain(v).replace(',', '')
     if _NUM.match(s):
         return float(s.replace('\u20b9', '').strip())
@@ -845,8 +845,8 @@ def template_download(kind):
         dict(title='Data', headers=heads, rows=[], required=required),
         dict(title='Example', headers=heads, rows=[list(c['samples'][i] for c in imp['cols']) for i in (0, 1)],
              required=required),
-        dict(title='Help', headers=['Column', 'Zaroori?', 'Kya likhein'],
-             rows=[[c['name'], 'HAAN' if c['required'] else 'optional', c['help']] for c in imp['cols']]),
+        dict(title='Help', headers=['Column', 'Required?', 'What to enter'],
+             rows=[[c['name'], 'YES' if c['required'] else 'optional', c['help']] for c in imp['cols']]),
     ])
     resp = HttpResponse(data, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     resp['Content-Disposition'] = f'attachment; filename="medsync_{kind}_template.xlsx"'

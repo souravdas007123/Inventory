@@ -35,8 +35,8 @@ NAV = [
     {'key': 'products', 'url': '/products/', 'label': 'Products', 'icon': '🧴', 'group': ''},
     {'key': 'purchases', 'url': '/purchases/', 'label': 'Purchases', 'icon': '📦', 'group': ''},
     {'key': 'batches', 'url': '/batches/', 'label': 'Batch & Expiry', 'icon': '⏳', 'group': ''},
-    {'key': 'customers', 'url': '/customers/', 'label': 'Customers (Udhar)', 'icon': '👥', 'group': 'Customers'},
-    {'key': 'customer_payments', 'url': '/customer_payments/', 'label': 'Udhar Receipts', 'icon': '💰', 'group': 'Customers'},
+    {'key': 'customers', 'url': '/customers/', 'label': 'Customers (Credit)', 'icon': '👥', 'group': 'Customers'},
+    {'key': 'customer_payments', 'url': '/customer_payments/', 'label': 'Credit Receipts', 'icon': '💰', 'group': 'Customers'},
     {'key': 'orders', 'url': '/orders/', 'label': 'Customer Orders', 'icon': '🛒', 'group': 'Customers'},
     {'key': 'sales_returns', 'url': '/sales_returns/', 'label': 'Sales Returns', 'icon': '↩️', 'group': 'Customers'},
     {'key': 'suppliers', 'url': '/suppliers/', 'label': 'Suppliers', 'icon': '🏭', 'group': 'Suppliers'},
@@ -111,7 +111,7 @@ def po_actions(o):
         dict(label='🖨️ Print', url=f"/purchase_orders/{o.pk}/print/", target='_blank'),
         dict(label='💬 WhatsApp', url=f"/purchase_orders/{o.pk}/whatsapp/", target='_blank'),
         dict(label='✉️ Email', url=f"/purchase_orders/{o.pk}/email/", post=True,
-             confirm='Supplier ko email bhejna hai?'),
+             confirm='Send an email to the supplier?'),
     ]
     return acts
 
@@ -119,7 +119,7 @@ def po_actions(o):
 def batch_actions(o):
     if o.qty > 0 and o.expiry_status == 'Expired':
         return [dict(label='🗑️ Write-off', url=f"/batches/{o.pk}/writeoff/", post=True, cls='red',
-                     confirm='Is batch ka poora bacha hua stock write-off karna hai? (P&L me loss ginega)')]
+                     confirm='Write off all remaining stock of this batch? (It will be counted as a loss in the P&L)')]
     return []
 
 
@@ -142,7 +142,7 @@ CONFIG = {
         fields=['name', 'composition', 'hsn_code', 'category', 'brand', 'gst_rate', 'unit', 'mrp', 'barcode',
                 'schedule', 'reorder_level', 'default_supplier', 'location', 'rack', 'row', 'is_active'],
         inline=dict(model=ProductUnit, fields=['unit', 'factor'],
-                    title='Unit conversions (jaise 1 Strip = 15 Tablet)'),
+                    title='Unit conversions (e.g. 1 Strip = 15 Tablet)'),
     ),
     'suppliers': dict(
         title='Suppliers', one='Supplier', model=Supplier, order=['company'],
@@ -222,7 +222,7 @@ CONFIG = {
         actions=po_actions,
         fields=['supplier', 'status'],
         inline=dict(model=PurchaseOrderItem, fields=['product', 'order_qty'],
-                    title='Items (qty base unit me, jaise Tablet)'),
+                    title='Items (qty in base unit, e.g. Tablet)'),
     ),
     'sales': dict(
         title='Sales', one='Sale', model=Sale, order=['-id'], readonly=True, search=['name'],
@@ -241,7 +241,7 @@ CONFIG = {
               ('Date', lambda o: d(o.sale_date or o.purchase_date)),
               ('Party', lambda o: o.customer or o.supplier or '-'),
               ('Amount', lambda o: ('+ ' + rs(o.sale_amount)) if o.sale_amount is not None
-                                   else ('- ' + rs(o.purchase_amount)))],   # return par amount negative dikhta hai
+                                   else ('- ' + rs(o.purchase_amount)))],   # amount is shown as negative for returns
     ),
     'categories': dict(
         title='Categories', one='Category', model=Category, order=['name'], search=['name'],
@@ -269,19 +269,19 @@ CONFIG = {
         actions=batch_actions,
     ),
 
-    # ---------------- Customers / udhar ----------------
+    # ---------------- Customers / credit ----------------
     'customers': dict(
-        title='Customers (Udhar)', one='Customer', model=Customer, order=['name'], search=['name', 'phone', 'gstin'],
+        title='Customers (Credit)', one='Customer', model=Customer, order=['name'], search=['name', 'phone', 'gstin'],
         cols=[('Name', lambda o: o.name), ('Phone', lambda o: o.phone or '-'), ('GSTIN', lambda o: o.gstin or '-'),
               ('Credit limit', lambda o: rs(o.credit_limit) if o.credit_limit else 'No limit'),
-              ('Udhar baaki', balance_cell),
+              ('Credit due', balance_cell),
               ('Active', lambda o: badge('Active', 'green') if o.is_active else badge('Inactive', 'grey'))],
         fields=['name', 'phone', 'address', 'gstin', 'credit_limit', 'is_active'],
         actions=lambda o: [dict(label='📒 Ledger', url=f"/customers/{o.pk}/ledger/"),
                            dict(label='+ Receipt', url=f"/customer_payments/new/?customer={o.pk}")],
     ),
     'customer_payments': dict(
-        title='Udhar Receipts', one='Receipt', model=CustomerPayment, order=['-date', '-id'], related=['customer'],
+        title='Credit Receipts', one='Receipt', model=CustomerPayment, order=['-date', '-id'], related=['customer'],
         search=['customer__name', 'note'], initial=lambda: {'date': timezone.localdate()},
         cols=[('Date', lambda o: d(o.date)), ('Customer', lambda o: o.customer.name),
               ('Amount', lambda o: rs(o.amount)), ('Mode', lambda o: o.get_mode_display()),
@@ -293,7 +293,7 @@ CONFIG = {
     'sales_returns': dict(
         title='Sales Returns (Credit Notes)', one='Sales Return', model=SalesReturn, order=['-id'],
         related=['bill'], prefetch=['items'], no_new=True, no_edit=True,
-        hint='Naya return banane ke liye Billing list me bill ke saamne "↩ Return" dabayein.',
+        hint='To create a new return, click "↩ Return" next to a bill in the Billing list.',
         search=['note_number', 'bill__invoice_number', 'bill__customer_name'],
         cols=[('Credit Note', lambda o: o.note_number), ('Date', lambda o: d(o.date)),
               ('Against bill', lambda o: o.bill.display_number), ('Customer', lambda o: o.bill.customer_name),
@@ -304,7 +304,7 @@ CONFIG = {
     'purchase_returns': dict(
         title='Purchase Returns (Debit Notes)', one='Purchase Return', model=PurchaseReturn, order=['-id'],
         related=['purchase', 'purchase__supplier'], prefetch=['items'], no_new=True, no_edit=True,
-        hint='Naya return banane ke liye Purchases list me invoice ke saamne "↩ Return" dabayein.',
+        hint='To create a new return, click "↩ Return" next to an invoice in the Purchases list.',
         search=['note_number', 'purchase__invoice_number', 'purchase__supplier__company'],
         cols=[('Debit Note', lambda o: o.note_number), ('Date', lambda o: d(o.date)),
               ('Purchase invoice', lambda o: o.purchase.invoice_number),
@@ -315,7 +315,7 @@ CONFIG = {
     'writeoffs': dict(
         title='Stock Write-off (Expired / Damaged)', one='Write-off', model=StockWriteOff, order=['-id'],
         related=['batch', 'batch__product'], no_edit=True,
-        hint='Expired batch ka poora stock Batch & Expiry list se bhi ek click me write-off ho sakta hai.',
+        hint='You can also write off the full stock of an expired batch in one click from the Batch & Expiry list.',
         search=['batch__product__name', 'batch__batch_number'], initial=lambda: {'date': timezone.localdate()},
         cols=[('Date', lambda o: d(o.date)),
               ('Product', lambda o: o.batch.product.name if o.batch.product else '-'),
@@ -325,20 +325,20 @@ CONFIG = {
         fields=['batch', 'qty', 'reason', 'date', 'note'],
     ),
     'audit': dict(
-        title='Audit Log (kisne kya badla)', one='Log', model=AuditLog, order=['-id'], readonly=True, staff=True,
+        title='Audit Log (who changed what)', one='Log', model=AuditLog, order=['-id'], readonly=True, staff=True,
         search=['user', 'action', 'target', 'detail'],
         cols=[('Kab', lambda o: timezone.localtime(o.created_at).strftime('%d %b %Y, %I:%M %p')),
               ('User', lambda o: o.user or '-'), ('Action', lambda o: o.action),
-              ('Kya', lambda o: o.target or '-'), ('Detail', lambda o: o.detail or '-')],
+              ('Target', lambda o: o.target or '-'), ('Detail', lambda o: o.detail or '-')],
         fields=[],
     ),
     'stock_audits': dict(
         title='Physical Stock Audit', one='Stock Audit', model=StockAudit, order=['-id'], readonly=True, staff=True,
         prefetch=['items'], start_url='/stock_audits/start/',
-        hint='Audit shuru karne par abhi ka stock snapshot ban jata hai. Dukaan me ginti karke bharein, phir Apply karein.',
+        hint='Starting an audit takes a snapshot of the current stock. Count the stock in the shop, enter the counts, then click Apply.',
         cols=[('#', lambda o: o.pk), ('Date', lambda o: d(o.date)), ('Note', lambda o: o.note or '-'),
               ('Status', lambda o: badge('Applied', 'green') if o.status == 'APPLIED' else badge('Open', 'amber')),
-              ('Ginti bhari', lambda o: f"{sum(1 for i in o.items.all() if i.counted_qty is not None)} / {len(o.items.all())}")],
+              ('Counted', lambda o: f"{sum(1 for i in o.items.all() if i.counted_qty is not None)} / {len(o.items.all())}")],
         actions=lambda o: [dict(label='🔎 Open', url=f"/stock_audits/{o.pk}/count/")],
     ),
 }
@@ -397,7 +397,7 @@ def dashboard(request):
 
 @login_required
 def report(request):
-    if not request.user.is_staff:  # profit sirf staff/owner dekh sake
+    if not request.user.is_staff:  # only staff/owner can see profit
         raise PermissionDenied
     today = timezone.localdate()
     try:
@@ -439,7 +439,7 @@ def listing(request, key):
     if per not in PER_OPTS:
         per = 10
     fmt = request.GET.get('export')
-    if fmt in ('xlsx', 'csv'):   # poori (search ke hisaab se filtered) list Excel/CSV me
+    if fmt in ('xlsx', 'csv'):   # the whole list (filtered by search) as Excel/CSV
         rows = [[export_value(fn(o)) for _, fn in cfg['cols']] for o in qs.order_by(*cfg['order'])[:20000]]
         return table_download(f"medsync_{key}_{timezone.localdate():%Y%m%d}", [h for h, _ in cfg['cols']], rows, fmt)
     pg = Paginator(qs.order_by(*cfg['order']), per).get_page(request.GET.get('page'))
@@ -456,7 +456,7 @@ SCHEDULE_NEEDS_REGISTER = ('H1', 'X')
 
 
 def bill_form_errors(form, fs):
-    """Bill save hone se pehle ke extra checks (items, Schedule H/H1/X ke documents). Error messages ki list."""
+    """Extra checks before a bill is saved (items, Schedule H/H1/X documents). Returns a list of error messages."""
     errors = []
     cd = form.cleaned_data
     if cd.get('invoice_mode') == 'online':
@@ -467,18 +467,18 @@ def bill_form_errors(form, fs):
                     if getattr(f, 'cleaned_data', None) and not f.cleaned_data.get('DELETE')
                     and f.cleaned_data.get('product')]
         if not products:
-            errors.append('Bill me kam se kam ek item zaroori hai.')
+            errors.append('A bill needs at least one item.')
 
     needs_doctor = [p for p in products if p.schedule in SCHEDULE_NEEDS_DOCTOR]
     if needs_doctor:
         names = ', '.join(sorted({p.name or str(p) for p in needs_doctor}))
         if not (cd.get('doctor_name') or '').strip():
-            errors.append(f"Schedule H/H1/X dawa ({names}): Doctor ka naam zaroori hai.")
+            errors.append(f"Schedule H/H1/X medicine ({names}): Doctor name is required.")
         if any(p.schedule in SCHEDULE_NEEDS_REGISTER for p in products):
             if not (cd.get('doctor_reg_no') or '').strip():
-                errors.append('Schedule H1/X dawa: Doctor ka Registration No. zaroori hai.')
+                errors.append('Schedule H1/X medicine: Doctor Registration No. is required.')
             if not (cd.get('patient_name') or '').strip():
-                errors.append('Schedule H1/X dawa: Patient ka naam zaroori hai.')
+                errors.append('Schedule H1/X medicine: Patient name is required.')
     return errors
 
 
@@ -488,13 +488,13 @@ def edit(request, key, pk=None):
     if cfg.get('readonly') or (cfg.get('no_new') and not pk) or (cfg.get('no_edit') and pk):
         raise Http404
     obj = get_object_or_404(cfg['model'], pk=pk) if pk else None
-    if key == 'bills' and obj:  # Final bill edit nahi hota (GST record). Galti ho to Cancel karke naya banao.
-        messages.warning(request, 'Bill final ho chuka hai, edit nahi ho sakta. Galti ho to Cancel karke naya bill banayein.')
+    if key == 'bills' and obj:  # A Final bill cannot be edited (GST record). If there is a mistake, cancel it and create a new one.
+        messages.warning(request, 'This bill is final and cannot be edited. If there is a mistake, cancel it and create a new bill.')
         return redirect('invoice', pk=obj.pk)
     Form = modelform_factory(cfg['model'], fields=cfg['fields'], formfield_callback=date_cb)
     inl = cfg.get('inline')
 
-    # Purchase Order se "Receive" dabane par invoice pehle se bhara hua khule
+    # Clicking "Receive" on a Purchase Order opens the invoice pre-filled
     po, po_items = None, []
     po_id = request.GET.get('from_po', '')
     if key == 'purchases' and not obj and po_id.isdigit():
@@ -513,19 +513,19 @@ def edit(request, key, pk=None):
     if po:
         initial = {'supplier': po.supplier_id}
     form = Form(post, instance=obj, initial=initial)
-    # NOTE: POST par initial nahi dete, warna bina badle rows "unchanged" maan ke chhoot jaate hain
+    # NOTE: do not pass initial on POST, otherwise unchanged rows are treated as "unchanged" and skipped
     fs_initial = [{'product': i.product_id, 'qty': i.order_qty, 'unit': i.product.unit_id}
                   for i in po_items] if (po and not post) else None
     fs = FS(post, instance=form.instance, initial=fs_initial) if FS else None
 
-    # Stock/transactions ban chuke ho to base unit badalna band
+    # Block changing the base unit once stock/transactions exist
     if key == 'products' and obj and (
         obj.stock_qty or PurchaseItem.objects.filter(product=obj).exists()
         or InvoiceItem.objects.filter(product=obj).exists()
     ):
         form.fields['unit'].disabled = True
 
-    if key == 'writeoffs':  # sirf wahi batches jinme stock bacha hai
+    if key == 'writeoffs':  # only batches that still have stock
         form.fields['batch'].queryset = Batch.objects.filter(qty__gt=0).select_related('product').order_by('expire_date', 'id')
         form.fields['batch'].label_from_instance = lambda b: (
             f"{b.product.name if b.product else '-'} · {b.batch_number} · exp {d(b.expire_date)} · qty {b.qty}")
@@ -533,7 +533,7 @@ def edit(request, key, pk=None):
     if key == 'bills':
         form.fields['customer'].queryset = Customer.objects.filter(is_active=True).order_by('name')
 
-    if key == 'bills':  # sirf wahi orders jinka bill nahi bana (+ is bill ka apna order)
+    if key == 'bills':  # only orders that have no bill yet (+ this bill's own order)
         form.fields['order'].queryset = Order.objects.filter(Q(bill__isnull=True) | Q(pk=obj.order_id if obj else None))
         form.fields['order'].label_from_instance = lambda o: (
             f"{o.order_id} · {o.customers_name or '-'} · {o.customer_product or '-'} x {o.customer_qty or 0}")
@@ -549,29 +549,29 @@ def edit(request, key, pk=None):
                     if fs:
                         fs.save()
                     if key == 'bills':
-                        form.instance.after_items_saved()  # credit limit jaise checks (fail par rollback)
+                        form.instance.after_items_saved()  # checks such as credit limit (rolled back on failure)
                     if po and po.status != 'CANCELLED':
                         po.status = 'COMPLETED'
                         po.save(update_fields=['status'])
                 auditlog.record(request, 'EDIT' if obj else 'CREATE', cfg['one'], str(form.instance))
-                messages.success(request, f"{cfg['one']} save ho gaya ✅")
-                if key == 'bills' and not obj:  # naya bill -> seedha invoice
+                messages.success(request, f"{cfg['one']} saved ✅")
+                if key == 'bills' and not obj:  # new bill -> go straight to the invoice
                     return redirect('invoice', pk=form.instance.pk)
                 return redirect('list', key=key)
             except ValidationError as e:
                 messages.error(request, ' '.join(e.messages))
             except ProtectedError:
-                messages.error(request, 'Ye record kisi aur record (jaise return/write-off) se juda hai, isliye badla nahi ja sakta.')
+                messages.error(request, 'This record is linked to another record (such as a return or write-off), so it cannot be changed.')
             except IntegrityError:
-                messages.error(request, 'Duplicate entry hai (ye record pehle se maujood hai).')
-            if obj is None:  # rollback ke baad instance ko phir "naya" rakho
+                messages.error(request, 'Duplicate entry (this record already exists).')
+            if obj is None:  # after a rollback, treat the instance as "new" again
                 form.instance.pk = None
                 form.instance._state.adding = True
 
     title = f"Edit {cfg['one']}" if obj else f"New {cfg['one']}"
     return page(request, 'app/form.html', key=key, active=key, title=title, form=form, fs=fs, back_url=f'/{key}/',
                 inline_title=inl['title'] if inl else '',
-                note=f"{po.po_number} ({po.supplier.company}) se bhara gaya hai. Invoice number, price, MFG/EXP date bharo. Save karte hi PO Completed ho jayega." if po else '')
+                note=f"{po.po_number} ({po.supplier.company}) has been pre-filled. Enter the invoice number, price and MFG/EXP dates. The PO will be marked Completed when you save." if po else '')
 
 
 @login_required
@@ -582,19 +582,19 @@ def delete(request, key, pk):
         raise Http404
     obj = get_object_or_404(cfg['model'], pk=pk)
     if key == 'bills':
-        messages.error(request, 'Bill delete nahi hota (invoice number ka record rehna chahiye). Cancel use karein.')
+        messages.error(request, 'A bill cannot be deleted (the invoice number record must be kept). Please use Cancel instead.')
         return redirect('list', key=key)
     if key == 'units' and (Product.objects.filter(unit=obj).exists()
                            or ProductUnit.objects.filter(unit=obj).exists()):
-        messages.error(request, 'Ye unit kisi product me use ho raha hai, isliye delete nahi ho sakta.')
+        messages.error(request, 'This unit is used by a product, so it cannot be deleted.')
         return redirect('list', key=key)
     label = str(obj)
     try:
         obj.delete()
         auditlog.record(request, 'DELETE', cfg['one'], label)
-        messages.success(request, f"{cfg['one']} delete ho gaya.")
+        messages.success(request, f"{cfg['one']} deleted.")
     except ProtectedError:
-        messages.error(request, 'Ye record kisi aur record se juda hai, isliye delete nahi ho sakta.')
+        messages.error(request, 'This record is linked to another record, so it cannot be deleted.')
     except ValidationError as e:
         messages.error(request, ' '.join(e.messages))
     return redirect('list', key=key)
@@ -617,7 +617,7 @@ def _three(n):
 
 
 def rupees_in_words(n):
-    """Indian system (Lakh/Crore) me amount in words."""
+    """Amount in words using the Indian system (Lakh/Crore)."""
     if n == 0:
         return 'Zero'
     parts = []
@@ -687,7 +687,7 @@ def bill_cancel(request, pk):
         messages.error(request, ' '.join(e.messages))
         return redirect('list', key='bills')
     auditlog.record(request, 'CANCEL', 'Bill', f"{bill.display_number} · {bill.customer_name}")
-    messages.success(request, f"{bill.display_number} cancel ho gaya. Stock wapas add ho gaya.")
+    messages.success(request, f"{bill.display_number} cancelled. Stock has been added back.")
     return redirect('list', key='bills')
 
 
@@ -700,7 +700,7 @@ def shop(request):
     form = Form(request.POST or None, instance=ShopProfile.get())
     if request.method == 'POST' and form.is_valid():
         form.save()
-        messages.success(request, 'Shop details save ho gayi ✅')
+        messages.success(request, 'Shop details saved ✅')
         return redirect('shop')
     return page(request, 'app/form.html', key='shop', active='shop', title='Shop Settings',
                 form=form, fs=None, back_url='/')

@@ -1,4 +1,4 @@
-"""Bulk import / export screens: /import/ aur /import/<kind>/"""
+"""Bulk import / export screens: /import/ and /import/<kind>/"""
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import Http404
@@ -33,31 +33,31 @@ def import_view(request, kind):
         return imports.table_download(f"medsync_{kind}_{timezone.localdate():%Y%m%d}", heads, rows,
                                       request.GET.get('export'), required)
 
-    # NB: template me callable (export/validate...) auto-call ho jata hai, isliye imp me se sirf plain values hi use karein
+    # NB: callables (export/validate...) are auto-called in templates, so only use plain values from imp
     ctx = dict(active='import', kind=kind, imp=imp, cols=imp['cols'], stage='upload', can_export=bool(imp['export']))
 
     if request.method == 'POST':
         if request.POST.get('action') == 'commit':
             payload = imports.load_stash(request.POST.get('token', ''))
             if not payload or payload.get('kind') != kind or payload.get('user') != request.user.pk:
-                messages.error(request, 'Ye preview purana ho gaya hai ya mila nahi. File dobara upload karein.')
+                messages.error(request, 'This preview has expired or was not found. Please upload the file again.')
             else:
                 imports.drop_stash(request.POST.get('token'))     # double-click se double import na ho
                 summary = imp['commit'](payload['results'], payload['opts'])
                 auditlog.record(request, 'IMPORT', imp['title'],
-                                f"{payload.get('filename', '')}: {summary['created']} naye, {summary['updated']} update, {len(summary['failed'])} fail")
+                                f"{payload.get('filename', '')}: {summary['created']} created, {summary['updated']} updated, {len(summary['failed'])} failed")
                 ctx.update(stage='done', summary=summary, filename=payload.get('filename', ''))
         else:
             upload = request.FILES.get('file')
             if not upload:
-                messages.error(request, 'Pehle koi file chuniye.')
+                messages.error(request, 'Please choose a file first.')
             else:
                 try:
                     headers, rows = read_table(upload, max_rows=imp['max_rows'])
                     mapped, missing, ignored = imports.prepare_rows(imp, headers, rows)
                     if missing:
-                        raise ImportFileError('File me ye zaroori columns nahi mile: ' + ', '.join(missing)
-                                              + '. Template download karke uske header use karein.')
+                        raise ImportFileError('The file is missing these required columns: ' + ', '.join(missing)
+                                              + '. Download the template and use its headers.')
                     opts = {'update': bool(request.POST.get('update'))}
                     results = imp['validate'](mapped, opts)
                 except ImportFileError as e:

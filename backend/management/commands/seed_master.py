@@ -8,7 +8,7 @@ CATEGORIES = ['Tablet', 'Capsule', 'Syrup', 'Injection', 'Ointment / Cream', 'Dr
 
 
 class Command(BaseCommand):
-    help = "Common Units aur Categories add karta hai (dobara chalane par duplicate nahi banata)."
+    help = "Adds common Units and Categories (running it again does not create duplicates)."
 
     def handle(self, *args, **options):
         for model, names in ((Unit, UNITS), (Category, CATEGORIES)):
@@ -17,4 +17,4 @@ class Command(BaseCommand):
                 if not model.objects.filter(name=name).exists():
                     model.objects.create(name=name)
                     added += 1
-            self.stdout.write(self.style.SUCCESS(f"{model.__name__}: {added} naye add hue"))
+            self.stdout.write(self.style.SUCCESS(f"{model.__name__}: {added} added"))

@@ -27,7 +27,7 @@ class Migration(migrations.Migration):
                 ('phone', models.CharField(blank=True, max_length=30)),
                 ('email', models.EmailField(blank=True, max_length=254)),
                 ('gstin', models.CharField(blank=True, max_length=15, verbose_name='GSTIN')),
-                ('drug_license', models.CharField(blank=True, help_text='Jaise: DL No. 20/21/12345, 21/21/12345', max_length=255, verbose_name='Drug Licence No.')),
+                ('drug_license', models.CharField(blank=True, help_text='e.g. DL No. 20/21/12345, 21/21/12345', max_length=255, verbose_name='Drug Licence No.')),
                 ('terms', models.TextField(blank=True, default='Goods once sold will not be taken back or exchanged.\nPlease check batch and expiry at the time of purchase.', verbose_name='Terms & Conditions')),
             ],
             options={
