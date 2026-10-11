@@ -102,10 +102,10 @@ img,video{max-width:100%;height:auto}
     {% if g.grouper %}
     <details{% for n in g.list %}{% if n.key == active %} open{% endif %}{% endfor %}>
       <summary>{{ g.grouper }}</summary>
-      {% for n in g.list %}{% if not n.staff or user.is_staff %}<a href="{{ n.url }}" class="{% if n.key == active %}on{% endif %}"><span>{{ n.icon }}</span>{{ n.label }}</a>{% endif %}{% endfor %}
+      {% for n in g.list %}<a href="{{ n.url }}" class="{% if n.key == active %}on{% endif %}"><span>{{ n.icon }}</span>{{ n.label }}</a>{% endfor %}
     </details>
     {% else %}
-      {% for n in g.list %}{% if not n.staff or user.is_staff %}<a href="{{ n.url }}" class="{% if n.key == active %}on{% endif %}"><span>{{ n.icon }}</span>{{ n.label }}</a>{% endif %}{% endfor %}
+      {% for n in g.list %}<a href="{{ n.url }}" class="{% if n.key == active %}on{% endif %}"><span>{{ n.icon }}</span>{{ n.label }}</a>{% endfor %}
     {% endif %}
   {% endfor %}
   <div class="me"><span>👤 {{ user.get_username }}</span>

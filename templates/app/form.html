@@ -25,7 +25,7 @@
   </div>
   {% endif %}
   {% if key == 'purchases' %}<div style="margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-    <button type="button" class="btn ghost sm" id="new-product" title="Add a medicine that is not in Products yet, without leaving this page">➕ New product</button>
+    {% if can_add_product %}<button type="button" class="btn ghost sm" id="new-product" title="Add a medicine that is not in Products yet, without leaving this page">➕ New product</button>{% endif %}
     {% if not form.instance.pk %}<button type="button" class="btn ghost sm" id="copy-last">↻ Copy items from this supplier's last invoice</button>{% endif %}<small id="copy-msg" style="color:var(--mute)"></small></div>{% endif %}
   {{ fs.management_form }}{{ fs.non_form_errors }}
   <div class="tw"><table class="t{% if key == 'purchases' %} hide-extra{% endif %}" id="items-table">
@@ -44,7 +44,7 @@
 
   <div class="bar">{% if warnings %}<button class="btn" name="confirm_warnings" value="1">✔ Save anyway</button>{% else %}<button class="btn">💾 Save</button>{% endif %}<a class="btn ghost" href="{{ back_url }}">Cancel</a></div>
 </form>
-{% if key == 'purchases' %}
+{% if key == 'purchases' and can_add_product %}
 <dialog id="np-dialog" class="dlg">
   <div class="np-head"><h3>➕ New product</h3><button type="button" class="btn ghost sm" id="np-close" aria-label="Close">✕</button></div>
   <small id="np-note" style="color:var(--mute);display:block;margin-bottom:10px"></small>

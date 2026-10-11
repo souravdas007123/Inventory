@@ -17,7 +17,7 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.views.decorators.http import require_POST
 
-from . import auditlog, backup, checks, notify, supplier_prices
+from . import access, auditlog, backup, checks, notify, supplier_prices
 from .models import (
     AuditLog, Batch, Bill, Brand, Category, Customer, CustomerPayment, Expense, InvoiceItem, Order, Payment,
     Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem, PurchaseReturn,
@@ -357,16 +357,37 @@ def date_cb(field, **kw):
 
 
 def page(request, tpl, **ctx):
-    ctx['nav'] = NAV
-    return render(request, tpl, ctx)
+    return render(request, tpl, ctx)         # the menu comes from access.template_context
 
 
-def get_cfg(key, request=None):
+def nav_for(user):
+    """The menu entries this user may open (owner: all; others: by their model permissions)."""
+    out = []
+    for n in NAV:
+        rule, also_add = access.NAV_RULES.get(n['key']), None
+        if rule is None and n['key'] in CONFIG:
+            model = CONFIG[n['key']]['model']._meta.model_name
+            rule, also_add = ('view', model), ('add', model)       # add-only users still get the entry (opens the form)
+        if n.get('staff'):
+            rule = 'owner'
+        if rule == 'owner':
+            ok = access.is_owner(user)
+        else:
+            ok = bool(rule) and (access.can(user, *rule) or bool(also_add and access.can(user, *also_add)))
+        if ok:
+            out.append(n)
+    return out
+
+
+def get_cfg(key, request=None, action=None):
     cfg = CONFIG.get(key)
     if not cfg:
         raise Http404
-    if cfg.get('staff') and request is not None and not request.user.is_staff:
-        raise PermissionDenied
+    if request is not None:
+        if cfg.get('staff') and not access.is_owner(request.user):
+            raise PermissionDenied
+        if action and not access.can(request.user, action, cfg['model']._meta.model_name):
+            raise PermissionDenied
     return cfg
 
 
@@ -385,6 +406,11 @@ def backup_warning(max_days=3):
 
 @login_required
 def dashboard(request):
+    if not access.can(request.user, 'view', 'sale'):      # e.g. a purchase clerk: go to the first page they may use
+        first = next((n['url'] for n in nav_for(request.user) if n['key'] != 'dashboard'), None)
+        if first:
+            return redirect(first)
+        raise PermissionDenied
     today = timezone.localdate()
     soon = today + timedelta(days=30)
 
@@ -394,7 +420,7 @@ def dashboard(request):
     live = Batch.objects.filter(qty__gt=0, expire_date__isnull=False).select_related('product')
     active = Product.objects.exclude(is_active=False)
     low = active.filter(stock_qty__lte=F('reorder_level')).order_by('stock_qty')
-    backup_note = backup_warning() if request.user.is_staff else ''
+    backup_note = backup_warning() if access.is_owner(request.user) else ''
     expiring = live.filter(expire_date__gte=today, expire_date__lte=soon).order_by('expire_date')
     return page(
         request, 'app/dashboard.html', active='dashboard',
@@ -408,14 +434,14 @@ def dashboard(request):
         exp_rows=[(b.product.name if b.product else '-', b.batch_number, b.qty, d(b.expire_date))
                   for b in expiring[:6]],
         charts=dashboard_charts(today),
-        ov=dashboard_overview(today, include_money=request.user.is_staff),
+        ov=dashboard_overview(today, include_money=access.is_owner(request.user)),
         wa_link=notify.whatsapp_link(notify.alert_digest_text(notify.collect_alerts(), ShopProfile.get().name)),
     )
 
 
 @login_required
 def report(request):
-    if not request.user.is_staff:  # only staff/owner can see profit
+    if not access.is_owner(request.user):  # only the owner can see profit
         raise PermissionDenied
     today = timezone.localdate()
     try:
@@ -438,7 +464,12 @@ def report(request):
 
 @login_required
 def listing(request, key):
-    cfg = get_cfg(key, request)
+    if key in CONFIG and not CONFIG[key].get('readonly') and not CONFIG[key].get('no_new'):
+        model = CONFIG[key]['model']._meta.model_name
+        if (not access.can(request.user, 'view', model) and access.can(request.user, 'add', model)
+                and not CONFIG[key].get('staff')):
+            return redirect('new', key=key)          # may add but not view: open the form instead of the list
+    cfg = get_cfg(key, request, 'view')
     qs = cfg['model'].objects.all()
     if cfg.get('related'):
         qs = qs.select_related(*cfg['related'])
@@ -465,7 +496,11 @@ def listing(request, key):
     rows = [dict(pk=o.pk, obj=o, cells=[fn(o) for _, fn in cfg['cols']], acts=acts(o) if acts else []) for o in pg]
     return page(request, 'app/list.html', key=key, active=key, cfg=cfg, heads=[h for h, _ in cfg['cols']],
                 rows=rows, page=pg, q=q, per=per, per_opts=PER_OPTS, total=pg.paginator.count,
-                has_actions=bool(acts), import_kind=IMPORT_KINDS.get(key),
+                has_actions=bool(acts), import_kind=IMPORT_KINDS.get(key) if access.is_owner(request.user) else None,
+                can_add=access.can(request.user, 'add', cfg['model']._meta.model_name),
+                can_change=access.can(request.user, 'change', cfg['model']._meta.model_name),
+                can_delete=access.can(request.user, 'delete', cfg['model']._meta.model_name),
+                can_return=access.can(request.user, 'add', 'salesreturn'),
                 base=urlencode({'q': q, 'per': per}))
 
 
@@ -528,7 +563,7 @@ def purchase_check_warnings(fs, obj):
 
 @login_required
 def edit(request, key, pk=None):
-    cfg = get_cfg(key, request)
+    cfg = get_cfg(key, request, 'change' if pk else 'add')
     if cfg.get('readonly') or (cfg.get('no_new') and not pk) or (cfg.get('no_edit') and pk):
         raise Http404
     obj = get_object_or_404(cfg['model'], pk=pk) if pk else None
@@ -617,8 +652,8 @@ def edit(request, key, pk=None):
 
     title = f"Edit {cfg['one']}" if obj else f"New {cfg['one']}"
     quick = {}
-    if key == 'purchases':   # lists for the "New product" window on the purchase screen
-        quick = dict(np_units=list(Unit.objects.order_by('name').values('id', 'name')),
+    if key == 'purchases' and access.can(request.user, 'add', 'product'):   # lists for the "New product" window on the purchase screen
+        quick = dict(can_add_product=True, np_units=list(Unit.objects.order_by('name').values('id', 'name')),
                      np_cats=list(Category.objects.order_by('name').values_list('name', flat=True)[:500]),
                      np_brands=list(Brand.objects.order_by('name').values_list('name', flat=True)[:500]),
                      np_schedules=Product.SCHEDULE_CHOICES)
@@ -630,7 +665,7 @@ def edit(request, key, pk=None):
 @login_required
 @require_POST
 def delete(request, key, pk):
-    cfg = get_cfg(key, request)
+    cfg = get_cfg(key, request, 'delete')
     if cfg.get('readonly'):
         raise Http404
     obj = get_object_or_404(cfg['model'], pk=pk)
@@ -688,7 +723,7 @@ def rupees_in_words(n):
     return ' '.join(parts)
 
 
-@login_required
+@access.perm_required(('view', 'bill'), ('add', 'bill'))
 def invoice(request, pk):
     bill = get_object_or_404(Bill, pk=pk)
     items = list(bill.items.select_related('product', 'unit'))
@@ -731,7 +766,7 @@ def invoice(request, pk):
 @login_required
 @require_POST
 def bill_cancel(request, pk):
-    if not request.user.is_staff:
+    if not access.is_owner(request.user):
         raise PermissionDenied
     bill = get_object_or_404(Bill, pk=pk)
     try:
@@ -746,7 +781,7 @@ def bill_cancel(request, pk):
 
 @login_required
 def shop(request):
-    if not request.user.is_staff:
+    if not access.is_owner(request.user):
         raise PermissionDenied
     Form = modelform_factory(ShopProfile, fields=['name', 'address', 'phone', 'email', 'gstin',
                                                   'drug_license', 'terms'])

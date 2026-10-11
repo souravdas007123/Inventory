@@ -1,10 +1,9 @@
 """Bulk import / export screens: /import/ and /import/<kind>/"""
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.http import Http404
 from django.utils import timezone
 
-from . import auditlog, imports
+from . import access, auditlog, imports
 from .imports import IMPORTERS
 from .tabular import ImportFileError, read_table
 from .views import page
@@ -12,14 +11,14 @@ from .views import page
 SHOW_ROWS = 200
 
 
-@login_required
+@access.owner_required
 def import_home(request):
     return page(request, 'app/import_home.html', active='import',
                 items=[dict(key=k, can_export=bool(imp['export']), **{kk: v for kk, v in imp.items() if kk in ('title', 'icon', 'desc')})
                        for k, imp in IMPORTERS.items()])
 
 
-@login_required
+@access.owner_required
 def import_view(request, kind):
     imp = IMPORTERS.get(kind)
     if not imp:

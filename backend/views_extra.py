@@ -7,7 +7,6 @@ from decimal import Decimal
 from urllib.parse import urlencode
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError
 from django.core.paginator import Paginator
@@ -18,7 +17,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import auditlog, backup, notify, reorder, reports, summary, supplier_prices
+from . import access, auditlog, backup, notify, reorder, reports, summary, supplier_prices
 from .models import (
     Batch, Bill, Brand, Category, Customer, InvoiceItem, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
     PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SalesReturn, Supplier, Unit, SalesReturnItem, ShopProfile, StockAudit, StockAuditItem, StockWriteOff,
@@ -28,15 +27,8 @@ from .views import page
 
 
 def staff_required(view):
-    """Staff/owner only (together with login_required)."""
-    @login_required
-    def wrapper(request, *args, **kwargs):
-        if not request.user.is_staff:
-            raise PermissionDenied
-        return view(request, *args, **kwargs)
-    wrapper.__name__ = view.__name__
-    wrapper.__doc__ = view.__doc__
-    return wrapper
+    """Owner only (superuser, or staff who may change Shop Settings)."""
+    return access.owner_required(view)
 
 
 def _parse_date(raw, default=None):
@@ -74,7 +66,7 @@ def _xlsx(content, filename):
 # CUSTOMER LEDGER
 # ======================================================
 
-@login_required
+@access.perm_required(('view', 'customer'))
 def customer_ledger(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     entries = []
@@ -125,7 +117,7 @@ def _read_return_qtys(request, rows):
     return qtys, errors
 
 
-@login_required
+@access.perm_required(('add', 'salesreturn'))
 def sales_return_new(request, pk):
     bill = get_object_or_404(Bill.objects.select_related('customer'), pk=pk)
     if bill.status != 'FINAL':
@@ -166,7 +158,7 @@ def sales_return_new(request, pk):
                 can_adjust=bool(bill.customer_id), post=request.POST)
 
 
-@login_required
+@access.perm_required(('add', 'purchasereturn'))
 def purchase_return_new(request, pk):
     purchase = get_object_or_404(Purchase.objects.select_related('supplier'), pk=pk)
     items = list(purchase.items.select_related('product', 'unit', 'batch_record').prefetch_related('return_items'))
@@ -206,7 +198,7 @@ def purchase_return_new(request, pk):
                 can_adjust=False, post=request.POST)
 
 
-@login_required
+@access.perm_required(('view', 'salesreturn'))
 def sales_return_note(request, pk):
     sr = get_object_or_404(SalesReturn.objects.select_related('bill', 'bill__customer'), pk=pk)
     lines = [dict(n=n, name=i.invoice_item.product.name if i.invoice_item.product else '-',
@@ -220,7 +212,7 @@ def sales_return_note(request, pk):
         taxable=sr.taxable, total=sr.total, shop=ShopProfile.get(), back_url='/sales_returns/'))
 
 
-@login_required
+@access.perm_required(('view', 'purchasereturn'))
 def purchase_return_note(request, pk):
     pr = get_object_or_404(PurchaseReturn.objects.select_related('purchase', 'purchase__supplier'), pk=pk)
     lines = [dict(n=n, name=i.purchase_item.product.name, qty=f"{i.qty} {i.purchase_item.unit or ''}".strip(),
@@ -238,7 +230,7 @@ def purchase_return_note(request, pk):
 # WRITE-OFF (expired batch)
 # ======================================================
 
-@login_required
+@access.perm_required(('add', 'stockwriteoff'))
 @require_POST
 def batch_writeoff(request, pk):
     batch = get_object_or_404(Batch, pk=pk)
@@ -271,7 +263,7 @@ def gst_view(request):
 SCHEDULE_FILTERS = {'H1X': ('H1', 'X'), 'H': ('H',), 'ALL': ('H', 'H1', 'X')}
 
 
-@login_required
+@access.perm_required(('view', 'bill'))
 def drug_register_view(request):
     today, month, year = _month_year(request)
     sel = request.GET.get('schedule', 'H1X')
@@ -304,7 +296,7 @@ def _unit_factors(p):
     return factors
 
 
-@login_required
+@access.perm_required(('add', 'bill'), ('change', 'bill'))
 def customer_lookup(request):
     """Billing helper: find a customer by phone number (last 10 digits) or id; returns name and credit due."""
     pid = request.GET.get('id', '').strip()
@@ -331,7 +323,7 @@ def customer_lookup(request):
 # QUICK ADD PRODUCT (from the purchase form)
 # ======================================================
 
-@login_required
+@access.perm_required(('add', 'product'))
 def product_suggest(request):
     """Defaults for a new product: copied from a similar product (same first word of the name),
     otherwise from the most recently added product."""
@@ -351,7 +343,7 @@ def product_suggest(request):
         'pack_unit': str(pack.unit_id) if pack else '', 'pack_factor': pack.factor if pack else ''})
 
 
-@login_required
+@access.perm_required(('add', 'product'))
 @require_POST
 def product_quick_add(request):
     """Creates a product (and its pack conversion) from the small form on the purchase screen."""
@@ -420,7 +412,7 @@ def product_quick_add(request):
     return JsonResponse({'ok': True, 'id': product.pk, 'label': str(product)})
 
 
-@login_required
+@access.perm_required(('add', 'purchase'), ('change', 'purchase'))
 def last_purchase(request):
     """Items of a supplier's latest invoice (product, qty, unit; no prices) so a repeat order can be copied."""
     try:
@@ -437,7 +429,7 @@ def last_purchase(request):
                          'date': p.invoice_date.strftime('%d %b %Y'), 'items': items})
 
 
-@login_required
+@access.perm_required(('add', 'bill'), ('change', 'bill'))
 def product_lookup(request):
     q = request.GET.get('q', '').strip()
     pid = request.GET.get('id', '').strip()
@@ -511,10 +503,12 @@ def _reorder_suggestions(days, cover, today):
     return rows
 
 
-@login_required
+@access.perm_required(('view', 'purchaseorder'))
 def reorder_view(request):
     today = timezone.localdate()
     if request.method == 'POST':
+        if not access.can(request.user, 'add', 'purchaseorder'):
+            raise PermissionDenied
         picked = {}
         for raw in request.POST.getlist('pick'):
             if raw.isdigit():
@@ -585,14 +579,14 @@ def alerts_send(request):
     return redirect('dashboard')
 
 
-@login_required
+@access.perm_required(('view', 'purchaseorder'))
 def po_print(request, pk):
     po = get_object_or_404(PurchaseOrder.objects.select_related('supplier'), pk=pk)
     items = po.items.select_related('product', 'product__unit')
     return render(request, 'app/po_print.html', dict(po=po, items=items, shop=ShopProfile.get()))
 
 
-@login_required
+@access.perm_required(('change', 'purchaseorder'))
 @require_POST
 def po_email(request, pk):
     po = get_object_or_404(PurchaseOrder.objects.select_related('supplier'), pk=pk)
@@ -615,7 +609,7 @@ def po_email(request, pk):
     return redirect('list', key='purchase_orders')
 
 
-@login_required
+@access.perm_required(('change', 'purchaseorder'))
 def po_whatsapp(request, pk):
     po = get_object_or_404(PurchaseOrder.objects.select_related('supplier'), pk=pk)
     return redirect(notify.whatsapp_link(notify.po_text(po, ShopProfile.get()), po.supplier.phone or ''))
@@ -724,7 +718,7 @@ def _price_rows(qs):
     return supplier_prices.rows_from_items(qs)
 
 
-@login_required
+@access.perm_required(('view', 'purchase'))
 def supplier_prices_view(request):
     """All products with the cheapest and costliest supplier price."""
     q = request.GET.get('q', '').strip()
@@ -750,7 +744,7 @@ def supplier_prices_view(request):
                 base=urlencode({'q': q, 'multi': '1' if multi else ''}))
 
 
-@login_required
+@access.perm_required(('view', 'purchase'))
 def supplier_prices_product(request, pk):
     """Supplier-wise prices and full purchase price history for one product."""
     product = get_object_or_404(Product.objects.select_related('unit'), pk=pk)
@@ -780,7 +774,7 @@ def supplier_prices_product(request, pk):
                 worst_txt=supplier_prices.money(data['summary']['worst']['last_rate']) if data['summary']['worst'] else '-')
 
 
-@login_required
+@access.perm_required(('add', 'purchase'), ('change', 'purchase'), ('view', 'purchase'))
 def supplier_price_hint(request):
     """JSON for the Stock Entry form: every supplier's latest price for a product + unit factors, so the form can
     show 'last price from this supplier / cheapest supplier' and compare the price being typed."""
