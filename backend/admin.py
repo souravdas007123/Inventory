@@ -241,7 +241,7 @@ class PurchaseItemInline(admin.TabularInline):
     extra = 1
     autocomplete_fields = ['product']
     fields = (
-        'product', 'qty', 'unit', 'purchase_price', 'manufacture_date', 'expire_date',
+        'product', 'qty', 'unit', 'purchase_price', 'selling_price', 'manufacture_date', 'expire_date',
         'composition', 'rack', 'row', 'location', 'base_qty', 'batch', 'tax', 'cgst', 'sgst',
     )
     readonly_fields = ('base_qty', 'batch', 'tax', 'cgst', 'sgst')

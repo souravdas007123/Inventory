@@ -136,7 +136,7 @@ CONFIG = {
               ('HSN', lambda o: o.hsn_code or '-'), ('SKU', lambda o: o.sku or '-'),
               ('Rack / Row', lambda o: f"{o.rack or '-'} / {o.row or '-'}"),
               ('Unit', lambda o: o.unit or '-'), ('GST', lambda o: f"{o.gst_rate}%"),
-              ('MRP', lambda o: rs(o.mrp) if o.mrp is not None else '-'),
+              ('MRP (per unit)', lambda o: rs(o.mrp) if o.mrp is not None else '-'),
               ('Schedule', lambda o: '-' if o.schedule == 'NONE' else badge(o.schedule, 'amber')),
               ('Stock', lambda o: o.stock_display()), ('Pick Batch (FEFO)', pick_batch_txt),
               ('Status', stock_badge), ('Alternative', alt_txt)],
@@ -167,7 +167,7 @@ CONFIG = {
         fields=['supplier', 'invoice_number', 'invoice_date'],
         actions=lambda o: [dict(label='↩ Return', url=f"/purchases/{o.pk}/return/")],
         inline=dict(model=PurchaseItem, title='Invoice items',
-                    fields=['product', 'qty', 'unit', 'purchase_price', 'manufacture_date',
+                    fields=['product', 'qty', 'unit', 'purchase_price', 'selling_price', 'manufacture_date',
                             'expire_date', 'rack', 'row', 'location', 'composition']),
     ),
     'bills': dict(

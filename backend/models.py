@@ -189,9 +189,9 @@ class Product(models.Model):
     )
     schedule = models.CharField(max_length=4, choices=SCHEDULE_CHOICES, default='NONE', verbose_name="Drug Schedule")
     barcode = models.CharField(max_length=64, unique=True, null=True, blank=True, verbose_name="Barcode")
-    mrp = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                              verbose_name="MRP / Sale rate (per base unit)",
-                              help_text="Used to fill the rate when scanning/searching in billing")
+    mrp = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True,
+                              verbose_name="MRP incl. GST (per base unit)",
+                              help_text="MRP of 1 base unit including GST. Billing works out its rate from this automatically (GST is taken out of the MRP)")
 
     @property
     def is_low_stock(self):
@@ -421,6 +421,9 @@ class PurchaseItem(models.Model):
     base_qty = models.PositiveIntegerField(editable=False, default=0, verbose_name="Qty (base unit)")
     purchase_price = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True,
                                          verbose_name="Price (total incl. GST)")
+    selling_price = models.DecimalField(
+        max_digits=10, decimal_places=2, blank=True, null=True, verbose_name="Selling price (MRP incl. GST)",
+        help_text="MRP of 1 purchase unit (e.g. 1 Strip) including GST. Optional: it updates the product's MRP, which fills the billing rate")
     rate = models.DecimalField(max_digits=12, decimal_places=4, editable=False, default=0, verbose_name="Rate (per base unit)")
     tax = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0, verbose_name="Taxable Value")
     gst = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
@@ -439,6 +442,8 @@ class PurchaseItem(models.Model):
             raise ValidationError({'purchase_price': 'Price is required.'})
         if self.purchase_price < 0:
             raise ValidationError({'purchase_price': 'Price cannot be negative.'})
+        if self.selling_price is not None and self.selling_price <= 0:
+            raise ValidationError({'selling_price': 'Selling price must be greater than 0.'})
         if self.manufacture_date and self.expire_date and self.expire_date < self.manufacture_date:
             raise ValidationError({'expire_date': 'EXP date cannot be before MFG date.'})
         if self.product_id and self.unit_id:
@@ -516,6 +521,12 @@ class PurchaseItem(models.Model):
                 fresh.location = self.location
             if self.composition:
                 fresh.composition = self.composition
+            # The selling price (MRP of 1 purchase unit) entered with the purchase becomes the product's MRP per
+            # base unit. Re-saving an old purchase without changing it does not overwrite a newer MRP.
+            if self.selling_price and (old is None or old.selling_price != self.selling_price
+                                       or old.unit_id != self.unit_id):
+                fresh.mrp = (Decimal(self.selling_price) / Decimal(self.unit_factor or 1)).quantize(
+                    RATE_Q, ROUND_HALF_UP)
             fresh.save()
 
             # ---- Batch sync (create + edit), qty in base unit ----

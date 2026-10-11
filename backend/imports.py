@@ -88,7 +88,7 @@ PRODUCT_COLS = [
     _col('hsn_code', False, 'HSN code', '3004', '3004'),
     _col('category', False, 'Category (created if it is new)', 'Tablet', 'Tablet'),
     _col('brand', False, 'Brand / company (created if it is new)', 'Micro Labs', 'Alembic'),
-    _col('mrp', False, 'MRP / sale rate per base unit (used as the rate in billing)', '2.10', '19.50'),
+    _col('mrp', False, 'MRP incl. GST of 1 base unit (billing works out its rate from this)', '2.10', '19.50'),
     _col('barcode', False, 'Barcode (unique for each product)', '8901234567890', ''),
     _col('schedule', False, 'Drug schedule: blank/NONE, H, H1 or X', '', 'H'),
     _col('reorder_level', False, 'Low-stock alert when stock falls to this level or below (in base unit). Blank = 5', '100', '50'),
@@ -442,7 +442,8 @@ STOCK_COLS = [
     _col('product', True, 'Medicine name or barcode (must already exist in Products)', 'Dolo 650', 'Azithral 500'),
     _col('qty', True, 'Quantity (in the unit given below)', '20', '10'),
     _col('purchase_price', True, 'TOTAL price of this row, including GST (not the per-piece rate)', '2100', '1850'),
-    _col('exp_date', True, 'Expiry: 31/08/2027 ya 08/27', '08/27', '12/26'),
+    _col('exp_date', True, 'Expiry: 31/08/2027 or 08/27', '08/27', '12/26'),
+    _col('selling_price', False, 'Selling price = MRP incl. GST of 1 unit given below (e.g. per Strip). Updates the product MRP, so billing fills the rate', '31.50', '95'),
     _col('invoice_date', False, 'Bill date (blank = today). Keep it the same within one bill', '05/10/2026', '05/10/2026'),
     _col('unit', False, 'Unit of the qty, e.g. Strip (blank = the product\'s base unit)', 'Strip', 'Strip'),
     _col('batch', False, 'Batch number (blank = generated automatically)', 'B2301', 'AZ778'),
@@ -457,7 +458,8 @@ STOCK_ALIASES = {'supplier_name': 'supplier', 'party': 'supplier', 'invoice': 'i
                  'medicine': 'product', 'item': 'product', 'barcode': 'product', 'quantity': 'qty',
                  'price': 'purchase_price', 'total_price': 'purchase_price', 'amount': 'purchase_price',
                  'expiry': 'exp_date', 'expiry_date': 'exp_date', 'exp': 'exp_date', 'mfg': 'mfg_date',
-                 'batch_no': 'batch', 'batch_number': 'batch'}
+                 'batch_no': 'batch', 'batch_number': 'batch', 'mrp': 'selling_price', 'selling': 'selling_price',
+                 'sale_price': 'selling_price', 'selling_rate': 'selling_price'}
 
 
 def validate_stock(rows, opts):
@@ -494,6 +496,9 @@ def validate_stock(rows, opts):
 
         qty = to_int(raw.get('qty'), 'qty', errors, required=True, minimum=1)
         price = to_dec(raw.get('purchase_price'), 'purchase_price', errors, required=True, minimum=Decimal('0'))
+        selling = to_dec(raw.get('selling_price'), 'selling_price', errors, minimum=Decimal('0'))
+        if selling is not None and selling <= 0:
+            errors.append('selling_price must be greater than 0 (leave it blank to keep the current MRP)')
         exp = to_date(raw.get('exp_date'), 'exp_date', errors, required=True, month_end=True)
         mfg = to_date(raw.get('mfg_date'), 'mfg_date', errors)
         inv_date = to_date(raw.get('invoice_date'), 'invoice_date', errors) or today
@@ -530,7 +535,8 @@ def validate_stock(rows, opts):
             invoice_date=inv_date.isoformat(), product_id=prod.pk if prod else None,
             product=prod.name if prod else pname, qty=qty, unit_id=unit.pk if unit else None,
             unit=unit.name if unit else (prod.unit.name if prod and prod.unit_id else ''),
-            price=str(price) if price is not None else None, exp=exp.isoformat() if exp else None,
+            price=str(price) if price is not None else None,
+            selling=str(selling) if selling is not None and selling > 0 else None, exp=exp.isoformat() if exp else None,
             mfg=mfg.isoformat() if mfg else None, batch=txt(raw.get('batch')),
             rack=txt(raw.get('rack')), row=txt(raw.get('row')), location=txt(raw.get('location')),
             group=f"{gkey[0]}|{gkey[1]}",
@@ -570,6 +576,7 @@ def commit_stock(results, opts):
                     item = PurchaseItem(
                         purchase=purchase, product_id=d['product_id'], qty=d['qty'], unit_id=d['unit_id'],
                         purchase_price=Decimal(d['price']),
+                        selling_price=Decimal(d['selling']) if d.get('selling') else None,
                         expire_date=date.fromisoformat(d['exp']),
                         manufacture_date=date.fromisoformat(d['mfg']) if d['mfg'] else None,
                         batch=d['batch'] or None, rack=d['rack'] or None, row=d['row'] or None,
@@ -592,7 +599,7 @@ def commit_stock(results, opts):
 
 EXPENSE_COLS = [
     _col('name', True, 'Expense type: Rent, Salary, Electricity, Water, Maintenance or Other', 'Rent', 'Electricity'),
-    _col('amount', True, 'Rupaye', '15000', '2350.50'),
+    _col('amount', True, 'Amount in rupees', '15000', '2350.50'),
     _col('date', False, 'Date (blank = today)', '01/10/2026', '05/10/2026'),
 ]
 EXPENSE_ALIASES = {'type': 'name', 'expense': 'name', 'expense_type': 'name', 'head': 'name', 'category': 'name',

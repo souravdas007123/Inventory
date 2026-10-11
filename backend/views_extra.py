@@ -286,17 +286,37 @@ def drug_register_view(request):
 # BARCODE / QUICK PRODUCT LOOKUP (billing screen)
 # ======================================================
 
+def _bill_rate(p):
+    """Billing rate (before GST) of 1 base unit, worked out from the MRP (which includes GST). The bill adds GST on
+    top, so the customer pays exactly the MRP. '' when the product has no MRP."""
+    if p.mrp is None:
+        return ''
+    return str((Decimal(p.mrp) / (1 + Decimal(p.gst_rate or 0) / 100)).quantize(Decimal('0.0001')))
+
+
+def _unit_factors(p):
+    """{unit id: how many base units} for the base unit and every pack unit of the product."""
+    factors = {str(c.unit_id): c.factor for c in p.unit_conversions.all()}
+    if p.unit_id:
+        factors[str(p.unit_id)] = 1
+    return factors
+
+
 @login_required
 def product_lookup(request):
     q = request.GET.get('q', '').strip()
-    if not q:
+    pid = request.GET.get('id', '').strip()
+    base = Product.objects.exclude(is_active=False)
+    if pid.isdigit():
+        qs = base.filter(pk=int(pid))                      # exact product (used when a product is picked from the list)
+    elif q:
+        qs = base.filter(Q(barcode=q) | Q(sku__iexact=q) | Q(name__icontains=q) | Q(composition__icontains=q))
+    else:
         return JsonResponse({'results': [], 'exact': False})
-    qs = (Product.objects.exclude(is_active=False)
-          .filter(Q(barcode=q) | Q(sku__iexact=q) | Q(name__icontains=q) | Q(composition__icontains=q))
-          .select_related('unit').prefetch_related('unit_conversions__unit').order_by('name')[:8])
+    qs = qs.select_related('unit').prefetch_related('unit_conversions__unit').order_by('name')[:8]
     results = [dict(id=p.pk, name=p.name or str(p), composition=p.composition or '', barcode=p.barcode or '',
-                    mrp=str(p.mrp) if p.mrp is not None else '', stock=p.stock_display(), stock_qty=p.stock_qty,
-                    schedule=p.schedule) for p in qs]
+                    mrp=str(p.mrp) if p.mrp is not None else '', rate1=_bill_rate(p), factors=_unit_factors(p),
+                    stock=p.stock_display(), stock_qty=p.stock_qty, schedule=p.schedule) for p in qs]
     exact = any(r['barcode'] == q for r in results)
     return JsonResponse({'results': results, 'exact': exact})
 
@@ -528,6 +548,7 @@ def supplier_price_hint(request):
                                    timezone.localdate(), pack.factor if pack else None, history_limit=0)
     return JsonResponse({
         'found': True, 'base_name': product.unit.name if product.unit_id else 'unit',
+        'mrp': str(product.mrp) if product.mrp is not None else '',
         'pack_name': pack.unit.name if pack else '', 'pack_factor': pack.factor if pack else 0,
         'factors': factors,
         'suppliers': [dict(id=s['supplier_id'], name=s['supplier'], rate=str(s['last_rate']),

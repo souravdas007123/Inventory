@@ -21,7 +21,7 @@
   </div>
   {% endif %}
   {{ fs.management_form }}{{ fs.non_form_errors }}
-  <div class="tw"><table class="t">
+  <div class="tw"><table class="t{% if key == 'purchases' %} hide-extra{% endif %}" id="items-table">
     <thead><tr>{% for f in fs.empty_form.visible_fields %}<th>{{ f.label }}</th>{% endfor %}</tr></thead>
     <tbody id="rows">
       {% for r in fs %}<tr>{% for h in r.hidden_fields %}{{ h }}{% endfor %}{{ r.non_field_errors }}
@@ -29,6 +29,7 @@
     </tbody>
   </table></div>
   <button type="button" class="btn ghost" id="add" style="margin-top:10px">+ Add row</button>
+  {% if key == 'purchases' %}<button type="button" class="btn ghost" id="toggle-extra" style="margin-top:10px">▸ More details (rack, row, location, composition)</button>{% endif %}
   <template id="tpl"><tr>{% for h in fs.empty_form.hidden_fields %}{{ h }}{% endfor %}
     {% for f in fs.empty_form.visible_fields %}<td>{{ f }}</td>{% endfor %}</tr></template>
   </div>
@@ -59,6 +60,33 @@ if (payMode) { payMode.addEventListener('change', togglePay); togglePay(); }
 const scan = document.getElementById('scan'), resBox = document.getElementById('scan-results'),
       rowsBody = document.getElementById('rows');
 const rowField = (tr, name) => tr.querySelector('[name$="-' + name + '"]');
+// ---- Auto rate: the product's MRP (incl. GST) becomes the billing rate before GST, for the selected unit.
+// The bill adds GST on top, so the customer pays exactly the MRP. A rate typed by the user is never overwritten.
+const infoCache = {};
+async function getInfo(id) {
+  if (!(id in infoCache)) {
+    infoCache[id] = fetch('/api/products/lookup/?id=' + encodeURIComponent(id), {credentials: 'same-origin'})
+      .then(r => r.ok ? r.json() : null).then(d => (d && d.results && d.results[0]) || null).catch(() => null)
+      .then(p => { if (!p) delete infoCache[id]; return p; });
+  }
+  return infoCache[id];
+}
+function applyRate(tr, p) {
+  const rate = rowField(tr, 'rate'); if (!rate || !p || !p.rate1) return;
+  if (rate.value && rate.dataset.auto !== '1') return;           // the user typed their own rate: keep it
+  const uSel = rowField(tr, 'unit');
+  const f = uSel && uSel.value ? p.factors[uSel.value] : 1;
+  if (!f) return;
+  rate.value = (parseFloat(p.rate1) * f).toFixed(2); rate.dataset.auto = '1';
+}
+rowsBody.addEventListener('input', e => { if ((e.target.name || '').endsWith('-rate')) e.target.dataset.auto = '0'; });
+rowsBody.addEventListener('change', async e => {
+  const n = e.target.name || '', tr = e.target.closest('tr');
+  if (!tr || !(n.endsWith('-product') || n.endsWith('-unit'))) return;
+  const sel = rowField(tr, 'product'); if (!sel || !sel.value) return;
+  const p = await getInfo(sel.value);
+  if (p && rowField(tr, 'product').value === sel.value) applyRate(tr, p);
+});
 function addProduct(p) {
   for (const tr of rowsBody.querySelectorAll('tr')) {          // if the row already exists, qty +1
     const sel = rowField(tr, 'product');
@@ -77,15 +105,14 @@ function addProduct(p) {
   }
   rowField(target, 'product').value = String(p.id);
   rowField(target, 'qty').value = 1;
-  const rate = rowField(target, 'rate');
-  if (p.mrp && rate && !rate.value) rate.value = p.mrp;
+  applyRate(target, p);
 }
 function showResults(list) {
   resBox.textContent = '';
   list.forEach(p => {
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'btn ghost sm';
-    b.textContent = p.name + (p.mrp ? ' · ₹' + p.mrp : '') + ' · stock ' + p.stock + (p.schedule !== 'NONE' ? ' · Sch ' + p.schedule : '');
+    b.textContent = p.name + (p.mrp ? ' · MRP ₹' + (+p.mrp).toFixed(2) : '') + ' · stock ' + p.stock + (p.schedule !== 'NONE' ? ' · Sch ' + p.schedule : '');
     b.onclick = () => { addProduct(p); scan.value = ''; resBox.textContent = ''; scan.focus(); };
     resBox.appendChild(b);
   });
@@ -113,6 +140,19 @@ if (scan) {
 (function () {
   const rowsBody = document.getElementById('rows'), supplierSel = document.getElementById('id_supplier');
   if (!rowsBody || !supplierSel) return;
+// ---- Keep the table narrow: rack / row / location / composition (columns 8-11) are optional, so hide them by default ----
+  (function () {
+    const table = document.getElementById('items-table'), btn = document.getElementById('toggle-extra');
+    if (!table || !btn) return;
+    const st = document.createElement('style');
+    st.textContent = '#items-table.hide-extra th:nth-child(n+8),#items-table.hide-extra td:nth-child(n+8){display:none}@media(min-width:821px){#items-table input,#items-table select{min-width:60px}#items-table input[type=date]{min-width:118px}#items-table th{white-space:normal;line-height:1.2}#items-table tbody tr:not(.hintrow) td:first-child select{min-width:170px}}';
+    document.head.appendChild(st);
+    const setOpen = open => { table.classList.toggle('hide-extra', !open); btn.textContent = (open ? '▾ Hide' : '▸ More') + ' details (rack, row, location, composition)'; };
+    btn.addEventListener('click', () => setOpen(table.classList.contains('hide-extra')));
+    const filled = [...table.querySelectorAll('tbody tr:not(.hintrow) td:nth-child(n+8)')]
+      .some(td => td.querySelector('.errorlist') || [...td.querySelectorAll('input,select,textarea')].some(i => i.value));
+    if (filled) setOpen(true);                        // never hide values that already exist or have errors
+  })();
   const cache = {};
   const field = (tr, n) => tr.querySelector('[name$="-' + n + '"]');
   const fmt = v => '₹' + (v >= 10 ? v.toFixed(2) : v.toFixed(3));
@@ -143,6 +183,28 @@ if (scan) {
     el.appendChild(c);
   }
   function show(el) { el.closest('tr').style.display = el.children.length ? '' : 'none'; }
+  const unitName = (tr, d) => { const u = field(tr, 'unit'); return u && u.value ? u.options[u.selectedIndex].text : d.base_name; };
+  // Prefill the selling price (MRP of 1 purchase unit) from the product's current MRP, unless the user typed one.
+  function syncSell(tr, d) {
+    const sellEl = field(tr, 'selling_price'); if (!sellEl || !d.mrp) return;
+    const uSel = field(tr, 'unit'), f = uSel && uSel.value ? d.factors[uSel.value] : 1; if (!f) return;
+    if (!sellEl.value || sellEl.dataset.auto === '1') { sellEl.value = (parseFloat(d.mrp) * f).toFixed(2); sellEl.dataset.auto = '1'; }
+  }
+  function sellChip(el, tr, d) {
+    const sellEl = field(tr, 'selling_price'); if (!sellEl) return;
+    const sell = parseFloat(sellEl.value), name = unitName(tr, d);
+    if (!(sell > 0)) {
+      if (d.mrp) chip(el, 'Selling price unchanged: billing keeps using the current MRP', 'grey');
+      else chip(el, 'Enter the selling price (MRP) so billing fills the rate automatically', 'amber');
+      return;
+    }
+    const qty = parseFloat(field(tr, 'qty') && field(tr, 'qty').value), price = parseFloat(field(tr, 'purchase_price') && field(tr, 'purchase_price').value);
+    if (qty > 0 && price >= 0) {
+      const cost = price / qty, margin = (sell - cost) / sell * 100;
+      if (sell < cost) chip(el, '⚠ Selling ' + fmt(sell) + '/' + name + ' is below the cost ' + fmt(cost), 'red', 'Selling price is lower than what you pay (both incl. GST)');
+      else chip(el, 'Selling ' + fmt(sell) + '/' + name + ' · margin ' + margin.toFixed(1) + '%', margin < 5 ? 'amber' : 'green', 'Profit ' + fmt(sell - cost) + ' per ' + name + ' (MRP vs purchase price, both incl. GST)');
+    } else chip(el, 'Selling ' + fmt(sell) + '/' + name, 'grey');
+  }
   async function refresh(tr) {
     const sel = field(tr, 'product'), el = hintBox(tr); if (!sel || !el) return;
     const pid = sel.value;
@@ -152,10 +214,11 @@ if (scan) {
     if (field(tr, 'product').value !== pid) return;          // the row changed while loading
     el.textContent = '';
     if (!d || !d.found) { show(el); return; }
+    syncSell(tr, d);
     const packTip = s => s.pack_txt ? s.pack_txt + ' per ' + d.pack_name : '';
     const mine = d.suppliers.find(s => String(s.id) === supplierSel.value);
     const best = d.suppliers.find(s => s.best);
-    if (!d.suppliers.length) { chip(el, 'No earlier purchase price for this product'); show(el); return; }
+    if (!d.suppliers.length) { chip(el, 'No earlier purchase price for this product'); sellChip(el, tr, d); show(el); return; }
     const lead = document.createElement('small'); lead.style.color = 'var(--mute)'; lead.textContent = 'Price per ' + d.base_name + ':';
     el.appendChild(lead);
     if (mine) chip(el, 'Last ' + mine.rate_txt + ' · ' + mine.date, 'grey', 'Last price from this supplier' + (packTip(mine) ? ' · ' + packTip(mine) : ''));
@@ -176,12 +239,16 @@ if (scan) {
         else chip(el, 'This entry ' + fmt(rate) + ' · in line', 'grey', 'In line with ' + label + (tip ? ' · ' + tip : ''));
       }
     }
+    sellChip(el, tr, d);
     show(el);
   }
   let timer;
   const later = tr => { clearTimeout(timer); timer = setTimeout(() => refresh(tr), 250); };
   rowsBody.addEventListener('change', e => { const tr = e.target.closest('tr'); if (tr && !tr.classList.contains('hintrow')) refresh(tr); });
-  rowsBody.addEventListener('input', e => { const tr = e.target.closest('tr'); if (tr && !tr.classList.contains('hintrow')) later(tr); });
+  rowsBody.addEventListener('input', e => {
+    if ((e.target.name || '').endsWith('-selling_price')) e.target.dataset.auto = '0';   // the user typed it
+    const tr = e.target.closest('tr'); if (tr && !tr.classList.contains('hintrow')) later(tr);
+  });
   const dataRows = () => rowsBody.querySelectorAll('tr:not(.hintrow)');
   supplierSel.addEventListener('change', () => dataRows().forEach(refresh));
   dataRows().forEach(refresh);
