@@ -119,16 +119,73 @@ rowsBody.addEventListener('input', e => { if ((e.target.name || '').endsWith('-r
 rowsBody.addEventListener('change', async e => {
   const n = e.target.name || '', tr = e.target.closest('tr');
   if (!tr || !(n.endsWith('-product') || n.endsWith('-unit'))) return;
-  const sel = rowField(tr, 'product'); if (!sel || !sel.value) return;
+  const sel = rowField(tr, 'product'); if (!sel) return;
+  showBatches(tr);
+  if (!sel.value) return;
   const p = await getInfo(sel.value);
   if (p && rowField(tr, 'product').value === sel.value) applyRate(tr, p);
 });
+// ---- Batch hint under each row: which batch is sold first (earliest EXP), its expiry and where it is kept (rack / row) ----
+const NEW_BILL = {% if form.instance.pk %}false{% else %}true{% endif %};
+function batchRow(tr, create) {
+  const next = tr.nextElementSibling;
+  if (next && next.classList.contains('hintrow')) return next;
+  if (!create) return null;
+  const hr = document.createElement('tr'); hr.className = 'hintrow';
+  const td = document.createElement('td'); td.colSpan = tr.children.length; td.setAttribute('data-label', '');
+  const box = document.createElement('div'); box.className = 'bh';
+  box.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-start';
+  td.appendChild(box); hr.appendChild(td); tr.after(hr);
+  return hr;
+}
+function bchip(box, text, cls) {
+  const b = document.createElement('span'); b.className = 'badge ' + (cls || 'grey'); b.textContent = text;
+  b.style.cssText = 'white-space:normal;font-weight:500;font-size:12px;padding:3px 10px;text-align:left';
+  box.appendChild(b);
+}
+const fmtExp = iso => new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'});
+const batchTxt = (b, unit) => b.no + ' · ' + (b.exp ? 'EXP ' + fmtExp(b.exp) : 'no EXP date') + ' · ' + (b.where || 'rack not set') + ' · ' + b.qty + ' ' + unit + ' left';
+const expCls = b => b.days === null ? 'grey' : b.days <= 30 ? 'red' : b.days <= 90 ? 'amber' : 'green';
+function drawBatches(tr, p) {
+  const hr = batchRow(tr, true), box = hr.querySelector('.bh'); box.textContent = '';
+  const unit = p.unit_name || '', list = p.batches || [];
+  if (!list.length) {
+    bchip(box, +p.stock_qty > 0 && !p.expired_qty ? 'This stock has no batch record' : 'No sellable batch in stock', 'amber');
+  } else {
+    bchip(box, 'Sell first: ' + batchTxt(list[0], unit), expCls(list[0]));
+    list.slice(1, 3).forEach(b => bchip(box, 'Next: ' + batchTxt(b, unit), 'grey'));
+    const qEl = rowField(tr, 'qty'), uSel = rowField(tr, 'unit');
+    const f = uSel && uSel.value && p.factors[uSel.value] ? p.factors[uSel.value] : 1;
+    let need = Math.round((parseFloat(qEl && qEl.value) || 0) * f);
+    if (need > 0) {
+      const parts = [];
+      for (const b of list) { if (need <= 0) break; const t = Math.min(b.qty, need); parts.push(t + ' ' + unit + ' from ' + b.no + (b.where ? ' (' + b.where + ')' : '')); need -= t; }
+      if (need > 0) bchip(box, 'Only ' + (parts.length ? 'part of this quantity' : 'no stock') + ' is available in valid batches. Short by ' + need + ' ' + unit + '.', 'red');
+      else if (parts.length > 1) bchip(box, 'This quantity is taken from ' + parts.length + ' batches: ' + parts.join(' + '), 'amber');
+    }
+  }
+  if (p.expired_qty > 0) bchip(box, p.expired_batches + ' expired batch' + (p.expired_batches > 1 ? 'es' : '') + ' (' + p.expired_qty + ' ' + unit + ') will not be sold. Take them off the shelf.', 'red');
+  hr.style.display = '';
+}
+async function showBatches(tr) {
+  if (!NEW_BILL) return;
+  const sel = rowField(tr, 'product'); if (!sel) return;
+  if (!sel.value) { const hr = batchRow(tr, false); if (hr) hr.style.display = 'none'; return; }
+  const pid = sel.value, p = await getInfo(pid);
+  if (p && rowField(tr, 'product').value === pid) drawBatches(tr, p);
+}
+let batchTimer;
+rowsBody.addEventListener('input', e => {
+  if (!(e.target.name || '').endsWith('-qty')) return;
+  const tr = e.target.closest('tr'); clearTimeout(batchTimer); batchTimer = setTimeout(() => showBatches(tr), 200);
+});
+rowsBody.querySelectorAll('tr').forEach(tr => { if (rowField(tr, 'product') && rowField(tr, 'product').value) showBatches(tr); });
 function addProduct(p, jump) {
   const toQty = tr => { if (!jump) return; const q = rowField(tr, 'qty'); if (q) { q.focus(); q.select(); } };
   for (const tr of rowsBody.querySelectorAll('tr')) {          // if the row already exists, qty +1
     const sel = rowField(tr, 'product');
     if (sel && sel.value === String(p.id)) {
-      const q = rowField(tr, 'qty'); q.value = (parseInt(q.value || '0', 10) + 1); toQty(tr); return;
+      const q = rowField(tr, 'qty'); q.value = (parseInt(q.value || '0', 10) + 1); showBatches(tr); toQty(tr); return;
     }
   }
   let target = null;                                           // find an empty row
@@ -143,6 +200,7 @@ function addProduct(p, jump) {
   rowField(target, 'product').value = String(p.id);
   rowField(target, 'qty').value = 1;
   applyRate(target, p);
+  showBatches(target);
   toQty(target);
 }
 function showResults(list) {

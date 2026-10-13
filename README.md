@@ -86,3 +86,11 @@ Menu: **Master Data → Import / Export** (`/import/`).
 - **Login lock**: Login is blocked for 15 minutes after 5 failed attempts (per IP + username). The counter is kept in a shared file cache (change the folder with `DJANGO_CACHE_DIR`). The lock does not apply to the `/admin/` login.
 - **WhatsApp**: credit reminders (dashboard and customer ledger) and invoice sharing. These are wa.me links; no API is needed.
 - **Import**: Expenses, Categories, Brands and Units can also be imported.
+
+## Billing: batch hint (FEFO)
+
+When a product is picked on the billing screen, a line under the row shows the batch that will be sold first (earliest EXP,
+batches without a date last, expired ones skipped): batch number, EXP, rack / row / location and quantity left. The next
+batches are shown in grey. If the entered quantity needs more than one batch, the split is shown ("20 from B-101 (Rack A) + 25 from B-102").
+A red note appears when the quantity is more than the valid stock, and when the product has expired batches on the shelf.
+The hint is for information only; the sale itself still deducts FEFO exactly as before (`InvoiceItem._deduct_from_batches`).

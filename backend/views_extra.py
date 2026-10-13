@@ -11,7 +11,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q, Sum
+from django.db.models import F, Q, Sum
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -475,6 +475,25 @@ def last_purchase(request):
                          'date': p.invoice_date.strftime('%d %b %Y'), 'items': items})
 
 
+def _batch_info(product_ids):
+    """Billing helper. Per product: the sellable batches in the order they will be sold (FEFO: earliest expiry first,
+    no date last, expired ones skipped), and what is stuck in expired batches. Quantities are in base units."""
+    today = timezone.localdate()
+    out = {pid: {'batches': [], 'expired_qty': 0, 'expired_batches': 0} for pid in product_ids}
+    rows = Batch.objects.filter(product_id__in=product_ids, qty__gt=0).order_by(F('expire_date').asc(nulls_last=True), 'id')
+    for b in rows:
+        o = out[b.product_id]
+        if b.expire_date and b.expire_date < today:
+            o['expired_qty'] += b.qty
+            o['expired_batches'] += 1
+        elif len(o['batches']) < 6:
+            where = ' · '.join(x for x in (f'Rack {b.rack}' if b.rack else '', f'Row {b.row}' if b.row else '', b.location or '') if x)
+            o['batches'].append(dict(id=b.pk, no=b.batch_number or 'No batch no.', qty=b.qty, where=where,
+                                     exp=b.expire_date.isoformat() if b.expire_date else '',
+                                     days=(b.expire_date - today).days if b.expire_date else None))
+    return out
+
+
 @access.perm_required(('add', 'bill'), ('change', 'bill'))
 def product_lookup(request):
     q = request.GET.get('q', '').strip()
@@ -487,9 +506,12 @@ def product_lookup(request):
     else:
         return JsonResponse({'results': [], 'exact': False})
     qs = qs.select_related('unit').prefetch_related('unit_conversions__unit').order_by('name')[:8]
+    products = list(qs)
+    batch_info = _batch_info([p.pk for p in products]) if pid.isdigit() else {}     # only when one product is picked
     results = [dict(id=p.pk, name=p.name or str(p), composition=p.composition or '', barcode=p.barcode or '',
                     mrp=str(p.mrp) if p.mrp is not None else '', rate1=_bill_rate(p), factors=_unit_factors(p),
-                    stock=p.stock_display(), stock_qty=p.stock_qty, schedule=p.schedule) for p in qs]
+                    stock=p.stock_display(), stock_qty=p.stock_qty, schedule=p.schedule,
+                    unit_name=p.unit.name if p.unit_id else '', **batch_info.get(p.pk, {})) for p in products]
     exact = any(r['barcode'] == q for r in results)
     return JsonResponse({'results': results, 'exact': exact})
 
