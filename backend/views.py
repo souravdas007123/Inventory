@@ -161,9 +161,14 @@ def product_cell(o):
                  ' \u00b7 '.join(str(x) for x in (o.brand, o.category) if x))
 
 
+def gst_txt(o):
+    """'18%' (not '18.00%'); a rate like 2.5 stays '2.5%'."""
+    return f"{format(Decimal(o.gst_rate or 0).normalize(), 'f')}%"
+
+
 def product_price_cell(o):
     unit = f" / {o.unit}" if o.unit_id else ''
-    return stack(f"{rs(o.mrp)}{unit}" if o.mrp is not None else '-', f"GST {o.gst_rate}%")
+    return stack(f"{rs(o.mrp)}{unit}" if o.mrp is not None else '-', f"GST {gst_txt(o)}")
 
 
 def product_place_cell(o):
@@ -193,7 +198,7 @@ CONFIG = {
               ('Brand', lambda o: o.brand or '-'), ('Category', lambda o: o.category or '-'),
               ('HSN', lambda o: o.hsn_code or '-'), ('SKU', lambda o: o.sku or '-'),
               ('Rack / Row', lambda o: f"{o.rack or '-'} / {o.row or '-'}"),
-              ('Unit', lambda o: o.unit or '-'), ('GST', lambda o: f"{o.gst_rate}%"),
+              ('Unit', lambda o: o.unit or '-'), ('GST', gst_txt),
               ('MRP (per unit)', lambda o: rs(o.mrp) if o.mrp is not None else '-'),
               ('Schedule', lambda o: '-' if o.schedule == 'NONE' else badge(o.schedule, 'amber')),
               ('Stock', lambda o: o.stock_display()), ('Pick Batch (FEFO)', pick_batch_txt),
