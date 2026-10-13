@@ -28,17 +28,17 @@
     {% if can_add_product %}<button type="button" class="btn ghost sm" id="new-product" title="Add a medicine that is not in Products yet, without leaving this page">➕ New product</button>{% endif %}
     {% if not form.instance.pk %}<button type="button" class="btn ghost sm" id="copy-last">↻ Copy items from this supplier's last invoice</button>{% endif %}<small id="copy-msg" style="color:var(--mute)"></small></div>{% endif %}
   {{ fs.management_form }}{{ fs.non_form_errors }}
-  <div class="tw"><table class="t{% if key == 'purchases' %} hide-extra{% endif %}" id="items-table">
+  <div class="tw"><table class="t stack{% if key == 'purchases' %} hide-extra{% endif %}" id="items-table">
     <thead><tr>{% for f in fs.empty_form.visible_fields %}<th>{{ f.label }}</th>{% endfor %}</tr></thead>
     <tbody id="rows">
       {% for r in fs %}<tr>{% for h in r.hidden_fields %}{{ h }}{% endfor %}{{ r.non_field_errors }}
-        {% for f in r.visible_fields %}<td>{{ f }}{{ f.errors }}</td>{% endfor %}</tr>{% endfor %}
+        {% for f in r.visible_fields %}<td data-label="{{ f.label }}">{{ f }}{{ f.errors }}</td>{% endfor %}</tr>{% endfor %}
     </tbody>
   </table></div>
   <button type="button" class="btn ghost" id="add" style="margin-top:10px">+ Add row</button>
   {% if key == 'purchases' %}<button type="button" class="btn ghost" id="toggle-extra" style="margin-top:10px">▸ More details (rack, row, location, composition)</button>{% endif %}
   <template id="tpl"><tr>{% for h in fs.empty_form.hidden_fields %}{{ h }}{% endfor %}
-    {% for f in fs.empty_form.visible_fields %}<td>{{ f }}</td>{% endfor %}</tr></template>
+    {% for f in fs.empty_form.visible_fields %}<td data-label="{{ f.label }}">{{ f }}</td>{% endfor %}</tr></template>
   </div>
   {% endif %}
 
@@ -252,7 +252,7 @@ if (scan) {
     const table = document.getElementById('items-table'), btn = document.getElementById('toggle-extra');
     if (!table || !btn) return;
     const st = document.createElement('style');
-    st.textContent = '#items-table.hide-extra th:nth-child(n+8),#items-table.hide-extra td:nth-child(n+8){display:none}@media(min-width:821px){#items-table input,#items-table select{min-width:60px}#items-table input[type=date]{min-width:118px}#items-table th{white-space:normal;line-height:1.2}#items-table tbody tr:not(.hintrow) td:first-child select{min-width:170px}}';
+    st.textContent = '#items-table.hide-extra th:nth-child(n+8),#items-table.hide-extra td:nth-child(n+8){display:none}@media(min-width:821px){#items-table input,#items-table select{min-width:60px}#items-table input[type=date]{min-width:118px}#items-table th{white-space:normal;line-height:1.2}#items-table tbody tr:not(.hintrow) td:first-child select{min-width:170px}#items-table th:first-child,#items-table tbody tr:not(.hintrow) td:first-child{position:sticky;left:0;z-index:1;background:var(--card)}}';
     document.head.appendChild(st);
     const setOpen = open => { table.classList.toggle('hide-extra', !open); btn.textContent = (open ? '▾ Hide' : '▸ More') + ' details (rack, row, location, composition)'; };
     btn.addEventListener('click', () => setOpen(table.classList.contains('hide-extra')));

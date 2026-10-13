@@ -149,6 +149,12 @@ def batch_actions(o):
 
 PO_COLORS = {'PENDING': 'amber', 'SENT': 'blue', 'COMPLETED': 'green', 'CANCELLED': 'red'}
 
+def product_names(o, limit=3):
+    """'Dolo 650, Crocin +2 more' for the Purchases list."""
+    names = [i.product.name for i in o.items.all()]
+    return ', '.join(names[:limit]) + (f' +{len(names) - limit} more' if len(names) > limit else '') if names else '-'
+
+
 CONFIG = {
     'products': dict(
         title='Products', one='Product', model=Product, order=['name'],
@@ -181,10 +187,11 @@ CONFIG = {
     ),
     'purchases': dict(
         title='Purchases', one='Purchase Invoice', model=Purchase, order=['-invoice_date', '-id'],
-        related=['supplier'], prefetch=['items'],
+        related=['supplier'], prefetch=['items__product'],
         search=['invoice_number', 'supplier__company', 'items__product__name'],
         cols=[('Invoice No.', lambda o: o.invoice_number), ('Date', lambda o: d(o.invoice_date)),
-              ('Supplier', lambda o: o.supplier.company), ('Items', lambda o: o.total_items),
+              ('Supplier', lambda o: o.supplier.company), ('Products', product_names),
+              ('Items', lambda o: o.total_items),
               ('Taxable', lambda o: rs(o.taxable)), ('GST', lambda o: rs(o.gst_total)),
               ('Total', lambda o: rs(o.total))],
         fields=['supplier', 'invoice_number', 'invoice_date'],
