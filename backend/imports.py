@@ -91,7 +91,7 @@ PRODUCT_COLS = [
     _col('mrp', False, 'MRP incl. GST of 1 base unit (billing works out its rate from this)', '2.10', '19.50'),
     _col('barcode', False, 'Barcode (unique for each product)', '8901234567890', ''),
     _col('schedule', False, 'Drug schedule: blank/NONE, H, H1 or X', '', 'H'),
-    _col('reorder_level', False, 'Low-stock alert when stock falls to this level or below (in base unit). Blank = 5', '100', '50'),
+    _col('reorder_level', False, 'Starting reorder level of a NEW product (in base unit, blank = 5). It is calculated automatically from sales afterwards, so it is ignored for existing products', '100', '50'),
     _col('rack', False, 'Rack', 'A1', 'A2'),
     _col('row', False, 'Row', '2', '1'),
     _col('location', False, 'Godown / location', 'Counter', 'Counter'),
@@ -219,7 +219,7 @@ def _apply_product(d):
         p.barcode = d['barcode']
     if d['schedule']:
         p.schedule = d['schedule']
-    if d['reorder_level'] is not None:
+    if d['reorder_level'] is not None and not existing:      # only a starting value; afterwards it is automatic (see levels.py)
         p.reorder_level = d['reorder_level']
     if d['is_active'] is not None:
         p.is_active = d['is_active']

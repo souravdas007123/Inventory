@@ -128,8 +128,8 @@ class ProductResource(resources.ModelResource):
         widget=GetOrCreateFKWidget(Unit, field='name'),
     )
 
-    # Stock / batch / SKU are managed by the system and must never be overwritten by an import
-    PROTECTED = ('stock_qty', 'batch', 'sku')
+    # Stock / batch / SKU / reorder level are managed by the system and must never be overwritten by an import
+    PROTECTED = ('stock_qty', 'batch', 'sku', 'reorder_level')
 
     def import_field(self, field, *args, **kwargs):
         if getattr(field, 'attribute', None) in self.PROTECTED:

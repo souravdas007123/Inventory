@@ -18,7 +18,7 @@ from django.utils import timezone
 from django.utils.html import format_html, format_html_join
 from django.views.decorators.http import require_POST
 
-from . import access, auditlog, backup, checks, notify, recurring, supplier_prices
+from . import access, auditlog, backup, checks, levels, notify, recurring, supplier_prices
 from .models import (
     AuditLog, Batch, Bill, Brand, Category, Customer, CustomerPayment, Employee, Expense, InvoiceItem, Order, Payment,
     Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, RecurringExpense,
@@ -72,6 +72,11 @@ def paid_this_month(emp):
     today = timezone.localdate()
     return sum((e.amount for e in emp.expenses.all()
                 if e.name == 'SALARY' and e.date.year == today.year and e.date.month == today.month), Decimal('0'))
+
+
+def auto_levels():
+    """Once a day: brings every product's reorder level in line with its sales (cheap, never raises)."""
+    levels.refresh_daily()
 
 
 def post_recurring(request):
@@ -217,11 +222,11 @@ CONFIG = {
               ('Stock', lambda o: o.stock_display()), ('Pick Batch (FEFO)', pick_batch_txt),
               ('Status', stock_badge), ('Alternative', alt_txt)],
         # The screen shows fewer, multi-line columns (no side scroll); the Excel / CSV export keeps every column above.
-        list_cols=[('Product', product_cell), ('Stock', lambda o: stack(o.stock_display(), stock_badge(o))),
+        list_cols=[('Product', product_cell), ('Stock', lambda o: stack(o.stock_display(), stock_badge(o), f"Reorder at {o.reorder_level}")),
                    ('Price', product_price_cell), ('Place', product_place_cell),
                    ('Sell first (FEFO)', pick_batch_txt), ('Other', product_extra_cell)],
         fields=['name', 'composition', 'hsn_code', 'category', 'brand', 'gst_rate', 'unit', 'mrp', 'barcode',
-                'schedule', 'reorder_level', 'default_supplier', 'location', 'rack', 'row', 'is_active'],
+                'schedule', 'default_supplier', 'location', 'rack', 'row', 'is_active'],
         inline=dict(model=ProductUnit, fields=['unit', 'factor'],
                     title='Unit conversions (e.g. 1 Strip = 15 Tablet)'),
         actions=lambda o: [dict(label='⚖️ Prices', url=f'/supplier_prices/{o.pk}/')],
@@ -527,6 +532,7 @@ def dashboard(request):
             return redirect(first)
         raise PermissionDenied
     post_recurring(request)
+    auto_levels()
     today = timezone.localdate()
     soon = today + timedelta(days=30)
 
@@ -587,6 +593,8 @@ def listing(request, key):
     cfg = get_cfg(key, request, 'view')
     if key in ('expenses', 'employees', 'fixed_expenses'):
         post_recurring(request)
+    if key == 'products':
+        auto_levels()
     qs = cfg['model'].objects.all()
     if cfg.get('related'):
         qs = qs.select_related(*cfg['related'])

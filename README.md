@@ -116,3 +116,19 @@ A list can opt in with `list_cols` in `CONFIG` (see `products` in `backend/views
 
 The Billing list uses the same compact layout (Invoice + date, Customer + order / mode, Items, Amount with Taxable and GST below, Payment, Status);
 its Excel / CSV export keeps CGST, SGST and IGST as separate columns.
+
+## Automatic reorder level and automatic purchase orders
+
+- **Reorder level is automatic and cannot be edited** (not in the Products form, not in the admin, not by import for existing products).
+  It is about **10 days of average sales** of the last 30 days (never below 5, rounded up to whole packs). Products with no sales in
+  the last 30 days keep their current level. It is refreshed when a product is sold, once a day for all products (first visit of the day
+  to the Dashboard / Products / Reorder Suggestions, and `daily_tasks`). The Products list shows it as "Reorder at N".
+  A new product starts at 5 (an import file may give a starting value for NEW products only). Logic: `backend/levels.py`, `reorder.auto_level`.
+- **Automatic purchase order** (when a sale takes the stock to the reorder level or below):
+  - **Supplier** = the supplier whose *latest* price for that product is the lowest (a price not bought for 180 days does not count while
+    others are current); if the product was never purchased: its Default Supplier; else the supplier of the last purchase.
+    The Reorder Suggestions page uses the same rule (`supplier_prices.pick_supplier`).
+  - **Quantity** = enough for 30 days of sales minus the sellable stock and what is already on order, rounded up to whole packs
+    (same rule as the Reorder Suggestions page, `reorder.order_qty`). Without sales: twice the reorder level.
+  - No new PO for a product that is already on a Pending / Sent PO.
+- Needs `python manage.py migrate` (migration 0009).

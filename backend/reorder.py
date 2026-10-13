@@ -10,6 +10,11 @@ A product is a dict: id, name, unit, stock_qty, reorder_level, pack_name, pack_f
 """
 from decimal import Decimal, ROUND_CEILING
 
+LEVEL_DAYS = 10           # the automatic reorder level = this many days of average sales (supplier delivery + safety)
+LEVEL_WINDOW = 30         # ... average of the sales of the last this many days
+MIN_LEVEL = 5             # ... but never below this (base units)
+ORDER_COVER = 30          # an automatic order brings the stock up to this many days of sales
+
 ORDER_NOW_DAYS = 7        # stock lasts less than this many days -> order now
 ORDER_SOON_DAYS = 15      # ... less than this -> order soon
 
@@ -22,6 +27,30 @@ def _round_up_to_pack(qty, factor):
     if factor and factor > 1 and qty > 0:
         return _ceil(Decimal(qty) / factor) * factor
     return qty
+
+
+def auto_level(sold, window=LEVEL_WINDOW, level_days=LEVEL_DAYS, pack_factor=0, floor=MIN_LEVEL):
+    """The automatic reorder level (base units): about `level_days` of average sales, at least `floor`, rounded up to
+    whole packs. Returns None when nothing was sold in the window, meaning "leave the level as it is"."""
+    sold = Decimal(sold or 0)
+    if sold <= 0:
+        return None
+    level = max(_ceil(sold / max(int(window), 1) * level_days), floor)
+    return int(_round_up_to_pack(level, pack_factor))
+
+
+def needed(daily, position, cover=ORDER_COVER, level=0):
+    """How many base units to order. `position` = sellable stock + stock already on order.
+    With sales: enough for `cover` days of sales. Without sales: twice the reorder level."""
+    if daily > 0:
+        return _ceil(daily * cover) - position
+    return level * 2 - position
+
+
+def order_qty(daily, position, cover=ORDER_COVER, level=0, pack_factor=0):
+    """`needed`, rounded up to whole packs (0 when nothing is needed)."""
+    need = needed(daily, position, cover, level)
+    return _round_up_to_pack(need, pack_factor) if need > 0 else 0
 
 
 def suggest(products, sold, expired, on_order, days=30, cover=30):
@@ -38,7 +67,7 @@ def suggest(products, sold, expired, on_order, days=30, cover=30):
         days_left = (Decimal(sellable) / daily) if daily > 0 else None
 
         if daily > 0:
-            need = _ceil(daily * cover) - position
+            need = needed(daily, position, cover)
             if sellable == 0:
                 status, cls = 'Out of stock', 'red'
             elif days_left < ORDER_NOW_DAYS:
@@ -50,7 +79,7 @@ def suggest(products, sold, expired, on_order, days=30, cover=30):
             else:
                 continue
         elif sellable <= p['reorder_level']:
-            need = p['reorder_level'] * 2 - position       # same rule as the automatic PO when nothing sold lately
+            need = needed(daily, position, cover, p['reorder_level'])   # same rule as the automatic PO
             status, cls = 'Low stock (no recent sales)', 'grey'
         else:
             continue

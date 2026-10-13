@@ -175,7 +175,9 @@ class Product(models.Model):
     stock_qty = models.PositiveIntegerField(editable=False, default=0, verbose_name="Stock")
     unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Base Unit",
                              help_text="Smallest unit (e.g. Tablet). Stock is always stored in this unit.")
-    reorder_level = models.PositiveIntegerField(default=5, help_text="In base unit")
+    reorder_level = models.PositiveIntegerField(
+        default=5, editable=False, verbose_name="Reorder level",
+        help_text="Worked out automatically from sales (about 10 days of average sales). It cannot be edited.")
     default_supplier = models.ForeignKey('Supplier', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Default Supplier for PO")
     location = models.CharField(max_length=100, blank=True, null=True, verbose_name="Location/Godown")
     rack = models.CharField(max_length=50, blank=True, null=True, verbose_name="Rack No.")
@@ -1159,22 +1161,19 @@ class InvoiceItem(models.Model):
 
     # ---------- Auto Purchase Order (qty in base unit) ----------
     def _auto_create_purchase_order(self, product):
+        from . import levels      # imported here: levels imports this module
+
+        # The reorder level follows the real sales (it cannot be typed in), then the stock is compared with it.
+        levels.refresh_product(product)
         if product.stock_qty > product.reorder_level:
             return
 
-        # Supplier choice: the product's default supplier if one is set; otherwise the supplier with the lowest
-        # current price (see supplier_prices); otherwise the supplier of the last purchase.
-        supplier = product.default_supplier
-        if not supplier:
-            rows = supplier_prices.rows_from_items(PurchaseItem.objects.filter(product=product))
-            cheapest = supplier_prices.cheapest_supplier_id(rows, timezone.localdate())
-            supplier = Supplier.objects.filter(pk=cheapest).first() if cheapest else None
-        if not supplier:
-            last = (
-                PurchaseItem.objects.filter(product=product)
-                .select_related('purchase__supplier').order_by('-id').first()
-            )
-            supplier = last.purchase.supplier if last else None
+        # Supplier: the one whose latest price for this product is the lowest; else the product's default supplier;
+        # else the supplier of the last purchase (see supplier_prices.pick_supplier).
+        today = timezone.localdate()
+        rows = supplier_prices.rows_from_items(PurchaseItem.objects.filter(product=product))
+        supplier_id = supplier_prices.pick_supplier(rows, product.default_supplier_id, today)
+        supplier = Supplier.objects.filter(pk=supplier_id).first() if supplier_id else None
         if not supplier:
             return
 
@@ -1184,15 +1183,15 @@ class InvoiceItem(models.Model):
         ).exists():
             return
 
+        # Quantity: the same rule as the Reorder Suggestions page (30 days of sales, whole packs)
+        qty = levels.order_quantity(product, today)
+        if qty <= 0:
+            return
         po = (
             PurchaseOrder.objects.filter(supplier=supplier, status='PENDING').first()
             or PurchaseOrder.objects.create(supplier=supplier)
         )
-        PurchaseOrderItem.objects.create(
-            purchase_order=po,
-            product=product,
-            order_qty=max(10, product.reorder_level * 2),
-        )
+        PurchaseOrderItem.objects.create(purchase_order=po, product=product, order_qty=qty)
 
     def __str__(self):
         return f"{self.product} x {self.qty} {self.unit or ''}".strip()

@@ -17,7 +17,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import access, auditlog, backup, notify, refill, reorder, reports, summary, supplier_prices
+from . import access, auditlog, backup, levels, notify, refill, reorder, reports, summary, supplier_prices
 from .models import (
     Batch, Bill, Brand, Category, Customer, Employee, Expense, InvoiceItem, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
     PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SalesReturn, Supplier, Unit, SalesReturnItem, ShopProfile, StockAudit, StockAuditItem, StockWriteOff,
@@ -436,15 +436,12 @@ def product_quick_add(request):
         other = Product.objects.filter(barcode=barcode).first()
         if other:
             return fail(f"This barcode already belongs to '{other.name}'.", existing=dict(id=other.pk, label=str(other)))
-    reorder_raw = post.get('reorder_level', '').strip()
-    if reorder_raw and not reorder_raw.isdigit():
-        return fail('Reorder level must be a whole number.')
 
     try:
         with transaction.atomic():
             product = Product(
                 name=name, composition=post.get('composition', '').strip()[:255] or None, gst_rate=gst, unit=unit,
-                schedule=schedule, barcode=barcode, reorder_level=int(reorder_raw) if reorder_raw else 5,
+                schedule=schedule, barcode=barcode,
                 category=_fk(Category, post.get('category', '')[:255]), brand=_fk(Brand, post.get('brand', '')[:255]))
             product.full_clean()
             product.save()
@@ -529,19 +526,14 @@ def _choice(raw, allowed, default):
 
 
 def _supplier_for(product_ids, defaults, today):
-    """product id -> supplier id: the product's default supplier, else the cheapest current supplier,
+    """product id -> supplier id: the supplier whose latest price is the lowest, else the product's default supplier,
     else the supplier of the last purchase (same rule as the automatic purchase order)."""
     by_product = {}
     for r in supplier_prices.rows_from_items(PurchaseItem.objects.filter(product_id__in=product_ids)):
         by_product.setdefault(r['product_id'], []).append(r)
     out = {}
     for pid in product_ids:
-        sid = defaults.get(pid)
-        rows = by_product.get(pid, [])
-        if not sid and rows:
-            sid = supplier_prices.cheapest_supplier_id(rows, today)
-        if not sid and rows:
-            sid = max(rows, key=lambda r: (r['date'], r['id']))['supplier_id']
+        sid = supplier_prices.pick_supplier(by_product.get(pid, []), defaults.get(pid), today)
         out[pid] = sid
     return out
 
@@ -574,6 +566,7 @@ def _reorder_suggestions(days, cover, today):
 @access.perm_required(('view', 'purchaseorder'))
 def reorder_view(request):
     today = timezone.localdate()
+    levels.refresh_daily(today)
     if request.method == 'POST':
         if not access.can(request.user, 'add', 'purchaseorder'):
             raise PermissionDenied

@@ -181,6 +181,18 @@ def cheapest_supplier_id(rows, today):
     return current[0]['supplier_id'] if current else None
 
 
+def pick_supplier(rows, default_id, today):
+    """Supplier for an automatic order (rows = all purchase rows of ONE product): the supplier whose latest price is the
+    lowest (a price not bought for a long time does not count while others are current), else the product's default
+    supplier, else the supplier of the latest purchase. None when nothing is known."""
+    sid = cheapest_supplier_id(rows, today) if rows else None
+    if not sid:
+        sid = default_id
+    if not sid and rows:
+        sid = max(rows, key=lambda r: (r['date'], r['id']))['supplier_id']
+    return sid or None
+
+
 def price_jumps(rows, today, min_pct=Decimal('10'), within_days=60, limit=8):
     """Recent price increases: a supplier's latest price is at least min_pct above its previous price and was
     bought within the last `within_days` days. Rows may cover many products. Biggest rise first.
