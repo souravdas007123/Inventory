@@ -8,13 +8,13 @@ All stock/ledger effects live in the model's save()/delete(), so the UI and admi
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
-from django.db.models import F, Sum
+from django.db.models import F, Max, Sum
 from django.utils import timezone
 
 from .models import (
-    TWO, Batch, InvoiceItem, Product, PurchaseItem, Sale, Transaction,
+    TWO, Batch, Expense, InvoiceItem, Product, PurchaseItem, Sale, Transaction,
     adjust_supplier_balance, fiscal_year,
 )
 
@@ -607,3 +607,72 @@ class AuditLog(models.Model):
         ordering = ['-id']
         verbose_name = 'Audit Log'
         verbose_name_plural = 'Audit Logs'
+
+
+# ======================================================
+# EMPLOYEES + FIXED (RECURRING) EXPENSES
+# ======================================================
+
+class Employee(models.Model):
+    """A staff member. The salary is added to Expenses automatically every month (see recurring.py)."""
+    code = models.CharField(max_length=20, unique=True, editable=False, blank=True, verbose_name="Employee ID")
+    name = models.CharField(max_length=255)
+    phone = models.CharField(max_length=15, blank=True, null=True)
+    designation = models.CharField(max_length=100, blank=True, default='', help_text="e.g. Pharmacist, Helper")
+    joining_date = models.DateField(default=timezone.localdate)
+    leaving_date = models.DateField(null=True, blank=True, help_text="Leave empty while the employee is working")
+    monthly_salary = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    pay_day = models.PositiveSmallIntegerField(
+        default=1, validators=[MinValueValidator(1), MaxValueValidator(28)],
+        help_text="Day of the month the salary is paid (1-28)")
+    auto_salary = models.BooleanField(default=True, verbose_name="Add salary automatically every month")
+    is_active = models.BooleanField(default=True)
+    last_salary_period = models.DateField(null=True, blank=True, editable=False)
+
+    def clean(self):
+        if self.monthly_salary is not None and self.monthly_salary < 0:
+            raise ValidationError({'monthly_salary': 'Salary cannot be negative.'})
+        if self.leaving_date and self.joining_date and self.leaving_date < self.joining_date:
+            raise ValidationError({'leaving_date': 'Leaving date cannot be before the joining date.'})
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            n = (Employee.objects.aggregate(m=Max('id'))['m'] or 0) + 1
+            while Employee.objects.filter(code=f"EMP-{n:03d}").exists():
+                n += 1
+            self.code = f"EMP-{n:03d}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
+    class Meta:
+        verbose_name = "Employee"
+        verbose_name_plural = "Employees"
+
+
+class RecurringExpense(models.Model):
+    """A fixed expense that repeats every month (rent, internet ...). One Expense entry is added automatically."""
+    title = models.CharField(max_length=255, help_text="e.g. Shop rent")
+    name = models.CharField(max_length=255, choices=Expense.EXPENSES_TYPES, verbose_name="Type")
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    day_of_month = models.PositiveSmallIntegerField(
+        default=1, validators=[MinValueValidator(1), MaxValueValidator(28)],
+        help_text="The entry is added on this day of every month (1-28)")
+    start_date = models.DateField(default=timezone.localdate, help_text="The first entry is added on or after this date")
+    end_date = models.DateField(null=True, blank=True, help_text="Optional: stop adding entries after this date")
+    is_active = models.BooleanField(default=True)
+    last_period = models.DateField(null=True, blank=True, editable=False)
+
+    def clean(self):
+        if self.amount is not None and self.amount <= 0:
+            raise ValidationError({'amount': 'Amount must be greater than 0.'})
+        if self.end_date and self.start_date and self.end_date < self.start_date:
+            raise ValidationError({'end_date': 'End date cannot be before the start date.'})
+
+    def __str__(self):
+        return self.title
+
+    class Meta:
+        verbose_name = "Fixed Expense"
+        verbose_name_plural = "Fixed Expenses"

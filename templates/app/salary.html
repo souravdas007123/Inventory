@@ -1,0 +1,34 @@
+{% extends "app/base.html" %}
+{% block title %}Salary Sheet{% endblock %}
+{% block content %}
+<div class="head"><h1>💼 Salary Sheet <small style="font-size:15px;color:var(--mute)">{{ month_name }} {{ year }}</small></h1>
+  <form method="get" class="search" style="margin:0">
+    <select name="month" style="width:auto">{% for n, name in months %}<option value="{{ n }}" {% if n == month %}selected{% endif %}>{{ name }}</option>{% endfor %}</select>
+    <select name="year" style="width:auto">{% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}</select>
+    <button class="btn">Show</button>
+    <button class="btn ghost" name="export" value="xlsx">⬇ Excel</button>
+  </form>
+</div>
+<div class="msg info">Salaries are added to Expenses automatically on each employee's pay day. Here you can see who has been paid this month. If someone gets a different amount (leave, advance, bonus), open that entry in Expenses and change the amount, or press <b>+ Add salary</b> for an extra payment.</div>
+<div class="stats">
+  <div class="card stat"><small>Monthly salary total</small><b>₹{{ tot_salary|floatformat:2 }}</b><span class="sub">{{ rows|length }} employee{{ rows|length|pluralize }}</span></div>
+  <div class="card stat ok"><small>Paid in {{ month_name }}</small><b>₹{{ tot_paid|floatformat:2 }}</b></div>
+  <div class="card stat"><small>Still to pay</small><b>₹{{ tot_pending|floatformat:2 }}</b><span class="sub">pay day already passed</span></div>
+</div>
+<div class="card">
+  <div class="tw"><table class="t">
+    <thead><tr><th>ID</th><th>Employee</th><th>Salary</th><th>Paid</th><th>Pending</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}<tr>
+      <td>{{ r.emp.code }}</td>
+      <td><b>{{ r.emp.name }}</b>{% if r.emp.designation %}<br><small style="color:var(--mute)">{{ r.emp.designation }}</small>{% endif %}</td>
+      <td>₹{{ r.salary|floatformat:2 }}</td>
+      <td>₹{{ r.paid|floatformat:2 }}</td>
+      <td>{% if r.pending and r.cls != 'grey' %}₹{{ r.pending|floatformat:2 }}{% else %}-{% endif %}</td>
+      <td><span class="badge {{ r.cls }}">{{ r.status }}</span></td>
+      <td style="white-space:nowrap">{% if can_add_expense %}<a class="btn sm" href="/expenses/new/?employee={{ r.emp.pk }}">+ Add salary</a> {% endif %}<a class="btn ghost sm" href="/expenses/?q={{ r.emp.code }}">📒 History</a></td>
+    </tr>{% empty %}<tr><td class="empty" colspan="7">No employees yet. Add them in Employees.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

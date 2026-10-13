@@ -12,7 +12,7 @@ from import_export.widgets import ForeignKeyWidget
 
 from .reports import profit_and_loss
 from .models import (
-    Batch, Bill, Brand, Category, Customer, CustomerPayment, Expense, ShopProfile, FinancialReport,
+    Batch, Bill, Brand, Category, Customer, CustomerPayment, Employee, Expense, RecurringExpense, ShopProfile, FinancialReport,
     InvoiceItem, Order, Payment, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
     PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, Sale, SalesReturn, SalesReturnItem,
     StockAudit, StockAuditItem, StockWriteOff, Supplier, Transaction, Unit,
@@ -324,8 +324,25 @@ class BillAdmin(SafeDeleteMixin, admin.ModelAdmin):
 
 @admin.register(Expense)
 class ExpenseAdmin(admin.ModelAdmin):
-    list_display = ['name', 'amount', 'date']
-    list_filter = ['name', 'date']
+    list_display = ['name', 'employee', 'amount', 'date', 'auto']
+    list_filter = ['name', 'date', 'auto']
+    search_fields = ['note', 'employee__name', 'employee__code']
+    readonly_fields = ['auto', 'period', 'recurring']
+
+
+@admin.register(Employee)
+class EmployeeAdmin(admin.ModelAdmin):
+    list_display = ['code', 'name', 'designation', 'monthly_salary', 'pay_day', 'is_active']
+    list_filter = ['is_active']
+    search_fields = ['code', 'name', 'phone']
+    readonly_fields = ['code', 'last_salary_period']
+
+
+@admin.register(RecurringExpense)
+class RecurringExpenseAdmin(admin.ModelAdmin):
+    list_display = ['title', 'name', 'amount', 'day_of_month', 'is_active']
+    list_filter = ['is_active', 'name']
+    readonly_fields = ['last_period']
 
 
 # ======================================================

@@ -1278,10 +1278,20 @@ class Expense(models.Model):
     date = models.DateField(default=timezone.localdate)
     name = models.CharField(max_length=255, help_text="e.g., Rent, Salary, Electricity", choices=EXPENSES_TYPES)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
+    employee = models.ForeignKey('Employee', on_delete=models.PROTECT, null=True, blank=True, related_name='expenses',
+                                 help_text="For a salary: whose salary it is")
+    note = models.CharField(max_length=255, blank=True, default='')
+    # Filled in when the entry was added automatically (see recurring.py)
+    recurring = models.ForeignKey('RecurringExpense', on_delete=models.SET_NULL, null=True, blank=True,
+                                  editable=False, related_name='entries')
+    period = models.DateField(null=True, blank=True, editable=False)
+    auto = models.BooleanField(default=False, editable=False)
 
     def clean(self):
         if self.amount is not None and self.amount <= 0:
             raise ValidationError({'amount': 'Amount must be greater than 0.'})
+        if self.employee_id and self.name != 'SALARY':
+            raise ValidationError({'employee': 'Choose an employee only for a Salary entry.'})
 
     def __str__(self):
         return f"{self.name} - ₹{self.amount}"
@@ -1289,6 +1299,13 @@ class Expense(models.Model):
     class Meta:
         verbose_name = "14. Expense"
         verbose_name_plural = "14. Expenses"
+        constraints = [
+            models.UniqueConstraint(fields=['recurring', 'period'], condition=models.Q(recurring__isnull=False),
+                                    name='unique_recurring_period'),
+            models.UniqueConstraint(fields=['employee', 'period'],
+                                    condition=models.Q(auto=True, employee__isnull=False),
+                                    name='unique_salary_period'),
+        ]
 
 
 class FinancialReport(models.Model):

@@ -30,6 +30,7 @@ urlpatterns = [
     path('api/last_purchase/', views_extra.last_purchase, name='last_purchase'),
     path('api/supplier_price_hint/', views_extra.supplier_price_hint, name='supplier_price_hint'),
     path('reorder/', views_extra.reorder_view, name='reorder'),
+    path('salary/', views_extra.salary_view, name='salary'),
     path('supplier_prices/', views_extra.supplier_prices_view, name='supplier_prices'),
     path('supplier_prices/<int:pk>/', views_extra.supplier_prices_product, name='supplier_prices_product'),
 

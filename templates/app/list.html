@@ -10,6 +10,7 @@
     {% elif not cfg.readonly and not cfg.no_new and can_add %}<a class="btn" href="{% url 'new' key %}">+ New {{ cfg.one }}</a>{% endif %}
   </div></div>
 {% if cfg.hint %}<div class="msg info">{{ cfg.hint }}</div>{% endif %}
+{% if summary_line %}<div class="msg info">{{ summary_line }}</div>{% endif %}
 <div class="card">
   <form class="search" method="get">
     <input name="q" value="{{ q }}" placeholder="Search...">

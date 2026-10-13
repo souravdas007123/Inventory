@@ -482,6 +482,24 @@ if (scan) {
   supplierSel.addEventListener('change', () => dataRows().forEach(refresh));
   dataRows().forEach(refresh);
 })();
+</script>{% endif %}{% if key == 'expenses' %}{{ emp_salary|json_script:"emp-salary" }}
+<script>
+// An employee is chosen only for a Salary entry; picking one fills the amount with the monthly salary.
+(function () {
+  const typeSel = document.getElementById('id_name'), empSel = document.getElementById('id_employee'),
+        amount = document.getElementById('id_amount');
+  if (!typeSel || !empSel) return;
+  let salaries = {};
+  try { salaries = JSON.parse(document.getElementById('emp-salary').textContent || '{}'); } catch (e) { salaries = {}; }
+  const box = empSel.closest('.fld');
+  const toggle = () => { const sal = typeSel.value === 'SALARY'; box.style.display = sal ? '' : 'none'; if (!sal) empSel.value = ''; };
+  typeSel.addEventListener('change', toggle); toggle();
+  empSel.addEventListener('change', () => {
+    const s = salaries[empSel.value];
+    if (s && amount && (!amount.value || amount.dataset.auto === '1')) { amount.value = s; amount.dataset.auto = '1'; }
+  });
+  if (amount) amount.addEventListener('input', () => { amount.dataset.auto = '0'; });
+})();
 </script>{% endif %}{% if fs %}
 <script>
 const total = document.getElementById('id_{{ fs.prefix }}-TOTAL_FORMS');

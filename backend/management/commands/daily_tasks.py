@@ -3,7 +3,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
 
-from backend import backup, notify, summary
+from backend import backup, notify, recurring, summary
 from backend.models import ShopProfile
 
 
@@ -24,6 +24,12 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"Backup created: {backup.make_backup(keep=opts['keep'])}"))
             except backup.BackupError as e:      # keep going: the summary is still useful
                 self.stderr.write(self.style.ERROR(f"Backup failed: {e}"))
+        try:
+            made = recurring.post_due()
+            if made:
+                self.stdout.write(self.style.SUCCESS(f"{made} fixed expense / salary entr{'y' if made == 1 else 'ies'} added."))
+        except Exception as e:       # must not stop the summary
+            self.stderr.write(self.style.ERROR(f"Recurring expenses failed: {e}"))
         if opts['skip_email'] and not opts['print_only']:
             return
         shop = ShopProfile.get()

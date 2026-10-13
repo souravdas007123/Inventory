@@ -19,11 +19,11 @@ from django.views.decorators.http import require_POST
 
 from . import access, auditlog, backup, notify, reorder, reports, summary, supplier_prices
 from .models import (
-    Batch, Bill, Brand, Category, Customer, InvoiceItem, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
+    Batch, Bill, Brand, Category, Customer, Employee, Expense, InvoiceItem, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
     PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SalesReturn, Supplier, Unit, SalesReturnItem, ShopProfile, StockAudit, StockAuditItem, StockWriteOff,
 )
 from .imports import GST_ALLOWED, _fk, table_download
-from .views import page
+from .views import page, post_recurring
 
 
 def staff_required(view):
@@ -317,6 +317,52 @@ def customer_lookup(request):
     return JsonResponse({'found': True, 'id': customer.pk, 'name': customer.name, 'phone': customer.phone or '',
                          'balance': str(balance.quantize(Decimal('0.01'))), 'limit': str(limit),
                          'over': bool(limit > 0 and balance >= limit)})
+
+
+# ======================================================
+# SALARY SHEET (who was paid how much in a month)
+# ======================================================
+
+@access.perm_required(('view', 'employee'))
+def salary_view(request):
+    post_recurring(request)
+    today, month, year = _month_year(request)
+    first, last = date_cls(year, month, 1), date_cls(year, month, calendar.monthrange(year, month)[1])
+    paid = {r['employee_id']: r['s'] for r in Expense.objects.filter(
+        name='SALARY', employee__isnull=False, date__year=year, date__month=month
+    ).values('employee_id').annotate(s=Sum('amount'))}
+    emps = Employee.objects.filter(
+        Q(pk__in=list(paid)) | (Q(joining_date__lte=last) & (Q(leaving_date__isnull=True) | Q(leaving_date__gte=first)))
+    ).order_by('name')
+    rows, tot_salary, tot_paid, tot_pending = [], Decimal('0'), Decimal('0'), Decimal('0')
+    for e in emps:
+        got, salary = paid.get(e.pk, Decimal('0')), e.monthly_salary
+        pending = max(salary - got, Decimal('0'))
+        due = date_cls(year, month, min(e.pay_day, 28))
+        if not salary and not got:
+            status, cls = 'No salary set', 'grey'
+        elif got >= salary and got > 0:
+            status, cls = 'Paid', 'green'
+        elif got > 0:
+            status, cls = 'Part paid', 'amber'
+        elif due > today:
+            status, cls = f"Due on {due:%d %b}", 'grey'
+        else:
+            status, cls = 'Not paid', 'red'
+        if got > 0 or due <= today:          # a salary whose pay day has not come yet is not "pending" yet
+            tot_pending += pending
+        tot_salary += salary
+        tot_paid += got
+        rows.append(dict(emp=e, salary=salary, paid=got, pending=pending, status=status, cls=cls))
+    fmt = request.GET.get('export')
+    if fmt in ('xlsx', 'csv'):
+        return table_download(f"medsync_salary_{year}{month:02d}",
+                              ['Employee ID', 'Name', 'Designation', 'Salary', 'Paid', 'Pending', 'Status'],
+                              [[r['emp'].code, r['emp'].name, r['emp'].designation, r['salary'], r['paid'], r['pending'],
+                                r['status']] for r in rows], fmt)
+    return page(request, 'app/salary.html', active='salary', rows=rows, tot_salary=tot_salary, tot_paid=tot_paid,
+                tot_pending=tot_pending, can_add_expense=access.can(request.user, 'add', 'expense'),
+                **_month_ctx(today, month, year))
 
 
 # ======================================================

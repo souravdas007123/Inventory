@@ -1,4 +1,5 @@
 import calendar
+import logging
 from urllib.parse import urlencode
 from datetime import timedelta
 from decimal import ROUND_HALF_UP, Decimal
@@ -17,10 +18,10 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.views.decorators.http import require_POST
 
-from . import access, auditlog, backup, checks, notify, supplier_prices
+from . import access, auditlog, backup, checks, notify, recurring, supplier_prices
 from .models import (
-    AuditLog, Batch, Bill, Brand, Category, Customer, CustomerPayment, Expense, InvoiceItem, Order, Payment,
-    Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem, PurchaseReturn,
+    AuditLog, Batch, Bill, Brand, Category, Customer, CustomerPayment, Employee, Expense, InvoiceItem, Order, Payment,
+    Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, RecurringExpense,
     Sale, SalesReturn, ShopProfile, StockAudit, StockWriteOff, Supplier, Transaction, Unit,
 )
 from .imports import export_value, table_download
@@ -48,6 +49,9 @@ NAV = [
     {'key': 'sales', 'url': '/sales/', 'label': 'Sales', 'icon': '📈', 'group': 'Accounts'},
     {'key': 'transactions', 'url': '/transactions/', 'label': 'Transactions', 'icon': '🔁', 'group': 'Accounts'},
     {'key': 'expenses', 'url': '/expenses/', 'label': 'Expenses', 'icon': '💸', 'group': 'Accounts'},
+    {'key': 'fixed_expenses', 'url': '/fixed_expenses/', 'label': 'Fixed Expenses', 'icon': '📆', 'group': 'Accounts'},
+    {'key': 'employees', 'url': '/employees/', 'label': 'Employees', 'icon': '👨‍⚕️', 'group': 'Accounts'},
+    {'key': 'salary', 'url': '/salary/', 'label': 'Salary Sheet', 'icon': '💼', 'group': 'Accounts'},
     {'key': 'report', 'url': '/report/', 'label': 'Profit & Loss', 'icon': '📊', 'group': 'Accounts', 'staff': True},
     {'key': 'gst', 'url': '/gst/', 'label': 'GST Reports', 'icon': '🧮', 'group': 'Accounts', 'staff': True},
     {'key': 'drug_register', 'url': '/drug_register/', 'label': 'Drug Register (H/H1)', 'icon': '📒', 'group': 'Stock'},
@@ -61,6 +65,24 @@ NAV = [
     {'key': 'backup', 'url': '/backup/', 'label': 'Backup', 'icon': '💾', 'group': 'Master Data', 'staff': True},
     {'key': 'shop', 'url': '/shop/', 'label': 'Shop Settings', 'icon': '🏪', 'group': 'Master Data', 'staff': True},
 ]
+
+
+def paid_this_month(emp):
+    today = timezone.localdate()
+    return sum((e.amount for e in emp.expenses.all()
+                if e.name == 'SALARY' and e.date.year == today.year and e.date.month == today.month), Decimal('0'))
+
+
+def post_recurring(request):
+    """Adds the fixed expenses / salaries that are due (safe to call often) and tells the user if any were added."""
+    try:
+        made = recurring.post_due()
+    except Exception:       # never let this break the page the user opened
+        logging.getLogger(__name__).exception('Could not add the recurring expenses')
+        return 0
+    if made:
+        messages.info(request, f"{made} fixed expense / salary entr{'y was' if made == 1 else 'ies were'} added automatically.")
+    return made
 
 
 def badge(text, kind):
@@ -198,10 +220,40 @@ CONFIG = {
         fields=['supplier', 'amount', 'payment_mode'],
     ),
     'expenses': dict(
-        title='Expenses', one='Expense', model=Expense, order=['-date', '-id'], search=['name'],
-        cols=[('Type', lambda o: o.get_name_display()), ('Amount', lambda o: rs(o.amount)),
-              ('Date', lambda o: d(o.date))],
-        fields=['name', 'amount', 'date'],
+        title='Expenses', one='Expense', model=Expense, order=['-date', '-id'], related=['employee'],
+        search=['name', 'note', 'employee__name', 'employee__code'],
+        cols=[('Date', lambda o: d(o.date)), ('Type', lambda o: o.get_name_display()),
+              ('Employee', lambda o: str(o.employee) if o.employee_id else '-'),
+              ('Amount', lambda o: rs(o.amount)), ('Note', lambda o: o.note or '-'),
+              ('Added', lambda o: badge('Automatic', 'blue') if o.auto else 'Manual')],
+        fields=['name', 'employee', 'amount', 'date', 'note'],
+    ),
+    'fixed_expenses': dict(
+        title='Fixed Expenses', one='Fixed Expense', model=RecurringExpense, order=['-is_active', 'title'],
+        search=['title'],
+        hint='Enter a fixed monthly cost (rent, internet ...) only once. An expense entry is added automatically on the '
+             'chosen day of every month. If a month\'s amount is different, just edit that entry in Expenses.',
+        cols=[('Title', lambda o: o.title), ('Type', lambda o: o.get_name_display()), ('Amount', lambda o: rs(o.amount)),
+              ('Day', lambda o: o.day_of_month), ('From', lambda o: d(o.start_date)),
+              ('Until', lambda o: d(o.end_date) if o.end_date else 'No end'),
+              ('Next entry', lambda o: d(recurring.next_post(o.start_date, o.end_date, o.day_of_month, o.last_period))
+               if o.is_active else '-'),
+              ('Status', lambda o: badge('Active', 'green') if o.is_active else badge('Stopped', 'grey'))],
+        fields=['title', 'name', 'amount', 'day_of_month', 'start_date', 'end_date', 'is_active'],
+    ),
+    'employees': dict(
+        title='Employees', one='Employee', model=Employee, order=['-is_active', 'name'], prefetch=['expenses'],
+        search=['name', 'code', 'phone', 'designation'],
+        hint='Each salary is added to Expenses automatically on the employee\'s pay day. An employee with salary entries '
+             'cannot be deleted: untick Active (and set the leaving date) instead.',
+        cols=[('ID', lambda o: o.code), ('Name', lambda o: o.name), ('Designation', lambda o: o.designation or '-'),
+              ('Phone', lambda o: o.phone or '-'), ('Salary / month', lambda o: rs(o.monthly_salary)),
+              ('Pay day', lambda o: o.pay_day), ('Paid this month', lambda o: rs(paid_this_month(o))),
+              ('Status', lambda o: badge('Working', 'green') if o.is_active else badge('Left', 'grey'))],
+        fields=['name', 'phone', 'designation', 'joining_date', 'leaving_date', 'monthly_salary', 'pay_day',
+                'auto_salary', 'is_active'],
+        actions=lambda o: [dict(label='💰 Add salary', url=f"/expenses/new/?employee={o.pk}"),
+                           dict(label='📒 History', url=f"/expenses/?q={o.code}")],
     ),
     'orders': dict(
         title='Customer Orders', one='Order', model=Order, order=['-id'], related=['customer_product', 'customer_unit'],
@@ -411,6 +463,7 @@ def dashboard(request):
         if first:
             return redirect(first)
         raise PermissionDenied
+    post_recurring(request)
     today = timezone.localdate()
     soon = today + timedelta(days=30)
 
@@ -470,6 +523,8 @@ def listing(request, key):
                 and not CONFIG[key].get('staff')):
             return redirect('new', key=key)          # may add but not view: open the form instead of the list
     cfg = get_cfg(key, request, 'view')
+    if key in ('expenses', 'employees', 'fixed_expenses'):
+        post_recurring(request)
     qs = cfg['model'].objects.all()
     if cfg.get('related'):
         qs = qs.select_related(*cfg['related'])
@@ -492,9 +547,18 @@ def listing(request, key):
         rows = [[export_value(fn(o)) for _, fn in cfg['cols']] for o in qs.order_by(*cfg['order'])[:20000]]
         return table_download(f"medsync_{key}_{timezone.localdate():%Y%m%d}", [h for h, _ in cfg['cols']], rows, fmt)
     pg = Paginator(qs.order_by(*cfg['order']), per).get_page(request.GET.get('page'))
+    summary_line = ''
+    if key == 'expenses':       # this month's total and its split by type
+        t = timezone.localdate()
+        names = dict(Expense.EXPENSES_TYPES)
+        parts = list(Expense.objects.filter(date__year=t.year, date__month=t.month).values('name')
+                     .annotate(s=Sum('amount')).order_by('-s'))
+        if parts:
+            summary_line = (f"This month ({t:%b %Y}): {rs(sum(p['s'] for p in parts))} \u00b7 "
+                            + ', '.join(f"{names.get(p['name'], p['name'])} {rs(p['s'])}" for p in parts))
     acts = cfg.get('actions')
     rows = [dict(pk=o.pk, obj=o, cells=[fn(o) for _, fn in cfg['cols']], acts=acts(o) if acts else []) for o in pg]
-    return page(request, 'app/list.html', key=key, active=key, cfg=cfg, heads=[h for h, _ in cfg['cols']],
+    return page(request, 'app/list.html', key=key, active=key, cfg=cfg, heads=[h for h, _ in cfg['cols']], summary_line=summary_line,
                 rows=rows, page=pg, q=q, per=per, per_opts=PER_OPTS, total=pg.paginator.count,
                 has_actions=bool(acts), import_kind=IMPORT_KINDS.get(key) if access.is_owner(request.user) else None,
                 can_add=access.can(request.user, 'add', cfg['model']._meta.model_name),
@@ -587,6 +651,11 @@ def edit(request, key, pk=None):
 
     post = request.POST if request.method == 'POST' else None
     initial = cfg['initial']() if cfg.get('initial') and not obj else None
+    if key == 'expenses' and not obj and request.GET.get('employee', '').isdigit():   # "Add salary" on the Employees list
+        emp = Employee.objects.filter(pk=int(request.GET['employee']), is_active=True).first()
+        if emp:
+            initial = {**(initial or {}), 'name': 'SALARY', 'employee': emp.pk, 'amount': emp.monthly_salary,
+                       'note': f"Salary {timezone.localdate():%b %Y}"}
     if key == 'customer_payments' and not obj and request.GET.get('customer', '').isdigit():
         initial = {**(initial or {}), 'customer': int(request.GET['customer'])}   # Customers list se "+ Receipt"
     if po:
@@ -611,6 +680,10 @@ def edit(request, key, pk=None):
 
     if key == 'bills':
         form.fields['customer'].queryset = Customer.objects.filter(is_active=True).order_by('name')
+
+    if key == 'expenses':   # only working employees (plus the one already on this entry)
+        form.fields['employee'].queryset = Employee.objects.filter(
+            Q(is_active=True) | Q(pk=obj.employee_id if obj else None)).order_by('name')
 
     if key == 'bills':  # only orders that have no bill yet (+ this bill's own order)
         form.fields['order'].queryset = Order.objects.filter(Q(bill__isnull=True) | Q(pk=obj.order_id if obj else None))
@@ -652,6 +725,8 @@ def edit(request, key, pk=None):
 
     title = f"Edit {cfg['one']}" if obj else f"New {cfg['one']}"
     quick = {}
+    if key == 'expenses':      # lets the form fill the amount from the employee's salary
+        quick = dict(emp_salary={e.pk: str(e.monthly_salary) for e in form.fields['employee'].queryset})
     if key == 'purchases' and access.can(request.user, 'add', 'product'):   # lists for the "New product" window on the purchase screen
         quick = dict(can_add_product=True, np_units=list(Unit.objects.order_by('name').values('id', 'name')),
                      np_cats=list(Category.objects.order_by('name').values_list('name', flat=True)[:500]),
