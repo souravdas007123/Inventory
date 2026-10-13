@@ -181,6 +181,17 @@ def cheapest_supplier_id(rows, today):
     return current[0]['supplier_id'] if current else None
 
 
+def best_offer(rows, today):
+    """The supplier an automatic order would choose for ONE product (rows = its purchase rows):
+    {supplier_id, supplier, rate, date, suppliers}. `rate` is the latest price per base unit. None without purchases."""
+    stats = supplier_stats(build_history(rows), today)
+    if not stats:
+        return None
+    best = ([x for x in stats if x['current']] or stats)[0]
+    return dict(supplier_id=best['supplier_id'], supplier=best['supplier'], rate=best['last_rate'],
+                date=best['last_date'], suppliers=len(stats))
+
+
 def pick_supplier(rows, default_id, today):
     """Supplier for an automatic order (rows = all purchase rows of ONE product): the supplier whose latest price is the
     lowest (a price not bought for a long time does not count while others are current), else the product's default

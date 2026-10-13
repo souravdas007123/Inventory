@@ -189,8 +189,33 @@ def product_price_cell(o):
     return stack(f"{rs(o.mrp)}{unit}" if o.mrp is not None else '-', f"GST {gst_txt(o)}")
 
 
+def prepare_products(objs):
+    """One query for the page: the best (cheapest current) supplier of every product shown."""
+    today = timezone.localdate()
+    by_product = {}
+    for r in supplier_prices.rows_from_items(PurchaseItem.objects.filter(product_id__in=[o.pk for o in objs])):
+        by_product.setdefault(r['product_id'], []).append(r)
+    for o in objs:
+        o.best_offer = supplier_prices.best_offer(by_product.get(o.pk, []), today)
+
+
+def product_supplier_cell(o):
+    offer, default = getattr(o, 'best_offer', None), o.default_supplier
+    if offer:
+        unit = f" / {o.unit}" if o.unit_id else ''
+        extra = f"Default: {default.company}" if default and default.pk != offer['supplier_id'] else ''
+        return stack(format_html('<b>{}</b>', offer['supplier']),
+                     f"{supplier_prices.money(offer['rate'])}{unit} \u00b7 {d(offer['date'])}", extra,
+                     f"{offer['suppliers']} suppliers" if offer['suppliers'] > 1 else '')
+    if default:
+        return stack(format_html('<b>{}</b>', default.company), 'Default supplier, not bought yet')
+    return badge('No supplier yet', 'amber')
+
+
 def product_place_cell(o):
-    return ' \u00b7 '.join(x for x in (f"Rack {o.rack}" if o.rack else '', f"Row {o.row}" if o.row else '') if x) or '-'
+    place = ' \u00b7 '.join(x for x in (f"Rack {o.rack}" if o.rack else '', f"Row {o.row}" if o.row else '') if x) or '-'
+    batch = pick_batch_txt(o)
+    return stack(place, f"Sell first: {batch}" if batch != '-' else '')
 
 
 def product_extra_cell(o):
@@ -210,7 +235,7 @@ def product_names(o, limit=3):
 CONFIG = {
     'products': dict(
         title='Products', one='Product', model=Product, order=['name'],
-        related=['brand', 'category', 'unit'], prefetch=['unit_conversions__unit', 'batches'],
+        related=['brand', 'category', 'unit', 'default_supplier'], prefetch=['unit_conversions__unit', 'batches'],
         search=['name', 'composition', 'sku', 'hsn_code', 'barcode'],
         cols=[('Name', lambda o: o.name), ('Composition', lambda o: o.composition or '-'),
               ('Brand', lambda o: o.brand or '-'), ('Category', lambda o: o.category or '-'),
@@ -223,8 +248,9 @@ CONFIG = {
               ('Status', stock_badge), ('Alternative', alt_txt)],
         # The screen shows fewer, multi-line columns (no side scroll); the Excel / CSV export keeps every column above.
         list_cols=[('Product', product_cell), ('Stock', lambda o: stack(o.stock_display(), stock_badge(o), f"Reorder at {o.reorder_level}")),
-                   ('Price', product_price_cell), ('Place', product_place_cell),
-                   ('Sell first (FEFO)', pick_batch_txt), ('Other', product_extra_cell)],
+                   ('Price', product_price_cell), ('Supplier', product_supplier_cell),
+                   ('Place / sell first', product_place_cell), ('Other', product_extra_cell)],
+        prepare=prepare_products,
         fields=['name', 'composition', 'hsn_code', 'category', 'brand', 'gst_rate', 'unit', 'mrp', 'barcode',
                 'schedule', 'default_supplier', 'location', 'rack', 'row', 'is_active'],
         inline=dict(model=ProductUnit, fields=['unit', 'factor'],
@@ -627,6 +653,8 @@ def listing(request, key):
             summary_line = (f"This month ({t:%b %Y}): {rs(sum(p['s'] for p in parts))} \u00b7 "
                             + ', '.join(f"{names.get(p['name'], p['name'])} {rs(p['s'])}" for p in parts))
     acts = cfg.get('actions')
+    if cfg.get('prepare'):
+        cfg['prepare'](list(pg))                        # one query for the whole page (e.g. the suppliers of the products)
     shown = cfg.get('list_cols') or cfg['cols']          # on screen; the export above always uses all columns
     rows = [dict(pk=o.pk, obj=o, cells=[fn(o) for _, fn in shown], acts=acts(o) if acts else []) for o in pg]
     return page(request, 'app/list.html', key=key, active=key, cfg=cfg, heads=[h for h, _ in shown], summary_line=summary_line,

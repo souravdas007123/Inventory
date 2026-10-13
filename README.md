@@ -110,8 +110,9 @@ The hint is for information only; the sale itself still deducts FEFO exactly as 
 
 ## Products list (no side scroll)
 
-The Products list shows 6 compact columns (Product with composition / brand / category / schedule, Stock with status, Price with GST,
-Place, Sell first (FEFO), Other with HSN / SKU / alternative) instead of 15 narrow ones. The Excel / CSV export still contains every column.
+The Products list shows 6 compact columns (Product with composition / brand / category / schedule, Stock with status and reorder level, Price with GST,
+Supplier, Place with the batch to sell first, Other with HSN / SKU / alternative) instead of 15 narrow ones.
+The Supplier column shows the cheapest current supplier (the one an automatic order would use) with its latest price per unit and date, the Default Supplier if it differs, and how many suppliers the product has had. The Excel / CSV export still contains every column.
 A list can opt in with `list_cols` in `CONFIG` (see `products` in `backend/views.py`).
 
 The Billing list uses the same compact layout (Invoice + date, Customer + order / mode, Items, Amount with Taxable and GST below, Payment, Status);
