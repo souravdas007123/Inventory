@@ -17,7 +17,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import access, auditlog, backup, notify, reorder, reports, summary, supplier_prices
+from . import access, auditlog, backup, notify, refill, reorder, reports, summary, supplier_prices
 from .models import (
     Batch, Bill, Brand, Category, Customer, Employee, Expense, InvoiceItem, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
     PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SalesReturn, Supplier, Unit, SalesReturnItem, ShopProfile, StockAudit, StockAuditItem, StockWriteOff,
@@ -645,6 +645,45 @@ def alerts_send(request):
     else:
         messages.success(request, f"Alert digest sent: {', '.join(recipients)}")
     return redirect('dashboard')
+
+
+@access.perm_required(('view', 'bill'))
+def refill_view(request):
+    """Regular customers whose medicine is about to finish (from their own buying pattern), with a WhatsApp button each."""
+    today = timezone.localdate()
+    since = today - timedelta(days=300)
+    rows = [dict(customer_id=c, product_id=p, date=d) for c, p, d in InvoiceItem.objects.filter(
+        bill__status='FINAL', bill__customer__isnull=False, bill__customer__is_active=True,
+        product__isnull=False, bill__date__gte=since).values_list('bill__customer_id', 'product_id', 'bill__date')]
+    due = refill.due_refills(rows, today)
+    customers = Customer.objects.in_bulk([c['customer_id'] for c in due])
+    products = Product.objects.in_bulk(list({i['product_id'] for c in due for i in c['items']}))
+    shop = ShopProfile.get()
+    out = []
+    for c in due:
+        cust = customers.get(c['customer_id'])
+        items = [dict(name=products[i['product_id']].name or str(products[i['product_id']]), last=i['last'],
+                      expected=i['expected'], late=i['late']) for i in c['items'] if i['product_id'] in products
+                 and products[i['product_id']].is_active is not False]
+        if not cust or not items:
+            continue
+        digits = ''.join(ch for ch in (cust.phone or '') if ch.isdigit())
+        link = notify.refill_reminder_link(shop.name, cust.name, cust.phone, [i['name'] for i in items]) if len(digits) >= 10 else ''
+        late = c['late']
+        out.append(dict(customer=cust, items=items, link=link, late=late,
+                        status='Due in %d day%s' % (-late, '' if late == -1 else 's') if late < 0
+                        else 'Due today' if late == 0 else 'Late by %d day%s' % (late, '' if late == 1 else 's'),
+                        cls='grey' if late <= 0 else 'amber' if late <= 7 else 'red'))
+    return page(request, 'app/refill.html', active='refill', rows=out, no_phone=sum(1 for r in out if not r['link']),
+                grace=refill.GRACE)
+
+
+@access.perm_required(('view', 'product'), ('view', 'batch'), ('view', 'sale'))
+def alerts_whatsapp(request):
+    """Opens WhatsApp with the short stock-alert message. It goes to the 'Alerts WhatsApp number' of Shop Settings
+    (manager / staff), else the shop phone; with no number WhatsApp lets the user pick a contact."""
+    shop = ShopProfile.get()
+    return redirect(notify.whatsapp_link(notify.alerts_whatsapp_text(shop.name), shop.alert_phone or shop.phone or ''))
 
 
 @access.perm_required(('view', 'purchaseorder'))

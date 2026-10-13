@@ -677,6 +677,9 @@ class ShopProfile(models.Model):
     address = models.TextField(blank=True)
     phone = models.CharField(max_length=30, blank=True)
     email = models.EmailField(blank=True)
+    alert_phone = models.CharField(max_length=30, blank=True, verbose_name="Alerts WhatsApp number",
+                                   help_text="Stock alerts open in this number's WhatsApp chat (for example the manager or staff). "
+                                             "Leave empty to use the shop phone, or to choose a contact each time.")
     gstin = models.CharField(max_length=15, blank=True, verbose_name="GSTIN")
     drug_license = models.CharField(max_length=255, blank=True, verbose_name="Drug Licence No.",
                                     help_text="e.g. DL No. 20/21/12345, 21/21/12345")

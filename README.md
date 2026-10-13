@@ -94,3 +94,16 @@ batches without a date last, expired ones skipped): batch number, EXP, rack / ro
 batches are shown in grey. If the entered quantity needs more than one batch, the split is shown ("20 from B-101 (Rack A) + 25 from B-102").
 A red note appears when the quantity is more than the valid stock, and when the product has expired batches on the shelf.
 The hint is for information only; the sale itself still deducts FEFO exactly as before (`InvoiceItem._deduct_from_batches`).
+
+## WhatsApp alerts and refill reminders
+
+- **💬 Alerts WhatsApp** (Dashboard) now builds a short message only when pressed (the dashboard loads faster): expired and
+  soon-to-expire batches with batch no., qty, **rack / row** and **supplier**, "money at risk" (cost of expired / expiring stock),
+  expiring in 31-90 days (still returnable to the supplier), out of stock and low stock. A few lines per section, "+N more (see the app)"
+  and a size limit, so the WhatsApp link never becomes too long. The email digest keeps the longer list.
+- **Shop Settings -> Alerts WhatsApp number**: the chat the alert opens in (manager / staff). Empty = shop phone, else WhatsApp lets you pick a contact.
+  The owner's money summary (Today's summary) still goes to the shop phone. Needs `python manage.py migrate` (migration 0008).
+- **Refill Reminders** (Customers menu): regular customers whose medicine is about to finish, from their own buying pattern
+  (same medicine bought on 2+ different days, usually 10-75 days apart; listed 3 days before the next refill is due, kept up to 30 days when late).
+  Nothing is stored: a customer leaves the list by buying again. Only customers selected on the bill (with a phone number) are included.
+  Logic: `backend/refill.py`.

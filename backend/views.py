@@ -39,6 +39,7 @@ NAV = [
     {'key': 'customers', 'url': '/customers/', 'label': 'Customers (Credit)', 'icon': '👥', 'group': 'Customers'},
     {'key': 'customer_payments', 'url': '/customer_payments/', 'label': 'Credit Receipts', 'icon': '💰', 'group': 'Customers'},
     {'key': 'orders', 'url': '/orders/', 'label': 'Customer Orders', 'icon': '🛒', 'group': 'Customers'},
+    {'key': 'refill', 'url': '/refill/', 'label': 'Refill Reminders', 'icon': '💊', 'group': 'Customers'},
     {'key': 'sales_returns', 'url': '/sales_returns/', 'label': 'Sales Returns', 'icon': '↩️', 'group': 'Customers'},
     {'key': 'suppliers', 'url': '/suppliers/', 'label': 'Suppliers', 'icon': '🏭', 'group': 'Suppliers'},
     {'key': 'purchase_orders', 'url': '/purchase_orders/', 'label': 'Purchase Orders', 'icon': '📋', 'group': 'Suppliers'},
@@ -495,7 +496,6 @@ def dashboard(request):
                   for b in expiring[:6]],
         charts=dashboard_charts(today),
         ov=dashboard_overview(today, include_money=access.is_owner(request.user)),
-        wa_link=notify.whatsapp_link(notify.alert_digest_text(notify.collect_alerts(), ShopProfile.get().name)),
     )
 
 
@@ -865,7 +865,7 @@ def bill_cancel(request, pk):
 def shop(request):
     if not access.is_owner(request.user):
         raise PermissionDenied
-    Form = modelform_factory(ShopProfile, fields=['name', 'address', 'phone', 'email', 'gstin',
+    Form = modelform_factory(ShopProfile, fields=['name', 'address', 'phone', 'alert_phone', 'email', 'gstin',
                                                   'drug_license', 'terms'])
     form = Form(request.POST or None, instance=ShopProfile.get())
     if request.method == 'POST' and form.is_valid():

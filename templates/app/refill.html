@@ -1,0 +1,29 @@
+{% extends "app/base.html" %}
+{% block title %}Refill Reminders{% endblock %}
+{% block content %}
+<div class="head"><h1>💊 Refill Reminders</h1></div>
+<div class="msg info">
+  Regular customers (BP, sugar, thyroid ... medicines) whose medicine is about to finish, worked out from <b>their own buying pattern</b>:
+  a customer who bought the same medicine at least twice, about a month apart, is listed a few days before the next refill is due.
+  Press <b>WhatsApp</b> to send a polite reminder. The customer disappears from this list when they buy again, or after {{ grace }} days of being late.
+  Customers must be selected on the bill (with a phone number) to appear here.
+</div>
+<div class="card">
+  {% if rows %}
+  <div style="margin-bottom:10px;color:var(--mute)">{{ rows|length }} customer{{ rows|length|pluralize }} to remind{% if no_phone %} · <span class="badge amber">{{ no_phone }} without a phone number</span>{% endif %}</div>
+  <div class="tw"><table class="t stack">
+    <thead><tr><th>Customer</th><th>Medicine</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}<tr>
+      <td data-label="Customer"><b>{{ r.customer.name }}</b>{% if r.customer.phone %}<br><small style="color:var(--mute)">{{ r.customer.phone }}</small>{% endif %}</td>
+      <td data-label="Medicine">{% for i in r.items %}<div>{{ i.name }} <small style="color:var(--mute)">· last bought {{ i.last|date:"d M Y" }}</small></div>{% endfor %}</td>
+      <td data-label="Status"><span class="badge {{ r.cls }}">{{ r.status }}</span></td>
+      <td data-label="" style="white-space:nowrap">{% if r.link %}<a class="btn sm" href="{{ r.link }}" target="_blank" rel="noopener">💬 WhatsApp</a>{% else %}<span class="badge amber" title="Add a phone number in Customers">No phone</span>{% endif %}</td>
+    </tr>{% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <div class="empty">No refill is due right now. 🎉<br><small style="color:var(--mute)">This list fills up as regular customers are billed with their name selected.</small></div>
+  {% endif %}
+</div>
+{% endblock %}

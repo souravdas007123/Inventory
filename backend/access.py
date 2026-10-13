@@ -55,7 +55,7 @@ def owner_required(view):
 # Menu entries that are not a plain list of one model (everything else follows its model's "view" permission)
 NAV_RULES = {
     'dashboard': ('view', 'sale'), 'drug_register': ('view', 'bill'), 'supplier_prices': ('view', 'purchase'),
-    'reorder': ('view', 'purchaseorder'), 'salary': ('view', 'employee'),
+    'reorder': ('view', 'purchaseorder'), 'refill': ('view', 'bill'), 'salary': ('view', 'employee'),
     'import': 'owner', 'report': 'owner', 'gst': 'owner', 'audit': 'owner', 'backup': 'owner', 'shop': 'owner',
     'stock_audits': 'owner',
 }

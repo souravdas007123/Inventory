@@ -35,7 +35,7 @@
 </style>
 <div class="head"><h1>Dashboard</h1>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-    <a class="btn ghost" href="{{ wa_link }}" target="_blank" rel="noopener" title="Send stock alerts on WhatsApp">💬 Alerts WhatsApp</a>
+    <a class="btn ghost" href="{% url 'alerts_whatsapp' %}" target="_blank" rel="noopener" title="Send the stock alerts (expiry with rack, out of stock, low stock) on WhatsApp">💬 Alerts WhatsApp</a>
     {% if is_owner %}<a class="btn ghost" href="{% url 'summary_whatsapp' %}" target="_blank" rel="noopener" title="Open today's summary in WhatsApp (sent to your shop number)">💬 Today's summary</a>{% endif %}
     {% if is_owner %}<form method="post" action="{% url 'alerts_send' %}" style="margin:0">{% csrf_token %}<button class="btn ghost" title="Email a digest of low stock / expiry">✉️ Alerts Email</button></form>{% endif %}
     <a class="btn" href="/bills/new/">+ New Bill</a>
