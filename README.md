@@ -113,3 +113,6 @@ The hint is for information only; the sale itself still deducts FEFO exactly as 
 The Products list shows 6 compact columns (Product with composition / brand / category / schedule, Stock with status, Price with GST,
 Place, Sell first (FEFO), Other with HSN / SKU / alternative) instead of 15 narrow ones. The Excel / CSV export still contains every column.
 A list can opt in with `list_cols` in `CONFIG` (see `products` in `backend/views.py`).
+
+The Billing list uses the same compact layout (Invoice + date, Customer + order / mode, Items, Amount with Taxable and GST below, Payment, Status);
+its Excel / CSV export keeps CGST, SGST and IGST as separate columns.

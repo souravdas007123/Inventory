@@ -24,7 +24,7 @@
     <tbody>
     {% for r in rows %}<tr>
       {% for c in r.cells %}<td>{{ c }}</td>{% endfor %}
-      {% if not cfg.readonly or has_actions %}<td style="white-space:nowrap">
+      {% if not cfg.readonly or has_actions %}<td class="acts" style="white-space:{% if key == 'bills' %}normal{% else %}nowrap{% endif %}">
         {% if key == 'bills' %}
           <a class="btn sm" href="{% url 'invoice' r.pk %}">🖨️ Invoice</a>
           {% if r.obj.status == 'FINAL' and can_return %}<a class="btn ghost sm" href="{% url 'sales_return_new' r.pk %}">↩ Return</a>{% endif %}

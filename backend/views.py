@@ -161,6 +161,19 @@ def product_cell(o):
                  ' \u00b7 '.join(str(x) for x in (o.brand, o.category) if x))
 
 
+def bill_gst(o):
+    return o.cgst + o.sgst + o.igst
+
+
+def bill_mode_cell(o):
+    mode = badge(o.invoice_mode.title(), 'green' if o.invoice_mode == 'online' else 'grey')
+    return stack(o.customer_name, o.order.order_id if o.order_id else '', mode)
+
+
+def bill_amount_cell(o):
+    return stack(format_html('<b>{}</b>', rs(o.total)), f"Taxable {rs(o.taxable)}", f"GST {rs(bill_gst(o))}")
+
+
 def gst_txt(o):
     """'18%' (not '18.00%'); a rate like 2.5 stays '2.5%'."""
     return f"{format(Decimal(o.gst_rate or 0).normalize(), 'f')}%"
@@ -251,6 +264,11 @@ CONFIG = {
               ('Total', lambda o: rs(o.total)),
               ('Payment', lambda o: badge(o.get_payment_mode_display(), 'amber' if o.payment_mode == 'CREDIT' else 'grey')),
               ('Status', lambda o: badge('Final', 'green') if o.status == 'FINAL' else badge('Cancelled', 'red'))],
+        # Screen: 6 compact columns (no side scroll). The Excel / CSV export keeps every column above.
+        list_cols=[('Invoice', lambda o: stack(format_html('<b>{}</b>', o.display_number), d(o.date))),
+                   ('Customer', bill_mode_cell), ('Items', lambda o: o.total_items), ('Amount', bill_amount_cell),
+                   ('Payment', lambda o: badge(o.get_payment_mode_display(), 'amber' if o.payment_mode == 'CREDIT' else 'grey')),
+                   ('Status', lambda o: badge('Final', 'green') if o.status == 'FINAL' else badge('Cancelled', 'red'))],
         fields=['customer_name', 'customer', 'date', 'invoice_mode', 'order', 'payment_mode', 'amount_paid',
                 'doctor_name', 'doctor_reg_no', 'patient_name', 'patient_address'],
         inline=dict(model=InvoiceItem, title='Bill items',
