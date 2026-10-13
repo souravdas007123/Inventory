@@ -15,7 +15,7 @@ from django.forms import inlineformset_factory, modelform_factory
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 from django.views.decorators.http import require_POST
 
 from . import access, auditlog, backup, checks, notify, recurring, supplier_prices
@@ -148,6 +148,34 @@ def batch_actions(o):
     return []
 
 
+def stack(first, *small):
+    """A compact multi-line cell for lists: the first line as is, then small grey lines (empty ones are skipped)."""
+    lines = [format_html('<div>{}</div>', first)]
+    lines += [format_html('<small class="sub">{}</small>', x) for x in small if x and x != '-']
+    return format_html_join('', '{}', ((x,) for x in lines))
+
+
+def product_cell(o):
+    sched = format_html(' {}', badge(o.schedule, 'amber')) if o.schedule and o.schedule != 'NONE' else ''
+    return stack(format_html('<b>{}</b>{}', o.name or '-', sched), o.composition,
+                 ' \u00b7 '.join(str(x) for x in (o.brand, o.category) if x))
+
+
+def product_price_cell(o):
+    unit = f" / {o.unit}" if o.unit_id else ''
+    return stack(f"{rs(o.mrp)}{unit}" if o.mrp is not None else '-', f"GST {o.gst_rate}%")
+
+
+def product_place_cell(o):
+    return ' \u00b7 '.join(x for x in (f"Rack {o.rack}" if o.rack else '', f"Row {o.row}" if o.row else '') if x) or '-'
+
+
+def product_extra_cell(o):
+    alt = alt_txt(o)
+    return stack(f"HSN {o.hsn_code}" if o.hsn_code else '-', f"SKU {o.sku}" if o.sku else '',
+                 f"Alternative: {alt}" if alt != '-' else '')
+
+
 PO_COLORS = {'PENDING': 'amber', 'SENT': 'blue', 'COMPLETED': 'green', 'CANCELLED': 'red'}
 
 def product_names(o, limit=3):
@@ -170,6 +198,10 @@ CONFIG = {
               ('Schedule', lambda o: '-' if o.schedule == 'NONE' else badge(o.schedule, 'amber')),
               ('Stock', lambda o: o.stock_display()), ('Pick Batch (FEFO)', pick_batch_txt),
               ('Status', stock_badge), ('Alternative', alt_txt)],
+        # The screen shows fewer, multi-line columns (no side scroll); the Excel / CSV export keeps every column above.
+        list_cols=[('Product', product_cell), ('Stock', lambda o: stack(o.stock_display(), stock_badge(o))),
+                   ('Price', product_price_cell), ('Place', product_place_cell),
+                   ('Sell first (FEFO)', pick_batch_txt), ('Other', product_extra_cell)],
         fields=['name', 'composition', 'hsn_code', 'category', 'brand', 'gst_rate', 'unit', 'mrp', 'barcode',
                 'schedule', 'reorder_level', 'default_supplier', 'location', 'rack', 'row', 'is_active'],
         inline=dict(model=ProductUnit, fields=['unit', 'factor'],
@@ -564,8 +596,9 @@ def listing(request, key):
             summary_line = (f"This month ({t:%b %Y}): {rs(sum(p['s'] for p in parts))} \u00b7 "
                             + ', '.join(f"{names.get(p['name'], p['name'])} {rs(p['s'])}" for p in parts))
     acts = cfg.get('actions')
-    rows = [dict(pk=o.pk, obj=o, cells=[fn(o) for _, fn in cfg['cols']], acts=acts(o) if acts else []) for o in pg]
-    return page(request, 'app/list.html', key=key, active=key, cfg=cfg, heads=[h for h, _ in cfg['cols']], summary_line=summary_line,
+    shown = cfg.get('list_cols') or cfg['cols']          # on screen; the export above always uses all columns
+    rows = [dict(pk=o.pk, obj=o, cells=[fn(o) for _, fn in shown], acts=acts(o) if acts else []) for o in pg]
+    return page(request, 'app/list.html', key=key, active=key, cfg=cfg, heads=[h for h, _ in shown], summary_line=summary_line,
                 rows=rows, page=pg, q=q, per=per, per_opts=PER_OPTS, total=pg.paginator.count,
                 has_actions=bool(acts), import_kind=IMPORT_KINDS.get(key) if access.is_owner(request.user) else None,
                 can_add=access.can(request.user, 'add', cfg['model']._meta.model_name),

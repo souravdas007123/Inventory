@@ -107,3 +107,9 @@ The hint is for information only; the sale itself still deducts FEFO exactly as 
   (same medicine bought on 2+ different days, usually 10-75 days apart; listed 3 days before the next refill is due, kept up to 30 days when late).
   Nothing is stored: a customer leaves the list by buying again. Only customers selected on the bill (with a phone number) are included.
   Logic: `backend/refill.py`.
+
+## Products list (no side scroll)
+
+The Products list shows 6 compact columns (Product with composition / brand / category / schedule, Stock with status, Price with GST,
+Place, Sell first (FEFO), Other with HSN / SKU / alternative) instead of 15 narrow ones. The Excel / CSV export still contains every column.
+A list can opt in with `list_cols` in `CONFIG` (see `products` in `backend/views.py`).
