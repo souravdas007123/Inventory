@@ -190,7 +190,7 @@ def product_place_cell(o):
 
 def product_extra_cell(o):
     alt = alt_txt(o)
-    return stack(f"HSN {o.hsn_code}" if o.hsn_code else '-', f"SKU {o.sku}" if o.sku else '',
+    return stack(f"HSN {o.hsn_code}" if o.hsn_code else '-', (o.sku if str(o.sku).upper().startswith('SKU') else f"SKU {o.sku}") if o.sku else '',
                  f"Alternative: {alt}" if alt != '-' else '')
 
 
