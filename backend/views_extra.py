@@ -389,6 +389,22 @@ def product_suggest(request):
         'pack_unit': str(pack.unit_id) if pack else '', 'pack_factor': pack.factor if pack else ''})
 
 
+@access.perm_required(('add', 'purchase'), ('change', 'purchase'))
+def product_find(request):
+    """Purchase screen: type a medicine name / barcode / SKU and get the matching products (max 8)."""
+    q = ' '.join(request.GET.get('q', '').split())
+    if len(q) < 2:
+        return JsonResponse({'results': []})
+    qs = (Product.objects.exclude(is_active=False)
+          .filter(Q(name__icontains=q) | Q(composition__icontains=q) | Q(barcode=q) | Q(sku__iexact=q))
+          .select_related('unit').order_by('name')[:8])
+    low = q.lower()
+    results = [dict(id=p.pk, label=str(p), composition=p.composition or '', unit=p.unit.name if p.unit_id else '',
+                    exact=(p.name or '').strip().lower() == low or (p.barcode or '') == q or (p.sku or '').lower() == low)
+               for p in qs]
+    return JsonResponse({'results': results})
+
+
 @access.perm_required(('add', 'product'))
 @require_POST
 def product_quick_add(request):

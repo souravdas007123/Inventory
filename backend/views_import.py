@@ -57,7 +57,8 @@ def import_view(request, kind):
                     if missing:
                         raise ImportFileError('The file is missing these required columns: ' + ', '.join(missing)
                                               + '. Download the template and use its headers.')
-                    opts = {'update': bool(request.POST.get('update'))}
+                    opts = {'update': bool(request.POST.get('update')),
+                            'create_products': bool(request.POST.get('create_products'))}
                     results = imp['validate'](mapped, opts)
                 except ImportFileError as e:
                     messages.error(request, str(e))

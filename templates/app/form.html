@@ -24,7 +24,11 @@
     <div id="scan-results" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
   </div>
   {% endif %}
-  {% if key == 'purchases' %}<div style="margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+  {% if key == 'purchases' %}
+  {% if no_products %}<div class="msg info"><b>No products yet - no import needed.</b> Type the medicine name below and press Enter. If it is not in the system, it is created right here (GST and unit are suggested) and added to this invoice. Next time it is already there.</div>{% endif %}
+  <div id="pq-box" style="margin-bottom:10px"><input id="pq" type="text" autocomplete="off" placeholder="🔍 Type a medicine name or barcode and press Enter to add it to this invoice">
+    <div id="pq-res" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div></div>
+  <div style="margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
     {% if can_add_product %}<button type="button" class="btn ghost sm" id="new-product" title="Add a medicine that is not in Products yet, without leaving this page">➕ New product</button>{% endif %}
     {% if not form.instance.pk %}<button type="button" class="btn ghost sm" id="copy-last">↻ Copy items from this supplier's last invoice</button>{% endif %}<small id="copy-msg" style="color:var(--mute)"></small></div>{% endif %}
   {{ fs.management_form }}{{ fs.non_form_errors }}
@@ -464,6 +468,21 @@ if (scan) {
     say(added ? 'Copied ' + added + ' item(s) from invoice ' + data.invoice + ' (' + data.date + '). Now enter the new prices and EXP dates.'
               : 'Those items are already in the table.');
   });
+  // ---- Pick a product into a row (an already listed product just gets the cursor in its qty box) ----
+  function useProduct(id, label) {
+    id = String(id);
+    const tpl = document.getElementById('tpl');
+    const sels = [...rowsBody.querySelectorAll('select[name$="-product"]')].concat(tpl ? [...tpl.content.querySelectorAll('select[name$="-product"]')] : []);
+    sels.forEach(s => { if (![...s.options].some(o => o.value === id)) s.add(new Option(label, id)); });
+    const have = [...dataRows()].find(t => { const s = field(t, 'product'); return s && s.value === id; });
+    if (have) { const q = field(have, 'qty'); if (q) { q.focus(); q.select(); } return; }
+    let tr = [...dataRows()].find(t => { const s = field(t, 'product'); return s && !s.value; });
+    if (!tr) { document.getElementById('add').click(); const all = dataRows(); tr = all[all.length - 1]; }
+    const sel = field(tr, 'product'); sel.value = id;
+    sel.dispatchEvent(new Event('change', {bubbles: true}));
+    const q = field(tr, 'qty'); if (q) q.focus();
+  }
+  let openNewProduct = null;          // set below when the "New product" window is available
   // ---- New product without leaving the page: small window -> /api/product_quick_add/ -> the product is selected in a row ----
   const npDlg = document.getElementById('np-dialog'), npBtn = document.getElementById('new-product');
   if (npDlg && npBtn && typeof npDlg.showModal === 'function') {
@@ -495,17 +514,6 @@ if (scan) {
       set('pack-unit', d.pack_unit); set('pack-factor', d.pack_factor);   // the drug schedule is never copied: choose it yourself
       note.textContent = (d.similar ? 'Category, brand, GST and units are copied from "' : 'Copied from the last product "') + d.from + '". Change anything that is different.';
     }
-    function useProduct(id, label) {
-      id = String(id);
-      const tpl = document.getElementById('tpl');
-      const sels = [...rowsBody.querySelectorAll('select[name$="-product"]')].concat(tpl ? [...tpl.content.querySelectorAll('select[name$="-product"]')] : []);
-      sels.forEach(s => { if (![...s.options].some(o => o.value === id)) s.add(new Option(label, id)); });
-      let tr = [...dataRows()].find(t => { const s = field(t, 'product'); return s && !s.value; });
-      if (!tr) { document.getElementById('add').click(); const all = dataRows(); tr = all[all.length - 1]; }
-      const sel = field(tr, 'product'); sel.value = id;
-      sel.dispatchEvent(new Event('change', {bubbles: true}));
-      const q = field(tr, 'qty'); if (q) q.focus();
-    }
     async function save() {
       err.style.display = 'none'; existingBox.textContent = '';
       const fd = new FormData();
@@ -525,18 +533,48 @@ if (scan) {
       if (!d || !d.ok) { showErr((d && d.error) || 'Could not save the product.', d && d.existing); return; }
       npDlg.close(); useProduct(d.id, d.label);
     }
-    npBtn.addEventListener('click', () => {
+    openNewProduct = name => {
       touched.clear(); err.style.display = 'none'; existingBox.textContent = '';
       Object.keys(el).forEach(k => { el[k].value = ''; });
       el.schedule.value = 'NONE'; note.textContent = '';
-      npDlg.showModal(); el.name.focus(); suggest();
-    });
+      el.name.value = name || '';
+      npDlg.showModal(); (name ? el.gst : el.name).focus(); suggest();
+    };
+    npBtn.addEventListener('click', () => openNewProduct(''));
     el.name.addEventListener('change', () => { if (el.name.value.trim().length >= 3) suggest(); });
     saveBtn.addEventListener('click', save);
     $('np-cancel').addEventListener('click', () => npDlg.close());
     $('np-close').addEventListener('click', () => npDlg.close());
     npDlg.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); save(); } });
   } else if (npBtn) npBtn.style.display = 'none';          // very old browser without <dialog>: use the Products page
+  // ---- Type-to-find: existing product -> added to the invoice; unknown name -> created in the small window ----
+  const pq = document.getElementById('pq'), pqRes = document.getElementById('pq-res');
+  if (pq && pqRes) {
+    let pqTimer;
+    const pqBtn = (text, fn, primary) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'btn sm' + (primary ? '' : ' ghost');
+      b.textContent = text; b.onclick = fn; pqRes.appendChild(b);
+    };
+    const pqPick = p => { pq.value = ''; pqRes.textContent = ''; useProduct(p.id, p.label); };
+    const pqCreate = name => { pq.value = ''; pqRes.textContent = ''; openNewProduct(name); };
+    async function pqFind(enter) {
+      const q = pq.value.replace(/\s+/g, ' ').trim();
+      pqRes.textContent = '';
+      if (q.length < 2) return;
+      let d = null;
+      try { const r = await fetch('/api/product_find/?q=' + encodeURIComponent(q), {credentials: 'same-origin'}); d = r.ok ? await r.json() : null; }
+      catch (e) { d = null; }
+      if (!d || q !== pq.value.replace(/\s+/g, ' ').trim()) return;          // failed, or the user kept typing
+      const list = d.results || [], exact = list.find(x => x.exact);
+      if (enter && (exact || list.length === 1)) { pqPick(exact || list[0]); return; }
+      if (enter && !list.length && openNewProduct) { pqCreate(q); return; }
+      list.forEach(p => pqBtn(p.label + (p.composition ? ' \u00b7 ' + p.composition : ''), () => pqPick(p), false));
+      if (openNewProduct && !exact) pqBtn('\u2795 Create "' + q + '" as a new product', () => pqCreate(q), true);
+      if (!list.length && !openNewProduct) { const m = document.createElement('small'); m.textContent = 'No product found. Ask the owner to add it in Products.'; pqRes.appendChild(m); }
+    }
+    pq.addEventListener('input', () => { clearTimeout(pqTimer); pqTimer = setTimeout(() => pqFind(false), 250); });
+    pq.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(pqTimer); pqFind(true); } });
+  }
   supplierSel.addEventListener('change', () => dataRows().forEach(refresh));
   dataRows().forEach(refresh);
 })();

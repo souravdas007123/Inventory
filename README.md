@@ -133,3 +133,11 @@ its Excel / CSV export keeps CGST, SGST and IGST as separate columns.
     (same rule as the Reorder Suggestions page, `reorder.order_qty`). Without sales: twice the reorder level.
   - No new PO for a product that is already on a Pending / Sent PO.
 - Needs `python manage.py migrate` (migration 0009).
+
+## Purchases without a separate Products import
+
+You no longer need to import Products before entering a purchase.
+
+- **Purchase screen:** type a medicine name (or barcode) in the search box and press Enter. An existing product is added to the invoice; adding the same product again just moves the cursor to its qty. If the name is unknown, the small "New product" window opens with the name filled in (GST, unit and pack are suggested), and the product is created and added to the invoice. When there are no products at all, a hint says so.
+- **Stock Entry import:** the option "Create new products automatically" (ticked by default) creates a medicine that is not in Products from the row itself. Fill `gst_rate` and `base_unit` (and optionally `pack_unit` + `pack_size`, `composition`, `category`, `brand`, `hsn_code`). The qty unit may be the base unit or the pack unit. A value that looks like a barcode is never turned into a product name. Products are created inside the invoice's transaction, so an invoice that fails leaves no product behind.
+- The search endpoint is `api/product_find/?q=` (needs the add/change purchase permission); creating a product still needs the add product permission.

@@ -439,7 +439,7 @@ def export_suppliers():
 STOCK_COLS = [
     _col('supplier', True, 'Supplier name (must already exist in Suppliers)', 'ABC Pharma Distributors', 'ABC Pharma Distributors'),
     _col('invoice_number', True, 'The supplier\'s bill number. Use the same value on every row of one bill', 'INV-1001', 'INV-1001'),
-    _col('product', True, 'Medicine name or barcode (must already exist in Products)', 'Dolo 650', 'Azithral 500'),
+    _col('product', True, 'Medicine name or barcode. A name that is not in Products yet is created automatically (see the optional "new product" columns below)', 'Dolo 650', 'Azithral 500'),
     _col('qty', True, 'Quantity (in the unit given below)', '20', '10'),
     _col('purchase_price', True, 'TOTAL price of this row, including GST (not the per-piece rate)', '2100', '1850'),
     _col('exp_date', True, 'Expiry: 31/08/2027 or 08/27', '08/27', '12/26'),
@@ -451,6 +451,14 @@ STOCK_COLS = [
     _col('rack', False, 'Rack', 'A1', 'A2'),
     _col('row', False, 'Row', '2', '1'),
     _col('location', False, 'Godown / location', '', ''),
+    _col('gst_rate', False, 'NEW product only: GST % (0, 5, 12 or 18). Required when the medicine is not in Products yet', '12', '12'),
+    _col('base_unit', False, 'NEW product only: smallest unit, e.g. Tablet. Required when the medicine is not in Products yet', 'Tablet', 'Tablet'),
+    _col('pack_unit', False, 'NEW product only: larger pack, e.g. Strip (fill together with pack_size)', 'Strip', 'Strip'),
+    _col('pack_size', False, 'NEW product only: base units in 1 pack (e.g. 15 tablets in a Strip)', '15', '10'),
+    _col('composition', False, 'NEW product only: salt / composition', 'Paracetamol 650mg', 'Azithromycin 500mg'),
+    _col('category', False, 'NEW product only: category (created if it is new)', 'Tablet', 'Tablet'),
+    _col('brand', False, 'NEW product only: brand / company (created if it is new)', 'Micro Labs', 'Alembic'),
+    _col('hsn_code', False, 'NEW product only: HSN code', '3004', '3004'),
 ]
 STOCK_ALIASES = {'supplier_name': 'supplier', 'party': 'supplier', 'invoice': 'invoice_number',
                  'invoice_no': 'invoice_number', 'bill_no': 'invoice_number', 'bill_number': 'invoice_number',
@@ -459,10 +467,54 @@ STOCK_ALIASES = {'supplier_name': 'supplier', 'party': 'supplier', 'invoice': 'i
                  'price': 'purchase_price', 'total_price': 'purchase_price', 'amount': 'purchase_price',
                  'expiry': 'exp_date', 'expiry_date': 'exp_date', 'exp': 'exp_date', 'mfg': 'mfg_date',
                  'batch_no': 'batch', 'batch_number': 'batch', 'mrp': 'selling_price', 'selling': 'selling_price',
-                 'sale_price': 'selling_price', 'selling_rate': 'selling_price'}
+                 'sale_price': 'selling_price', 'selling_rate': 'selling_price',
+                 'gst': 'gst_rate', 'hsn': 'hsn_code', 'salt': 'composition', 'pack': 'pack_unit',
+                 'strip_size': 'pack_size', 'pack_factor': 'pack_size', 'smallest_unit': 'base_unit'}
+
+
+BARCODE_LIKE = re.compile(r'\d{8,}')
+
+
+def _new_product_spec(raw, pname, known, errors):
+    """Details of a medicine that is not in Products yet, taken from the stock row (or from an earlier row of the same
+    name). Returns a JSON-safe dict, or None after adding to `errors`."""
+    if BARCODE_LIKE.fullmatch(pname):
+        errors.append(f"'{pname}' looks like a barcode that is not in Products. Enter the medicine name so the product can be created")
+        return None
+    if len(pname) > 255:
+        errors.append('product name is too long')
+        return None
+    if pname.lower() in known:
+        return known[pname.lower()]
+    start = len(errors)
+    gst = to_dec(raw.get('gst_rate'), 'gst_rate', errors)
+    base = _unit_name(raw.get('base_unit'))
+    pack_unit = _unit_name(raw.get('pack_unit'))
+    pack_size = to_int(raw.get('pack_size'), 'pack_size', errors, minimum=2)
+    if gst is None:
+        errors.append(f"product '{pname}' is not in Products. To create it, fill in gst_rate (0, 5, 12 or 18) and base_unit, or add it in Products first")
+    elif gst not in GST_ALLOWED:
+        errors.append(f"gst_rate {gst} is not allowed; use only 0, 5, 12 or 18")
+    if not base:
+        errors.append(f"product '{pname}' is not in Products. To create it, fill in base_unit (e.g. Tablet)")
+    if pack_unit or pack_size is not None:
+        if not pack_unit or pack_size is None:
+            errors.append('fill in both pack_unit and pack_size')
+        elif pack_unit.lower() == base.lower():
+            errors.append(f"pack_unit must be different from the base unit ('{base}')")
+    if len(errors) > start:
+        return None
+    spec = dict(name=pname, gst_rate=str(gst), base_unit=base,
+                pack_unit=pack_unit if pack_size is not None else '', pack_size=pack_size or 0,
+                composition=txt(raw.get('composition')), hsn_code=txt(raw.get('hsn_code')),
+                category=txt(raw.get('category')), brand=txt(raw.get('brand')))
+    known[pname.lower()] = spec
+    return spec
 
 
 def validate_stock(rows, opts):
+    create_new = bool(opts.get('create_products'))
+    new_specs = {}
     products_by_name, products_by_code = {}, {}
     for p in Product.objects.select_related('unit'):
         products_by_name.setdefault((p.name or '').strip().lower(), p)
@@ -491,8 +543,14 @@ def validate_stock(rows, opts):
         prod = (products_by_code.get(pname) or products_by_name.get(pname.lower())) if pname else None
         if not pname:
             errors.append('product is required')
-        elif not prod:
-            errors.append(f"product '{pname}' was not found (import/add Products first)")
+        spec = None
+        if pname and not prod:
+            if create_new:
+                spec = _new_product_spec(raw, pname, new_specs, errors)
+                if spec:
+                    warnings.append(f"new product '{spec['name']}' will be created (GST {spec['gst_rate']}%, unit {spec['base_unit']})")
+            else:
+                errors.append(f"product '{pname}' was not found (add it in Products, or tick \"Create new products\" and fill gst_rate and base_unit)")
 
         qty = to_int(raw.get('qty'), 'qty', errors, required=True, minimum=1)
         price = to_dec(raw.get('purchase_price'), 'purchase_price', errors, required=True, minimum=Decimal('0'))
@@ -511,7 +569,13 @@ def validate_stock(rows, opts):
 
         unit_name = _unit_name(raw.get('unit'))
         unit = None
-        if unit_name:
+        row_unit = ''                 # name of the qty unit when it is a pack of a product that is about to be created
+        if spec:
+            if unit_name and unit_name.lower() == spec['pack_unit'].lower() and spec['pack_unit']:
+                row_unit = spec['pack_unit']
+            elif unit_name and unit_name.lower() != spec['base_unit'].lower():
+                errors.append(f"unit '{unit_name}' must be the base unit '{spec['base_unit']}'" + (f" or the pack unit '{spec['pack_unit']}'" if spec['pack_unit'] else ''))
+        elif unit_name:
             unit = units.get(unit_name.lower())
             if not unit:
                 errors.append(f"unit '{unit_name}' does not exist in the system")
@@ -534,7 +598,8 @@ def validate_stock(rows, opts):
             supplier_id=sup.pk if sup else None, supplier=sup.company if sup else sup_name, invoice=invoice,
             invoice_date=inv_date.isoformat(), product_id=prod.pk if prod else None,
             product=prod.name if prod else pname, qty=qty, unit_id=unit.pk if unit else None,
-            unit=unit.name if unit else (prod.unit.name if prod and prod.unit_id else ''),
+            unit=unit.name if unit else (row_unit or (spec['base_unit'] if spec else (prod.unit.name if prod and prod.unit_id else ''))),
+            new_product=spec, unit_name=row_unit,
             price=str(price) if price is not None else None,
             selling=str(selling) if selling is not None and selling > 0 else None, exp=exp.isoformat() if exp else None,
             mfg=mfg.isoformat() if mfg else None, batch=txt(raw.get('batch')),
@@ -555,6 +620,23 @@ def validate_stock(rows, opts):
     return results
 
 
+def _stock_product_id(d):
+    """Product of a stock row. A new medicine is created here (inside the invoice's transaction, so a failed invoice
+    leaves no product behind); the name is looked up every time so two rows of one medicine share one product."""
+    if d.get('product_id'):
+        return d['product_id']
+    spec = d['new_product']
+    p = Product.objects.filter(name__iexact=spec['name']).first()
+    if not p:
+        p = _apply_product(dict(
+            existing_id=None, name=spec['name'], unit=spec['base_unit'], gst_rate=spec['gst_rate'], mrp=None,
+            barcode=None, schedule=None, reorder_level=None, is_active=None, composition=spec['composition'],
+            hsn_code=spec['hsn_code'], rack=d['rack'], row=d['row'], location=d['location'],
+            category=spec['category'], brand=spec['brand'], default_supplier_id=None,
+            packs=[[spec['pack_unit'], spec['pack_size']]] if spec['pack_unit'] and spec['pack_size'] else []))
+    return p.pk
+
+
 def commit_stock(results, opts):
     summary = dict(created=0, updated=0, skipped=0, failed=[], notes=[])
     groups = {}
@@ -573,8 +655,10 @@ def commit_stock(results, opts):
                     invoice_date=date.fromisoformat(d0['invoice_date']))
                 for r in rs:
                     d = r['data']
+                    product_id = _stock_product_id(d)
+                    unit_id = d['unit_id'] or (_fk(Unit, d['unit_name']).pk if d.get('unit_name') else None)
                     item = PurchaseItem(
-                        purchase=purchase, product_id=d['product_id'], qty=d['qty'], unit_id=d['unit_id'],
+                        purchase=purchase, product_id=product_id, qty=d['qty'], unit_id=unit_id,
                         purchase_price=Decimal(d['price']),
                         selling_price=Decimal(d['selling']) if d.get('selling') else None,
                         expire_date=date.fromisoformat(d['exp']),
@@ -735,7 +819,7 @@ IMPORTERS = {
         after='Suppliers and products must be imported before Stock Entry.'),
     'stock': dict(
         title='Stock Entry (Purchases)', icon='📦', cols=STOCK_COLS, aliases=STOCK_ALIASES, validate=validate_stock,
-        commit=commit_stock, export=None, has_update=False, max_rows=1500,
+        commit=commit_stock, export=None, has_update=False, max_rows=1500, can_create_products=True,
         desc='Create purchases and stock/batches at once from supplier bill rows. Use the same supplier and invoice number on every row of one invoice. '
              'Use this for opening stock as well.',
         after='The created bills will appear on the Purchases page. If there is a mistake, create a Purchase Return from there.'),

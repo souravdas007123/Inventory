@@ -831,6 +831,8 @@ def edit(request, key, pk=None):
                      np_cats=list(Category.objects.order_by('name').values_list('name', flat=True)[:500]),
                      np_brands=list(Brand.objects.order_by('name').values_list('name', flat=True)[:500]),
                      np_schedules=Product.SCHEDULE_CHOICES)
+    if key == 'purchases':
+        quick['no_products'] = not Product.objects.exists()       # shows a hint: no import needed, create products right here
     return page(request, 'app/form.html', key=key, active=key, title=title, form=form, fs=fs, back_url=f'/{key}/',
                 inline_title=inl['title'] if inl else '', warnings=warnings, **quick,
                 note=f"{po.po_number} ({po.supplier.company}) has been pre-filled. Enter the invoice number, price and MFG/EXP dates. The PO will be marked Completed when you save." if po else '')
