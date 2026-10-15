@@ -171,3 +171,7 @@ Lists the batches that are expired or expire within 30/60/90/180 days, grouped b
 - **Progress bar:** a thin bar appears at the top as soon as a link or form is used, so a click gives instant feedback while the next page loads.
 - **No white flash:** browsers that support cross-page view transitions (Chrome / Edge) fade between pages and keep the menu still; others simply behave as before.
 - **Smaller pages:** HTML is gzip-compressed (`GZipMiddleware`), which helps most on mobile data.
+
+## Bill preview (Billing list → 👁 Preview)
+
+Each bill in the Billing list has a **👁 Preview** button that opens a window with the number of items, every item (medicine, batch / expiry, qty, rate, discount, GST, amount) and the totals (taxable value, GST, discount given, round off, total; for a credit bill also paid and due), plus the patient / doctor when entered. **Open invoice** goes to the printable invoice. The data comes from `api/bill_preview/<id>/` (needs permission to view bills); medicine names are shown as plain text. No migration.

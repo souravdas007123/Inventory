@@ -26,6 +26,7 @@ urlpatterns = [
     path('drug_register/', views_extra.drug_register_view, name='drug_register'),
     path('api/customer_lookup/', views_extra.customer_lookup, name='customer_lookup'),
     path('api/product_find/', views_extra.product_find, name='product_find'),
+    path('api/bill_preview/<int:pk>/', views_extra.bill_preview, name='bill_preview'),
     path('api/product_suggest/', views_extra.product_suggest, name='product_suggest'),
     path('api/product_quick_add/', views_extra.product_quick_add, name='product_quick_add'),
     path('api/last_purchase/', views_extra.last_purchase, name='last_purchase'),

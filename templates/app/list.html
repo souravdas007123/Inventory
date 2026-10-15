@@ -26,6 +26,7 @@
       {% for c in r.cells %}<td>{{ c }}</td>{% endfor %}
       {% if not cfg.readonly or has_actions %}<td class="acts" style="white-space:{% if key == 'bills' %}normal{% else %}nowrap{% endif %}">
         {% if key == 'bills' %}
+          <button type="button" class="btn ghost sm" data-preview="{% url 'bill_preview' r.pk %}" data-invoice="{% url 'invoice' r.pk %}" title="See the items of this bill">👁 Preview</button>
           <a class="btn sm" href="{% url 'invoice' r.pk %}">🖨️ Invoice</a>
           {% if r.obj.status == 'FINAL' and can_return %}<a class="btn ghost sm" href="{% url 'sales_return_new' r.pk %}">↩ Return</a>{% endif %}
           {% if r.obj.status == 'FINAL' and is_owner %}<form method="post" action="{% url 'bill_cancel' r.pk %}" style="display:inline" onsubmit="return confirm('Cancel this bill? The stock will be added back.')">{% csrf_token %}<button class="btn red sm">Cancel</button></form>{% endif %}
@@ -52,4 +53,71 @@
     {% endif %}
   </div>
 </div>
+{% if key == 'bills' %}
+<dialog id="bill-dlg" class="dlg" style="width:min(820px,calc(100% - 24px))">
+  <div class="np-head"><h3 id="bill-title">Bill</h3><button type="button" class="btn ghost sm" id="bill-close" aria-label="Close">✕</button></div>
+  <div id="bill-body"></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><a class="btn" id="bill-open" href="#">🖨️ Open invoice</a><button type="button" class="btn ghost" id="bill-close2">Close</button></div>
+</dialog>
+<script>
+// 👁 Preview: the items and totals of a bill in a window, without leaving the list
+(function () {
+  var dlg = document.getElementById('bill-dlg'), body = document.getElementById('bill-body');
+  if (!dlg) return;
+  function el(tag, text, cls) { var e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; }
+  function line(label, value, strong) {
+    var r = el('div', undefined); r.style.cssText = 'display:flex;justify-content:space-between;gap:16px;padding:3px 0' + (strong ? ';font-weight:700;font-size:15px;border-top:1px solid var(--line);margin-top:4px;padding-top:6px' : '');
+    r.appendChild(el('span', label)); r.appendChild(el('span', value)); return r;
+  }
+  function badge(text, kind) { return el('span', text, 'badge ' + kind); }
+  function render(d) {
+    document.getElementById('bill-title').textContent = d.invoice + ' · ' + d.date;
+    document.getElementById('bill-open').href = d.invoice_url;
+    body.textContent = '';
+    var meta = el('div'); meta.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px';
+    meta.appendChild(el('b', d.customer));
+    if (d.phone) meta.appendChild(el('small', d.phone, 'sub'));
+    meta.appendChild(badge(d.payment, d.credit ? 'amber' : 'grey'));
+    meta.appendChild(d.cancelled ? badge('Cancelled', 'red') : badge('Final', 'green'));
+    meta.appendChild(badge(d.count + ' item' + (d.count === 1 ? '' : 's'), 'blue'));
+    body.appendChild(meta);
+    if (d.doctor || d.patient) body.appendChild(el('small', [d.patient && ('Patient: ' + d.patient), d.doctor && ('Doctor: ' + d.doctor)].filter(Boolean).join(' · '), 'sub'));
+    var wrap = el('div', undefined, 'tw'), t = el('table', undefined, 't'), hr = el('tr');
+    ['Medicine', 'Batch / Exp', 'Qty', 'Rate', 'Disc.', 'GST', 'Amount'].forEach(function (h) { hr.appendChild(el('th', h)); });
+    var th = el('thead'); th.appendChild(hr); t.appendChild(th);
+    var tb = el('tbody');
+    d.items.forEach(function (i) {
+      var tr = el('tr'), name = el('td'); name.appendChild(el('b', i.name));
+      if (i.comp) { name.appendChild(document.createElement('br')); name.appendChild(el('small', i.comp, 'sub')); }
+      tr.appendChild(name); tr.appendChild(el('td', i.batch)); tr.appendChild(el('td', i.qty));
+      tr.appendChild(el('td', i.rate)); tr.appendChild(el('td', i.disc)); tr.appendChild(el('td', i.gst)); tr.appendChild(el('td', i.total));
+      tb.appendChild(tr);
+    });
+    if (!d.items.length) { var er = el('tr'), ec = el('td', 'This bill has no items.', 'empty'); ec.colSpan = 7; er.appendChild(ec); tb.appendChild(er); }
+    t.appendChild(tb); wrap.appendChild(t); body.appendChild(wrap);
+    var box = el('div'); box.style.cssText = 'margin-top:10px;margin-left:auto;max-width:320px';
+    var x = d.totals;
+    box.appendChild(line('Taxable value', x.taxable)); box.appendChild(line('GST', x.gst));
+    if (x.discount) box.appendChild(line('Discount given', x.discount));
+    if (x.round_off) box.appendChild(line('Round off', x.round_off));
+    box.appendChild(line('Total', x.grand, true));
+    if (d.credit) { box.appendChild(line('Paid', x.paid)); box.appendChild(line('Due (credit)', x.due)); }
+    body.appendChild(box);
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-preview]');
+    if (!b) return;
+    e.preventDefault();
+    if (typeof dlg.showModal !== 'function') { window.location.href = b.dataset.invoice; return; }   // very old browser: open the invoice
+    document.getElementById('bill-title').textContent = 'Loading...';
+    body.textContent = ''; dlg.showModal();
+    fetch(b.dataset.preview, {credentials: 'same-origin'})
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d && d.ok) render(d); else { document.getElementById('bill-title').textContent = 'Bill'; body.textContent = 'Could not load this bill. Please try again.'; } })
+      .catch(function () { document.getElementById('bill-title').textContent = 'Bill'; body.textContent = 'Could not load this bill. Please check your connection.'; });
+  });
+  ['bill-close', 'bill-close2'].forEach(function (id) { document.getElementById(id).addEventListener('click', function () { dlg.close(); }); });
+})();
+</script>
+{% endif %}
 {% endblock %}
