@@ -157,3 +157,10 @@ The **+ New Product** button is removed from the Products page (edit stays), so 
 ## Expiry Returns (Suppliers → Expiry Returns)
 
 Lists the batches that are expired or expire within 30/60/90/180 days, grouped by the supplier they were bought from (and by purchase invoice). Expired batches are ticked for you; tick near-expiry ones only after the supplier has agreed. **Return ticked batches** books a purchase return (debit note) for each original invoice: stock and the batch are reduced and the supplier balance goes down. It is all-or-nothing: if any line cannot be returned (for example it was sold meanwhile) nothing is booked. Returns are in whole purchase units (full strips/boxes); loose tablets are shown but cannot be returned. **WhatsApp supplier** opens a ready message listing the items, to ask for a credit note first. Needs the "add purchase return" permission. No migration.
+
+## Speed and safety on save
+
+- **Database waits instead of failing:** SQLite now waits up to 20 s for a busy database and (Django 5.1+) starts write transactions up front, so two users saving at the same moment queue up instead of one getting "database is locked". WAL mode (faster with several users) is available but **off by default**; set `DJANGO_SQLITE_WAL=1` only on a host with a normal local disk.
+- **Indexes (migration 0011):** product active/stock, batch product+expiry (FEFO), invoice item product+bill, purchase item product+purchase. They speed up low-stock, reorder, expiry and price-history screens; no data changes.
+- **Double-click protection:** after a form is sent its buttons lock for a moment ("Saving..."), so a double click cannot save a bill or purchase twice. Forms that are cancelled by a confirmation or a validation are not locked, and the lock is released after 8 s or when coming back with the Back button.
+- **Ctrl+S** (Cmd+S) saves the open form.

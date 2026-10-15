@@ -632,4 +632,14 @@ document.getElementById('add').onclick = () => {
     document.getElementById('tpl').innerHTML.replace(/__prefix__/g, n));
   total.value = n + 1;
 };
-</script>{% endif %}{% endblock %}
+</script>{% endif %}
+<script>
+// Ctrl+S (Cmd+S) saves the form
+document.addEventListener('keydown', function (e) {
+  if (!(e.ctrlKey || e.metaKey) || (e.key !== 's' && e.key !== 'S')) return;
+  var f = document.querySelector('form.card[method="post"]');
+  if (!f || document.querySelector('dialog[open]')) return;
+  e.preventDefault();
+  if (f.requestSubmit) f.requestSubmit(); else f.submit();
+});
+</script>{% endblock %}

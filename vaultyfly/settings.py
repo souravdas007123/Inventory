@@ -14,6 +14,7 @@ import os
 import tempfile
 from pathlib import Path
 
+import django
 from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -111,8 +112,18 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        # Wait up to 20 s for a busy database instead of failing with "database is locked"
+        'OPTIONS': {'timeout': 20},
     }
 }
+# Django 5.1+: start write transactions up front (IMMEDIATE) so two users saving at once queue up politely
+# instead of one of them failing with "database is locked".
+if django.VERSION >= (5, 1):
+    DATABASES['default']['OPTIONS']['transaction_mode'] = 'IMMEDIATE'
+# WAL lets readers and a writer work at the same time (faster with several users), but it needs a local disk.
+# It is OFF by default (a network file system, as on some hosts, can break it): set DJANGO_SQLITE_WAL=1 to try it.
+if os.environ.get('DJANGO_SQLITE_WAL') == '1' and django.VERSION >= (5, 1):
+    DATABASES['default']['OPTIONS']['init_command'] = 'PRAGMA journal_mode=WAL;'
 
 
 # Password validation

@@ -144,6 +144,32 @@ new MutationObserver(function(m){ if(m.some(function(x){return x.addedNodes.leng
 document.addEventListener('click',function(e){var s=document.getElementById('side');
   if(s&&s.classList.contains('open')&&!s.contains(e.target)&&!e.target.closest('.burger'))s.classList.remove('open');});
 </script>
+<script>
+// Double-click protection: right after a form is sent its buttons are locked for a moment ("Saving..."), so one click
+// can never save the same bill / purchase twice. Cancelled submits (confirm / validation) are not locked.
+(function () {
+  function unlock() {
+    document.querySelectorAll('[data-lock]').forEach(function (b) {
+      b.disabled = false; b.removeAttribute('data-lock');
+      if (b.dataset.label !== undefined) { b.innerHTML = b.dataset.label; delete b.dataset.label; }
+    });
+  }
+  document.addEventListener('submit', function (e) {
+    var f = e.target;
+    if (e.defaultPrevented || !f || f.tagName !== 'FORM' || f.target === '_blank' || f.dataset.noLock) return;
+    if ((f.method || '').toLowerCase() === 'get') return;
+    var sub = e.submitter;
+    setTimeout(function () {                     // after the browser has collected the form data
+      f.querySelectorAll('button:not([type=button]):not([disabled]), input[type=submit]:not([disabled])').forEach(function (b) {
+        b.disabled = true; b.setAttribute('data-lock', '1');
+      });
+      if (sub && sub.tagName === 'BUTTON') { sub.dataset.label = sub.innerHTML; sub.textContent = 'Saving…'; }
+      setTimeout(unlock, 8000);                  // e.g. a form that downloads a file never leaves the page
+    }, 0);
+  });
+  window.addEventListener('pageshow', function (ev) { if (ev.persisted) unlock(); });   // back button
+})();
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

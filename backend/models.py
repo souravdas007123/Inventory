@@ -274,6 +274,7 @@ class Product(models.Model):
     class Meta:
         verbose_name = "05. Product"
         verbose_name_plural = "05. Product"
+        indexes = [models.Index(fields=['is_active', 'stock_qty'], name='product_active_stock_idx')]
 
 
 class ProductUnit(models.Model):
@@ -335,7 +336,8 @@ class Batch(models.Model):
     class Meta:
         verbose_name = "07. Batch"
         verbose_name_plural = "07. Batch"
-        indexes = [models.Index(fields=['expire_date'], name='batch_expire_idx')]
+        indexes = [models.Index(fields=['expire_date'], name='batch_expire_idx'),
+                   models.Index(fields=['product', 'expire_date'], name='batch_prod_exp_idx')]
 
 
 # ======================================================
@@ -600,6 +602,7 @@ class PurchaseItem(models.Model):
     class Meta:
         verbose_name = "Purchase Item"
         verbose_name_plural = "Purchase Items"
+        indexes = [models.Index(fields=['product', 'purchase'], name='pitem_product_purchase_idx')]
 
 
 # ======================================================
@@ -922,6 +925,10 @@ class Bill(models.Model):
 class InvoiceItem(models.Model):
     bill = models.ForeignKey(Bill, related_name='items', on_delete=models.CASCADE, blank=True, null=True)
     product = models.ForeignKey(Product, on_delete=models.PROTECT, blank=True, null=True)
+
+    class Meta:
+        indexes = [models.Index(fields=['product', 'bill'], name='invitem_product_bill_idx')]
+
     batch_history = models.JSONField(default=dict, blank=True, null=True)
     rate = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, help_text="Rate per the selected unit")
     qty = models.IntegerField(blank=True, null=True)
