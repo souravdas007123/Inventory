@@ -47,7 +47,7 @@ NAV = [
     {'key': 'supplier_prices', 'url': '/supplier_prices/', 'label': 'Supplier Prices', 'icon': '⚖️', 'group': 'Suppliers'},
     {'key': 'payments', 'url': '/payments/', 'label': 'Supplier Payments', 'icon': '💳', 'group': 'Suppliers'},
     {'key': 'purchase_returns', 'url': '/purchase_returns/', 'label': 'Purchase Returns', 'icon': '📤', 'group': 'Suppliers'},
-    {'key': 'expiry', 'url': '/expiry/', 'label': 'Expiry Returns', 'icon': '⏳', 'group': 'Suppliers'},
+    {'key': 'expiry', 'url': '/expiry/', 'label': 'Expiry Returns', 'icon': '⚠️', 'group': 'Suppliers'},
     {'key': 'sales', 'url': '/sales/', 'label': 'Sales', 'icon': '📈', 'group': 'Accounts'},
     {'key': 'transactions', 'url': '/transactions/', 'label': 'Transactions', 'icon': '🔁', 'group': 'Accounts'},
     {'key': 'expenses', 'url': '/expenses/', 'label': 'Expenses', 'icon': '💸', 'group': 'Accounts'},
