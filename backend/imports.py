@@ -7,13 +7,14 @@ Flow (the same for every importer):
   3. commit()    -> only valid rows are saved (each row/invoice in its own transaction, via the model's save(),
                     so stock / batch / supplier balance / ledger are all produced correctly)
 """
+import hashlib
 import json
 import os
 import re
 import secrets
 import tempfile
 import time
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -868,12 +869,22 @@ IMPORTERS['stock']['desc_extra'] = ('One row = one medicine. For a bill with sev
                                     'You can also put several invoices (and suppliers) in one file. If even one row of an invoice is invalid, the whole invoice is skipped.')
 
 
-def canonical_columns(imp, headers):
-    """Map the file's headers to the importer's standard column names (for mapped_rows)."""
+def layout_signature(headers):
+    """Identifies a file layout (e.g. one supplier's export) by the set of its column headers."""
+    return hashlib.sha1('|'.join(sorted(h for h in headers if h)).encode('utf-8')).hexdigest()
+
+
+def canonical_columns(imp, headers, extra=None):
+    """Map the file's headers to the importer's standard column names (for mapped_rows).
+    `extra` = the user's own choices {header: column or ''}: they win over the automatic names ('' = ignore the column)."""
     names = {c['name'] for c in imp['cols']}
+    extra = {h: k for h, k in (extra or {}).items() if k == '' or k in names}
     out = {}
     for h in headers:
-        key = h if h in names else imp['aliases'].get(h)
+        if h in extra:
+            key = extra[h]
+        else:
+            key = h if h in names else imp['aliases'].get(h)
         if key and key not in out.values():
             out[h] = key
     if imp.get('barcode_as_product') and 'product' not in out.values():      # a file with only a barcode column: it identifies the product
@@ -883,9 +894,9 @@ def canonical_columns(imp, headers):
     return out
 
 
-def prepare_rows(imp, headers, rows):
+def prepare_rows(imp, headers, rows, extra=None):
     """Renames headers using the aliases and converts rows into dicts with standard names."""
-    mapping = canonical_columns(imp, headers)
+    mapping = canonical_columns(imp, headers, extra)
     missing = [c['name'] for c in imp['cols'] if c['required'] and c['name'] not in mapping.values()]
     ignored = [h for h in headers if h and h not in mapping]
     mapped = [(n, {mapping[h]: v for h, v in raw.items() if h in mapping}) for n, raw in rows]
@@ -900,6 +911,14 @@ STORE = Path(tempfile.gettempdir()) / 'medsync_imports'
 _TOKEN = re.compile(r'^[0-9a-f]{32}$')
 
 
+def _json_default(o):
+    if isinstance(o, datetime):
+        return o.date().isoformat() if not (o.hour or o.minute or o.second) else o.isoformat()
+    if isinstance(o, date):
+        return o.isoformat()
+    return str(o)
+
+
 def stash(payload):
     STORE.mkdir(parents=True, exist_ok=True)
     cutoff = time.time() - 24 * 3600
@@ -910,7 +929,7 @@ def stash(payload):
         except OSError:
             pass
     token = secrets.token_hex(16)
-    (STORE / f'{token}.json').write_text(json.dumps(payload), encoding='utf-8')
+    (STORE / f'{token}.json').write_text(json.dumps(payload, default=_json_default), encoding='utf-8')
     return token
 
 

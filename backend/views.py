@@ -698,6 +698,15 @@ def bill_form_errors(form, fs):
     return errors
 
 
+def po_shortfall(po_items, purchase):
+    """'Dolo 650 (ordered 100, received 60), ...' for the order lines that were not fully received on this purchase."""
+    got = {}
+    for it in purchase.items.all():
+        got[it.product_id] = got.get(it.product_id, 0) + (it.base_qty or 0)
+    return ', '.join(f"{i.product.name or i.product} (ordered {i.order_qty}, received {got.get(i.product_id, 0)})"
+                     for i in po_items if got.get(i.product_id, 0) < i.order_qty)
+
+
 def purchase_check_warnings(fs, obj):
     """Soft warnings for a purchase invoice (odd price / quantity / EXP date). The user can still save."""
     lines = []
@@ -809,6 +818,10 @@ def edit(request, key, pk=None):
                         po.save(update_fields=['status'])
                 auditlog.record(request, 'EDIT' if obj else 'CREATE', cfg['one'], str(form.instance))
                 messages.success(request, f"{cfg['one']} saved ✅")
+                if po and po.status == 'COMPLETED':
+                    short = po_shortfall(po_items, form.instance)
+                    if short:
+                        messages.warning(request, f"{po.po_number} is marked received, but these were short: {short}. Make a new order if you still need them.")
                 if key == 'bills' and not obj:  # new bill -> go straight to the invoice
                     return redirect('invoice', pk=form.instance.pk)
                 return redirect('list', key=key)
@@ -831,6 +844,9 @@ def edit(request, key, pk=None):
                      np_cats=list(Category.objects.order_by('name').values_list('name', flat=True)[:500]),
                      np_brands=list(Brand.objects.order_by('name').values_list('name', flat=True)[:500]),
                      np_schedules=Product.SCHEDULE_CHOICES)
+    if key == 'purchases' and po:      # banner: what this invoice is receiving
+        quick['po'] = dict(number=po.po_number, supplier=po.supplier.company,
+                           lines=', '.join(f"{i.product.name or i.product} x {i.order_qty}" for i in po_items))
     if key == 'purchases':
         quick['no_products'] = not Product.objects.exists()       # shows a hint: no import needed, create products right here
     return page(request, 'app/form.html', key=key, active=key, title=title, form=form, fs=fs, back_url=f'/{key}/',

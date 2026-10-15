@@ -676,3 +676,25 @@ class RecurringExpense(models.Model):
     class Meta:
         verbose_name = "Fixed Expense"
         verbose_name_plural = "Fixed Expenses"
+
+
+# ======================================================
+# IMPORT FILE LAYOUTS (remembered column matching)
+# ======================================================
+
+class ImportLayout(models.Model):
+    """How the columns of a particular file layout (usually one supplier's export) were matched to our columns.
+    Found again by the set of headers, so the next file in the same layout needs no matching."""
+    kind = models.CharField(max_length=20)
+    signature = models.CharField(max_length=40)
+    mapping = models.TextField(default='{}', help_text='JSON: file header -> our column ("" = ignored)')
+    headers = models.TextField(blank=True, default='')
+    updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('kind', 'signature')
+        verbose_name = 'Import file layout'
+        verbose_name_plural = 'Import file layouts'
+
+    def __str__(self):
+        return f"{self.kind}: {self.headers[:60]}"

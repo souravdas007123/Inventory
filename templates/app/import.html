@@ -22,6 +22,26 @@
   </div>
   {% if imp.after %}<p style="color:var(--mute)">{{ imp.after }}</p>{% endif %}
 
+{% elif stage == 'map' %}
+  <div class="msg info">The column names in <b>{{ filename }}</b> are different from ours. Match each column of your file with ours once. {% if remember %}This is remembered, so the next file with the same columns is read automatically.{% endif %}</div>
+  {% if missing %}<div class="msg warning">Required columns still to match: <b>{{ missing|join:", " }}</b></div>{% endif %}
+  <form method="post" class="card" style="margin-bottom:14px">{% csrf_token %}
+    <input type="hidden" name="action" value="map"><input type="hidden" name="raw_token" value="{{ raw_token }}">
+    <div class="tw"><table class="t">
+      <thead><tr><th>Column in your file</th><th>Example value</th><th>Is our column</th></tr></thead>
+      {% for m in map_items %}<tr>
+        <td><b>{{ m.header }}</b></td><td>{{ m.sample|default:"-" }}</td>
+        <td><select name="m{{ m.i }}">
+          <option value="">- ignore this column -</option>
+          {% for c in cols %}<option value="{{ c.name }}"{% if c.name == m.selected %} selected{% endif %}>{{ c.name }}{% if c.required %} *{% endif %}</option>{% endfor %}
+        </select></td></tr>{% endfor %}
+    </table></div>
+    <p style="color:var(--mute);margin:8px 0">* = required. Leave a column on "ignore" if you do not need it.</p>
+    <label><input type="checkbox" name="remember" value="1" {% if remember %}checked{% endif %}> Remember this for files with the same columns</label>
+    <div class="bar" style="margin-top:10px"><button class="btn">Continue to preview →</button>
+      <a class="btn ghost" href="{% url 'import' kind %}">Cancel</a></div>
+  </form>
+
 {% elif stage == 'preview' %}
   <div class="msg info">This is only a <b>preview</b>; nothing has been saved yet. File: <b>{{ filename }}</b> ({{ total }} rows).</div>
   <div class="stats">
@@ -30,7 +50,10 @@
     <div class="card stat"><small>Will be skipped</small><b>{{ counts.skip }}</b></div>
     <div class="card stat {% if counts.error %}warn{% endif %}"><small>Rows with errors</small><b>{{ counts.error }}</b></div>
   </div>
-  {% if ignored %}<div class="msg warning">These columns were not recognised and were ignored: {{ ignored|join:", " }}</div>{% endif %}
+  {% if layout_used %}<div class="msg info">The column matching saved earlier for this file layout was applied.</div>{% endif %}
+  {% if ignored %}<div class="msg warning">These columns were not recognised and were ignored: {{ ignored|join:", " }}
+    <form method="post" style="display:inline;margin-left:8px">{% csrf_token %}<input type="hidden" name="action" value="remap"><input type="hidden" name="raw_token" value="{{ raw_token }}"><button class="btn ghost sm">⚙ Match columns</button></form></div>
+  {% elif layout_used %}<form method="post" style="margin-bottom:10px">{% csrf_token %}<input type="hidden" name="action" value="remap"><input type="hidden" name="raw_token" value="{{ raw_token }}"><button class="btn ghost sm">⚙ Change column matching</button></form>{% endif %}
   {% if counts.error %}<div class="msg error">{{ counts.error }} row(s) have errors. Please review them below. Rows with errors will <b>not</b> be imported; the valid rows will be. You can also fix the file and upload it again.</div>{% endif %}
 
   <form method="post" class="card" style="margin-bottom:14px">{% csrf_token %}

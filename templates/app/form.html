@@ -25,6 +25,7 @@
   </div>
   {% endif %}
   {% if key == 'purchases' %}
+  {% if po %}<div class="msg info">📥 Receiving <b>{{ po.number }}</b> from <b>{{ po.supplier }}</b>: {{ po.lines }}. Products and quantities are filled in, and prices come from the last purchase. Enter the bill's batch, expiry and check the prices.</div>{% endif %}
   {% if no_products %}<div class="msg info"><b>No products yet - no import needed.</b> Type the medicine name below and press Enter. If it is not in the system, it is created right here (GST and unit are suggested) and added to this invoice. Next time it is already there.</div>{% endif %}
   <div id="pq-box" style="margin-bottom:10px"><input id="pq" type="text" autocomplete="off" placeholder="🔍 Type a medicine name or barcode and press Enter to add it to this invoice">
     <div id="pq-res" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div></div>
@@ -389,25 +390,41 @@ if (scan) {
       else chip(el, 'Selling ' + fmt(sell) + '/' + name + ' · margin ' + margin.toFixed(1) + '%', margin < 5 ? 'amber' : 'green', 'Profit ' + fmt(sell - cost) + ' per ' + name + ' (MRP vs purchase price, both incl. GST)');
     } else chip(el, 'Selling ' + fmt(sell) + '/' + name, 'grey');
   }
+  // The total price is filled from this supplier's last rate x qty (only while empty or still auto-filled) and marked
+  // so the user checks it against the bill; anything the user typed is never replaced.
+  function dropAutoPrice(tr) {
+    const pe = field(tr, 'purchase_price');
+    if (pe && pe.dataset.auto === '1') { pe.value = ''; pe.dataset.auto = '0'; pe.classList.remove('autofill'); }
+  }
+  function autoPrice(tr, mine, d) {
+    const pe = field(tr, 'purchase_price'), qe = field(tr, 'qty'), us = field(tr, 'unit');
+    if (!pe || !(pe.value === '' || pe.dataset.auto === '1')) return false;
+    const qty = parseFloat(qe && qe.value), factor = us && us.value ? d.factors[us.value] : 1, rate = mine ? parseFloat(mine.rate) : 0;
+    if (!(qty > 0) || !factor || !(rate > 0)) { dropAutoPrice(tr); return false; }
+    pe.value = (rate * qty * factor).toFixed(2); pe.dataset.auto = '1'; pe.classList.add('autofill');
+    return true;
+  }
   async function refresh(tr) {
     const sel = field(tr, 'product'), el = hintBox(tr); if (!sel || !el) return;
     const pid = sel.value;
     el.textContent = '';
-    if (!pid) { show(el); return; }
+    if (!pid) { dropAutoPrice(tr); show(el); return; }
     const d = await load(pid);
     if (field(tr, 'product').value !== pid) return;          // the row changed while loading
     el.textContent = '';
-    if (!d || !d.found) { show(el); return; }
+    if (!d || !d.found) { dropAutoPrice(tr); show(el); return; }
     applyDefaults(tr, d, pid);
     syncSell(tr, d);
     const packTip = s => s.pack_txt ? s.pack_txt + ' per ' + d.pack_name : '';
     const mine = d.suppliers.find(s => String(s.id) === supplierSel.value);
     const best = d.suppliers.find(s => s.best);
+    const filled = autoPrice(tr, mine, d);
     if (!d.suppliers.length) { chip(el, 'No earlier purchase price for this product'); sellChip(el, tr, d); show(el); return; }
     const lead = document.createElement('small'); lead.style.color = 'var(--mute)'; lead.textContent = 'Price per ' + d.base_name + ':';
     el.appendChild(lead);
     if (mine) chip(el, 'Last ' + mine.rate_txt + ' · ' + mine.date, 'grey', 'Last price from this supplier' + (packTip(mine) ? ' · ' + packTip(mine) : ''));
     else chip(el, supplierSel.value ? 'New supplier for this product' : 'Select a supplier', 'grey');
+    if (filled) chip(el, '✎ Price filled from the last purchase. Check it against the bill', 'amber', 'Last rate from this supplier x qty. Type the bill price if it is different');
     if (best && (!mine || best.id !== mine.id)) chip(el, 'Cheapest ' + best.rate_txt + ' · ' + best.name, 'blue', packTip(best));
     else if (best && mine && best.id === mine.id) chip(el, '✓ Cheapest supplier', 'green');
     const qtyEl = field(tr, 'qty'), priceEl = field(tr, 'purchase_price'), uSel = field(tr, 'unit');
@@ -436,6 +453,7 @@ if (scan) {
   rowsBody.addEventListener('input', e => {
     const nm = e.target.name || '';
     if (nm.endsWith('-selling_price') || DEFAULT_FIELDS.some(n => nm.endsWith('-' + n))) e.target.dataset.auto = '0';   // the user typed it
+    if (nm.endsWith('-purchase_price')) { e.target.dataset.auto = '0'; e.target.classList.remove('autofill'); }
     const tr = e.target.closest('tr'); if (tr && !tr.classList.contains('hintrow')) later(tr);
   });
   const dataRows = () => rowsBody.querySelectorAll('tr:not(.hintrow)');
@@ -575,6 +593,15 @@ if (scan) {
     pq.addEventListener('input', () => { clearTimeout(pqTimer); pqTimer = setTimeout(() => pqFind(false), 250); });
     pq.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(pqTimer); pqFind(true); } });
   }
+  // Safety net: prices that were filled automatically and never touched must be confirmed once before saving.
+  const theForm = rowsBody.closest('form');
+  if (theForm) theForm.addEventListener('submit', e => {
+    const auto = [...dataRows()].filter(t => { const pe = field(t, 'purchase_price'); return pe && pe.dataset.auto === '1' && pe.value !== ''; });
+    if (!auto.length) return;
+    if (!window.confirm(auto.length + ' price(s) were filled automatically from the last purchase and not changed.\nAre they the same as on the supplier bill?')) {
+      e.preventDefault(); const pe = field(auto[0], 'purchase_price'); pe.focus(); pe.select();
+    } else auto.forEach(t => { field(t, 'purchase_price').dataset.auto = '0'; });
+  });
   supplierSel.addEventListener('change', () => dataRows().forEach(refresh));
   dataRows().forEach(refresh);
 })();

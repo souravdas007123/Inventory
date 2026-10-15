@@ -520,3 +520,13 @@ class StockAuditAdmin(ViewOnlyMixin, admin.ModelAdmin):
     list_display = ('id', 'date', 'status', 'note')
     list_filter = ('status',)
     inlines = [StockAuditItemInline]
+
+
+from .models import ImportLayout  # noqa: E402
+
+
+@admin.register(ImportLayout)
+class ImportLayoutAdmin(admin.ModelAdmin):
+    """Remembered column matching of import files; delete a row to match that file layout again."""
+    list_display = ('kind', 'headers', 'updated')
+    list_filter = ('kind',)
