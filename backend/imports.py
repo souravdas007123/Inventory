@@ -841,7 +841,7 @@ IMPORTERS = {
         title='Suppliers', icon='🏭', cols=SUPPLIER_COLS, aliases=SUPPLIER_ALIASES, validate=validate_suppliers,
         commit=commit_suppliers, export=export_suppliers, has_update=True, max_rows=3000,
         desc='List of distributors / suppliers. When a GSTIN is given, the state and PAN are filled in automatically.',
-        after='Suppliers and products must be imported before Stock Entry.'),
+        after='Suppliers must exist before a Stock Entry (purchase) import. Products do not: new medicines are created from the purchase rows.'),
     'stock': dict(
         title='Stock Entry (Purchases)', icon='📦', cols=STOCK_COLS, aliases=STOCK_ALIASES, validate=validate_stock,
         commit=commit_stock, export=None, has_update=False, max_rows=1500, can_create_products=True, barcode_as_product=True,
