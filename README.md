@@ -141,3 +141,9 @@ You no longer need to import Products before entering a purchase.
 - **Purchase screen:** type a medicine name (or barcode) in the search box and press Enter. An existing product is added to the invoice; adding the same product again just moves the cursor to its qty. If the name is unknown, the small "New product" window opens with the name filled in (GST, unit and pack are suggested), and the product is created and added to the invoice. When there are no products at all, a hint says so.
 - **Stock Entry import:** the option "Create new products automatically" (ticked by default) creates a medicine that is not in Products from the row itself. Fill `gst_rate` and `base_unit` (and optionally `pack_unit` + `pack_size`, `composition`, `category`, `brand`, `hsn_code`). The qty unit may be the base unit or the pack unit. A value that looks like a barcode is never turned into a product name. Products are created inside the invoice's transaction, so an invoice that fails leaves no product behind.
 - The search endpoint is `api/product_find/?q=` (needs the add/change purchase permission); creating a product still needs the add product permission.
+
+### Supplier's CSV / Excel as the only entry
+
+A supplier file that already has the product columns can go straight into **Purchases → Import** (Stock Entry); no Products entry is needed. New medicines are created from these optional columns: `gst_rate`, `base_unit`, `pack_unit`, `pack_size`, `hsn_code`, `composition`, `category`, `brand`, `barcode`, `schedule`. The supplier's MRP/selling price column sets the product MRP. A barcode that already belongs to a product finds that product (a different name is flagged as an error); a file with only a barcode column still works for existing products.
+
+The **+ New Product** button is removed from the Products page (edit stays), so every new product comes from a purchase.

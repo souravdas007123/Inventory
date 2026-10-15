@@ -459,11 +459,13 @@ STOCK_COLS = [
     _col('category', False, 'NEW product only: category (created if it is new)', 'Tablet', 'Tablet'),
     _col('brand', False, 'NEW product only: brand / company (created if it is new)', 'Micro Labs', 'Alembic'),
     _col('hsn_code', False, 'NEW product only: HSN code', '3004', '3004'),
+    _col('barcode', False, 'Barcode (a new product gets it; for an existing product it is used to find the product)', '8901234567890', ''),
+    _col('schedule', False, 'NEW product only: drug schedule: blank/NONE, H, H1 or X', '', 'H'),
 ]
 STOCK_ALIASES = {'supplier_name': 'supplier', 'party': 'supplier', 'invoice': 'invoice_number',
                  'invoice_no': 'invoice_number', 'bill_no': 'invoice_number', 'bill_number': 'invoice_number',
                  'date': 'invoice_date', 'bill_date': 'invoice_date', 'product_name': 'product',
-                 'medicine': 'product', 'item': 'product', 'barcode': 'product', 'quantity': 'qty',
+                 'medicine': 'product', 'item': 'product', 'quantity': 'qty',
                  'price': 'purchase_price', 'total_price': 'purchase_price', 'amount': 'purchase_price',
                  'expiry': 'exp_date', 'expiry_date': 'exp_date', 'exp': 'exp_date', 'mfg': 'mfg_date',
                  'batch_no': 'batch', 'batch_number': 'batch', 'mrp': 'selling_price', 'selling': 'selling_price',
@@ -475,7 +477,7 @@ STOCK_ALIASES = {'supplier_name': 'supplier', 'party': 'supplier', 'invoice': 'i
 BARCODE_LIKE = re.compile(r'\d{8,}')
 
 
-def _new_product_spec(raw, pname, known, errors):
+def _new_product_spec(raw, pname, known, barcodes, errors):
     """Details of a medicine that is not in Products yet, taken from the stock row (or from an earlier row of the same
     name). Returns a JSON-safe dict, or None after adding to `errors`."""
     if BARCODE_LIKE.fullmatch(pname):
@@ -487,6 +489,16 @@ def _new_product_spec(raw, pname, known, errors):
     if pname.lower() in known:
         return known[pname.lower()]
     start = len(errors)
+    barcode = txt(raw.get('barcode')) or None
+    if barcode and len(barcode) > 64:
+        errors.append('barcode is longer than 64 characters')
+    elif barcode and barcodes.get(barcode, pname.lower()) != pname.lower():
+        errors.append(f"barcode '{barcode}' is also used for the new product '{barcodes[barcode]}'")
+    sched_raw = txt(raw.get('schedule')).lower()
+    schedule = SCHEDULE_MAP.get(sched_raw, 'BAD')
+    if schedule == 'BAD':
+        errors.append(f"schedule '{txt(raw.get('schedule'))}' is invalid (NONE, H, H1 or X)")
+        schedule = None
     gst = to_dec(raw.get('gst_rate'), 'gst_rate', errors)
     base = _unit_name(raw.get('base_unit'))
     pack_unit = _unit_name(raw.get('pack_unit'))
@@ -507,14 +519,16 @@ def _new_product_spec(raw, pname, known, errors):
     spec = dict(name=pname, gst_rate=str(gst), base_unit=base,
                 pack_unit=pack_unit if pack_size is not None else '', pack_size=pack_size or 0,
                 composition=txt(raw.get('composition')), hsn_code=txt(raw.get('hsn_code')),
-                category=txt(raw.get('category')), brand=txt(raw.get('brand')))
+                category=txt(raw.get('category')), brand=txt(raw.get('brand')), barcode=barcode, schedule=schedule)
     known[pname.lower()] = spec
+    if barcode:
+        barcodes[barcode] = pname.lower()
     return spec
 
 
 def validate_stock(rows, opts):
     create_new = bool(opts.get('create_products'))
-    new_specs = {}
+    new_specs, new_codes = {}, {}
     products_by_name, products_by_code = {}, {}
     for p in Product.objects.select_related('unit'):
         products_by_name.setdefault((p.name or '').strip().lower(), p)
@@ -540,13 +554,24 @@ def validate_stock(rows, opts):
             errors.append('invoice_number is required')
 
         pname = txt(raw.get('product'))
-        prod = (products_by_code.get(pname) or products_by_name.get(pname.lower())) if pname else None
-        if not pname:
-            errors.append('product is required')
+        bcode = txt(raw.get('barcode'))
+        by_name = (products_by_code.get(pname) or products_by_name.get(pname.lower())) if pname else None
+        by_code = products_by_code.get(bcode) if bcode else None
+        if by_name and by_code and by_name.pk != by_code.pk:
+            errors.append(f"barcode '{bcode}' belongs to another product ('{by_code.name}')")
+        elif by_code and not by_name and pname and (by_code.name or '').strip().lower() != pname.lower():
+            errors.append(f"barcode '{bcode}' belongs to '{by_code.name}' in the system, but the name in the file is different. Please check the name/barcode")
+        prod = by_name or by_code
+        if not pname and not prod:
+            pname = bcode
+            if not pname:
+                errors.append('product is required')
+        elif not pname and prod:
+            pname = prod.name or ''
         spec = None
         if pname and not prod:
             if create_new:
-                spec = _new_product_spec(raw, pname, new_specs, errors)
+                spec = _new_product_spec(raw, pname, new_specs, new_codes, errors)
                 if spec:
                     warnings.append(f"new product '{spec['name']}' will be created (GST {spec['gst_rate']}%, unit {spec['base_unit']})")
             else:
@@ -630,7 +655,7 @@ def _stock_product_id(d):
     if not p:
         p = _apply_product(dict(
             existing_id=None, name=spec['name'], unit=spec['base_unit'], gst_rate=spec['gst_rate'], mrp=None,
-            barcode=None, schedule=None, reorder_level=None, is_active=None, composition=spec['composition'],
+            barcode=spec.get('barcode'), schedule=spec.get('schedule'), reorder_level=None, is_active=None, composition=spec['composition'],
             hsn_code=spec['hsn_code'], rack=d['rack'], row=d['row'], location=d['location'],
             category=spec['category'], brand=spec['brand'], default_supplier_id=None,
             packs=[[spec['pack_unit'], spec['pack_size']]] if spec['pack_unit'] and spec['pack_size'] else []))
@@ -819,7 +844,7 @@ IMPORTERS = {
         after='Suppliers and products must be imported before Stock Entry.'),
     'stock': dict(
         title='Stock Entry (Purchases)', icon='📦', cols=STOCK_COLS, aliases=STOCK_ALIASES, validate=validate_stock,
-        commit=commit_stock, export=None, has_update=False, max_rows=1500, can_create_products=True,
+        commit=commit_stock, export=None, has_update=False, max_rows=1500, can_create_products=True, barcode_as_product=True,
         desc='Create purchases and stock/batches at once from supplier bill rows. Use the same supplier and invoice number on every row of one invoice. '
              'Use this for opening stock as well.',
         after='The created bills will appear on the Purchases page. If there is a mistake, create a Purchase Return from there.'),
@@ -850,6 +875,10 @@ def canonical_columns(imp, headers):
         key = h if h in names else imp['aliases'].get(h)
         if key and key not in out.values():
             out[h] = key
+    if imp.get('barcode_as_product') and 'product' not in out.values():      # a file with only a barcode column: it identifies the product
+        for h, k in out.items():
+            if k == 'barcode':
+                out[h] = 'product'
     return out
 
 

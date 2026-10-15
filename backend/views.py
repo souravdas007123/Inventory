@@ -234,7 +234,7 @@ def product_names(o, limit=3):
 
 CONFIG = {
     'products': dict(
-        title='Products', one='Product', model=Product, order=['name'],
+        title='Products', one='Product', model=Product, order=['name'], no_new=True,    # products are created from Purchases
         related=['brand', 'category', 'unit', 'default_supplier'], prefetch=['unit_conversions__unit', 'batches'],
         search=['name', 'composition', 'sku', 'hsn_code', 'barcode'],
         cols=[('Name', lambda o: o.name), ('Composition', lambda o: o.composition or '-'),
