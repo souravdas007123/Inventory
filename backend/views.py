@@ -14,11 +14,12 @@ from django.db.models import F, ProtectedError, Q, Sum
 from django.forms import inlineformset_factory, modelform_factory
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html, format_html_join
 from django.views.decorators.http import require_POST
 
-from . import access, auditlog, backup, checks, levels, notify, recurring, supplier_prices
+from . import access, auditlog, backup, billview, checks, levels, notify, recurring, supplier_prices
 from .models import (
     AuditLog, Batch, Bill, Brand, Category, Customer, CustomerPayment, Employee, Expense, InvoiceItem, Order, Payment,
     Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, RecurringExpense,
@@ -285,7 +286,8 @@ CONFIG = {
     ),
     'bills': dict(
         title='Billing', one='Bill', model=Bill, order=['-id'],
-        related=['order'], prefetch=['items'], search=['customer_name', 'invoice_number'],
+        related=['order'], prefetch=[models.Prefetch('items', queryset=InvoiceItem.objects.select_related('product', 'unit'))],
+        search=['customer_name', 'invoice_number'],
         initial=lambda: {'date': timezone.localdate()},
         cols=[('Invoice No.', lambda o: o.display_number), ('Customer', lambda o: o.customer_name),
               ('Mode', lambda o: badge(o.invoice_mode.title(), 'green' if o.invoice_mode == 'online' else 'grey')),
@@ -656,10 +658,15 @@ def listing(request, key):
     acts = cfg.get('actions')
     if cfg.get('prepare'):
         cfg['prepare'](list(pg))                        # one query for the whole page (e.g. the suppliers of the products)
+    bill_data = None
+    if key == 'bills':          # the 👁 Preview window of each bill on this page is embedded, so it opens instantly (no fetch)
+        page_bills = list(pg)
+        bmap = Batch.objects.in_bulk({int(k) for b in page_bills for it in b.items.all() for k in (it.batch_history or {})})
+        bill_data = {b.pk: billview.preview_data(b, list(b.items.all()), bmap, reverse('invoice', args=[b.pk])) for b in page_bills}
     shown = cfg.get('list_cols') or cfg['cols']          # on screen; the export above always uses all columns
     rows = [dict(pk=o.pk, obj=o, cells=[fn(o) for _, fn in shown], acts=acts(o) if acts else []) for o in pg]
     return page(request, 'app/list.html', key=key, active=key, cfg=cfg, heads=[h for h, _ in shown], summary_line=summary_line,
-                rows=rows, page=pg, q=q, per=per, per_opts=PER_OPTS, total=pg.paginator.count,
+                rows=rows, bill_data=bill_data, page=pg, q=q, per=per, per_opts=PER_OPTS, total=pg.paginator.count,
                 has_actions=bool(acts), import_kind=IMPORT_KINDS.get(key) if access.is_owner(request.user) else None,
                 can_add=access.can(request.user, 'add', cfg['model']._meta.model_name),
                 can_change=access.can(request.user, 'change', cfg['model']._meta.model_name),

@@ -3,7 +3,7 @@ alerts, Purchase Order share, stock audit."""
 import calendar
 import re
 from datetime import date as date_cls, timedelta
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 from urllib.parse import urlencode
 
 from django.contrib import messages
@@ -18,7 +18,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import access, auditlog, backup, expiry_returns, levels, notify, refill, reorder, reports, summary, supplier_prices
+from . import access, auditlog, backup, billview, expiry_returns, levels, notify, refill, reorder, reports, summary, supplier_prices
 from .models import (
     Batch, Bill, Brand, Category, Customer, Employee, Expense, InvoiceItem, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
     PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SalesReturn, Supplier, Unit, SalesReturnItem, ShopProfile, StockAudit, StockAuditItem, StockWriteOff,
@@ -768,46 +768,11 @@ def expiry_view(request):
 
 @access.perm_required(('view', 'bill'))
 def bill_preview(request, pk):
-    """Quick look at a bill for the Billing list: every item with batch / qty / rate / GST / amount, and the totals."""
+    """The same data as the Preview window of the Billing list (which normally has it embedded already)."""
     bill = get_object_or_404(Bill.objects.select_related('customer'), pk=pk)
     items = list(bill.items.select_related('product', 'unit'))
     batch_map = Batch.objects.in_bulk({int(k) for it in items for k in (it.batch_history or {})})
-    zero, two = Decimal('0'), Decimal('0.01')
-
-    def money(x):
-        return f"\u20b9{(x or 0):,.2f}"
-
-    rows, disc_total = [], zero
-    for n, it in enumerate(items, 1):
-        batches = []
-        for k in (it.batch_history or {}):
-            b = batch_map.get(int(k))
-            if b:
-                batches.append(f"{b.batch_number} / {b.expire_date.strftime('%m-%y') if b.expire_date else '-'}")
-        gross = (it.rate or zero) * (it.qty or 0)
-        disc = max((gross - (it.taxable_value or zero)).quantize(two), zero)
-        disc_total += disc
-        rows.append(dict(n=n, name=(it.product.name if it.product_id else '') or '-',
-                         comp=(it.product.composition if it.product_id else '') or '', batch=', '.join(batches) or '-',
-                         qty=f"{it.qty} {it.unit or ''}".strip(), rate=money(it.rate), disc=money(disc) if disc > 0 else '-',
-                         gst=f"{format(Decimal(it.gst_rate or 0).normalize(), 'f')}%", total=money(it.total)))
-
-    def s(field):
-        return sum((getattr(i, field) or zero for i in items), zero)
-
-    total = s('total')
-    grand = total.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
-    credit = bill.payment_mode == 'CREDIT'
-    paid = bill.amount_paid or zero
-    return JsonResponse(dict(
-        ok=True, invoice=bill.display_number, date=bill.date.strftime('%d %b %Y') if bill.date else '-',
-        customer=bill.customer_name or '-', phone=(bill.customer.phone if bill.customer_id else '') or '',
-        cancelled=bill.status != 'FINAL', payment=bill.get_payment_mode_display(), credit=credit,
-        doctor=bill.doctor_name or '', patient=bill.patient_name or '', count=len(rows), items=rows,
-        totals=dict(taxable=money(s('taxable_value')), gst=money(s('cgst') + s('sgst') + s('igst')),
-                    discount=money(disc_total) if disc_total > 0 else '', round_off=money(grand - total) if grand != total else '',
-                    grand=money(grand), paid=money(paid) if credit else '', due=money(max(grand - paid, zero)) if credit else ''),
-        invoice_url=reverse('invoice', args=[bill.pk])))
+    return JsonResponse(billview.preview_data(bill, items, batch_map, reverse('invoice', args=[bill.pk])))
 
 
 @access.perm_required(('view', 'product'), ('view', 'batch'), ('view', 'sale'))

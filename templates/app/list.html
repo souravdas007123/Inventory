@@ -26,7 +26,7 @@
       {% for c in r.cells %}<td>{{ c }}</td>{% endfor %}
       {% if not cfg.readonly or has_actions %}<td class="acts" style="white-space:{% if key == 'bills' %}normal{% else %}nowrap{% endif %}">
         {% if key == 'bills' %}
-          <button type="button" class="btn ghost sm" data-preview="{% url 'bill_preview' r.pk %}" data-invoice="{% url 'invoice' r.pk %}" title="See the items of this bill">👁 Preview</button>
+          <button type="button" class="btn ghost sm" data-pk="{{ r.pk }}" data-preview="{% url 'bill_preview' r.pk %}" data-invoice="{% url 'invoice' r.pk %}" title="See the items of this bill">👁 Preview</button>
           <a class="btn sm" href="{% url 'invoice' r.pk %}">🖨️ Invoice</a>
           {% if r.obj.status == 'FINAL' and can_return %}<a class="btn ghost sm" href="{% url 'sales_return_new' r.pk %}">↩ Return</a>{% endif %}
           {% if r.obj.status == 'FINAL' and is_owner %}<form method="post" action="{% url 'bill_cancel' r.pk %}" style="display:inline" onsubmit="return confirm('Cancel this bill? The stock will be added back.')">{% csrf_token %}<button class="btn red sm">Cancel</button></form>{% endif %}
@@ -54,6 +54,7 @@
   </div>
 </div>
 {% if key == 'bills' %}
+{{ bill_data|json_script:"bill-data" }}
 <dialog id="bill-dlg" class="dlg" style="width:min(820px,calc(100% - 24px))">
   <div class="np-head"><h3 id="bill-title">Bill</h3><button type="button" class="btn ghost sm" id="bill-close" aria-label="Close">✕</button></div>
   <div id="bill-body"></div>
@@ -62,6 +63,7 @@
 <script>
 // 👁 Preview: the items and totals of a bill in a window, without leaving the list
 (function () {
+  var DATA = {}; try { DATA = JSON.parse(document.getElementById('bill-data').textContent) || {}; } catch (err) {}
   var dlg = document.getElementById('bill-dlg'), body = document.getElementById('bill-body');
   if (!dlg) return;
   function el(tag, text, cls) { var e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; }
@@ -109,6 +111,8 @@
     if (!b) return;
     e.preventDefault();
     if (typeof dlg.showModal !== 'function') { window.location.href = b.dataset.invoice; return; }   // very old browser: open the invoice
+    var known = DATA[b.dataset.pk];
+    if (known) { body.textContent = ''; dlg.showModal(); render(known); return; }      // embedded in the page: instant
     document.getElementById('bill-title').textContent = 'Loading...';
     body.textContent = ''; dlg.showModal();
     fetch(b.dataset.preview, {credentials: 'same-origin'})
