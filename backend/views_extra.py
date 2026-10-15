@@ -17,7 +17,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import access, auditlog, backup, levels, notify, refill, reorder, reports, summary, supplier_prices
+from . import access, auditlog, backup, expiry_returns, levels, notify, refill, reorder, reports, summary, supplier_prices
 from .models import (
     Batch, Bill, Brand, Category, Customer, Employee, Expense, InvoiceItem, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
     PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SalesReturn, Supplier, Unit, SalesReturnItem, ShopProfile, StockAudit, StockAuditItem, StockWriteOff,
@@ -685,6 +685,84 @@ def refill_view(request):
                         cls='grey' if late <= 0 else 'amber' if late <= 7 else 'red'))
     return page(request, 'app/refill.html', active='refill', rows=out, no_phone=sum(1 for r in out if not r['link']),
                 grace=refill.GRACE)
+
+
+def _expiry_batches(qs):
+    return qs.select_related('product', 'product__unit', 'purchase_item', 'purchase_item__unit', 'purchase_item__purchase',
+                             'purchase_item__purchase__supplier')
+
+
+def _expiry_rows(batches):
+    rows = []
+    for b in batches:
+        pi = b.purchase_item
+        pu = pi.purchase
+        rows.append(dict(
+            batch_id=b.pk, product=b.product.name or str(b.product), batch_number=b.batch_number, expire_date=b.expire_date,
+            qty=b.qty, factor=pi.unit_factor or 1,
+            unit=pi.unit.name if pi.unit_id else (b.product.unit.name if b.product.unit_id else ''),
+            supplier_id=pu.supplier_id, supplier=pu.supplier.company, phone=pu.supplier.phone or '',
+            purchase_id=pu.pk, invoice=pu.invoice_number, invoice_date=pu.invoice_date,
+            total=pi.purchase_price or 0, line_qty=pi.qty))
+    return rows
+
+
+def _expiry_make_returns(request, today):
+    """Books a purchase return (debit note) per original invoice for the ticked batches, all or nothing."""
+    ids = [int(x) for x in request.POST.getlist('batch') if x.isdigit()]
+    if not ids:
+        messages.error(request, 'Tick at least one batch to return.')
+        return redirect('expiry')
+    reason = ' '.join(request.POST.get('reason', '').split())[:255] or 'Expired / near expiry'
+    batches = _expiry_batches(Batch.objects.filter(pk__in=ids, qty__gt=0, purchase_item__isnull=False, product__isnull=False))
+    by_purchase = {}
+    for b in batches:
+        pi = b.purchase_item
+        units, _loose = expiry_returns.returnable_units(b.qty, pi.unit_factor)
+        if units > 0:
+            by_purchase.setdefault(pi.purchase_id, (pi.purchase, []))[1].append((pi, units))
+    if not by_purchase:
+        messages.error(request, 'Nothing could be returned. These batches may already be sold, returned, or less than one full unit.')
+        return redirect('expiry')
+    made = []
+    try:
+        with transaction.atomic():
+            for purchase, lines in by_purchase.values():
+                ret = PurchaseReturn.objects.create(purchase=purchase, date=today, reason=reason)
+                for pi, units in lines:
+                    PurchaseReturnItem(purchase_return=ret, purchase_item=pi, qty=units).save()
+                made.append(ret)
+    except ValidationError as e:
+        messages.error(request, 'Nothing was returned: ' + ' '.join(e.messages))
+        return redirect('expiry')
+    total = sum((r.total for r in made), Decimal('0'))
+    for r in made:
+        auditlog.record(request, 'CREATE', 'Purchase Return', f"{r} (expiry return)")
+    messages.success(request, f"{len(made)} debit note(s) created, worth \u20b9{total:,.2f}. Stock is reduced and the supplier balance is updated.")
+    return redirect('list', key='purchase_returns')
+
+
+@access.perm_required(('add', 'purchasereturn'))
+def expiry_view(request):
+    """Expired / soon-to-expire batches, by supplier, with a tick-and-return button (debit note) and a WhatsApp message."""
+    today = timezone.localdate()
+    if request.method == 'POST':
+        return _expiry_make_returns(request, today)
+    try:
+        days = int(request.GET.get('days', expiry_returns.DEFAULT_DAYS))
+    except (TypeError, ValueError):
+        days = expiry_returns.DEFAULT_DAYS
+    days = days if days in expiry_returns.DAY_CHOICES else expiry_returns.DEFAULT_DAYS
+    batches = _expiry_batches(Batch.objects.filter(
+        qty__gt=0, expire_date__isnull=False, expire_date__lte=today + timedelta(days=days),
+        purchase_item__isnull=False, product__isnull=False))
+    groups = expiry_returns.plan(_expiry_rows(batches), today, days)
+    shop = ShopProfile.get()
+    for g in groups:
+        items = [x for inv in g['invoices'] for x in inv['items'] if x['returnable']]
+        g['wa'] = notify.whatsapp_link(expiry_returns.whatsapp_text(shop.name, g['supplier'], items), g['phone']) if items else ''
+    return page(request, 'app/expiry.html', active='expiry', groups=groups, days=days, day_choices=expiry_returns.DAY_CHOICES,
+                grand=sum((g['total'] for g in groups), Decimal('0')), today=today)
 
 
 @access.perm_required(('view', 'product'), ('view', 'batch'), ('view', 'sale'))

@@ -1,0 +1,47 @@
+{% extends "app/base.html" %}
+{% block title %}Expiry Returns{% endblock %}
+{% block content %}
+<div class="head"><h1>⏳ Expiry Returns</h1>
+  <div style="display:flex;gap:6px;flex-wrap:wrap">{% for d in day_choices %}<a class="btn {% if d != days %}ghost{% endif %} sm" href="?days={{ d }}">{{ d }} days</a>{% endfor %}</div></div>
+<div class="msg info">
+  Batches that are <b>expired</b> or expire within <b>{{ days }} days</b>, grouped by the supplier they were bought from. Tick what you want to send back and press
+  <b>Return</b>: a debit note is made for each original invoice, the stock is reduced and the supplier balance goes down. Expired batches are ticked for you;
+  tick near-expiry ones only after the supplier has agreed. Only whole purchase units (full strips / boxes) can go back.
+  Use <b>WhatsApp</b> to ask the supplier first.
+</div>
+{% if groups %}
+<div style="margin-bottom:10px;color:var(--mute)">{{ groups|length }} supplier{{ groups|length|pluralize }} · returnable value about <b>₹{{ grand }}</b></div>
+{% for g in groups %}
+<form method="post" class="card" style="margin-bottom:14px">{% csrf_token %}
+  <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+    <h3 style="margin:0">{{ g.supplier }} <small style="color:var(--mute);font-weight:400">· {{ g.count }} batch{{ g.count|pluralize:"es" }} · about ₹{{ g.total }}</small></h3>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      {% if g.wa %}<a class="btn ghost sm" href="{{ g.wa }}" target="_blank" rel="noopener">💬 WhatsApp supplier</a>{% endif %}
+      <button type="button" class="btn ghost sm" onclick="this.closest('form').querySelectorAll('input[name=batch]:not(:disabled)').forEach(function(c){c.checked=true})">Tick all</button>
+      <button type="button" class="btn ghost sm" onclick="this.closest('form').querySelectorAll('input[name=batch]').forEach(function(c){c.checked=false})">Clear</button>
+    </div>
+  </div>
+  <div class="tw"><table class="t stack">
+    <thead><tr><th></th><th>Medicine</th><th>Batch</th><th>Expiry</th><th>Can return</th><th>Invoice</th><th>Value</th></tr></thead>
+    <tbody>
+    {% for inv in g.invoices %}{% for x in inv.items %}<tr>
+      <td data-label=""><input type="checkbox" name="batch" value="{{ x.batch_id }}" {% if x.expired and x.returnable %}checked{% endif %} {% if not x.returnable %}disabled{% endif %}></td>
+      <td data-label="Medicine"><b>{{ x.product }}</b></td>
+      <td data-label="Batch">{{ x.batch_number }}</td>
+      <td data-label="Expiry">{{ x.expire_date|date:"d M Y" }}<br>{% if x.expired %}<span class="badge red">Expired {{ x.ago }} day{{ x.ago|pluralize }} ago</span>{% else %}<span class="badge amber">{{ x.left }} day{{ x.left|pluralize }} left</span>{% endif %}</td>
+      <td data-label="Can return">{% if x.returnable %}<b>{{ x.units }} {{ x.unit }}</b>{% if x.loose %}<br><small style="color:var(--mute)">+ {{ x.loose }} loose, cannot be returned</small>{% endif %}{% else %}<small style="color:var(--mute)">Less than 1 {{ x.unit|default:"unit" }} left</small>{% endif %}</td>
+      <td data-label="Invoice">{{ inv.invoice }}<br><small style="color:var(--mute)">{{ inv.invoice_date|date:"d M Y" }}</small></td>
+      <td data-label="Value">{% if x.returnable %}₹{{ x.value }}{% else %}-{% endif %}</td>
+    </tr>{% endfor %}{% endfor %}
+    </tbody>
+  </table></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px">
+    <input type="text" name="reason" value="Expired / near expiry" maxlength="255" style="flex:1;min-width:200px" aria-label="Reason">
+    <button class="btn" onclick="return confirm('Return the ticked batches to {{ g.supplier|escapejs }}? Stock and the supplier balance will change.')">📤 Return ticked batches</button>
+  </div>
+</form>
+{% endfor %}
+{% else %}
+<div class="card"><div class="empty">Nothing is expired or about to expire in the next {{ days }} days. 🎉</div></div>
+{% endif %}
+{% endblock %}
