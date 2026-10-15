@@ -76,7 +76,7 @@
   <div class="card"><h3 style="margin-top:0">Columns</h3>
     <div class="tw"><table class="t">
       <thead><tr><th>Column</th><th>Required?</th><th>What to enter</th><th>Example</th></tr></thead>
-      {% for c in cols %}<tr><td><b>{{ c.name }}</b></td><td>{% if c.required %}<span class="badge green">Yes</span>{% else %}<span class="badge grey">Optional</span>{% endif %}</td><td>{{ c.help }}</td><td>{{ c.samples.0 }}</td></tr>{% endfor %}
+      {% for c in cols %}<tr><td><b>{{ c.name }}</b></td><td>{% if c.required %}<span class="badge green">Yes</span>{% else %}<span class="badge grey">Optional</span>{% endif %}</td><td>{{ c.help }}</td><td>{{ c.samples.0 }}{% if c.samples.1 and c.samples.1 != c.samples.0 %}, {{ c.samples.1 }}{% endif %}</td></tr>{% endfor %}
     </table></div></div>
 {% endif %}
 {% endblock %}

@@ -864,7 +864,8 @@ IMPORTERS['units'] = dict(
     title='Units', icon='📏', desc='Units (Tablet, Strip, Box, Bottle...). Short names (tab, strips, btl) are converted to the correct name automatically.',
     after='Conversions for larger packs such as Strip/Box are set from the pack1/pack2 columns of the Products import.',
     **_simple_importer(Unit, ('Tablet', 'Strip'), alias_units=True))
-IMPORTERS['stock']['desc_extra'] = 'If even one row of an invoice is invalid, the whole invoice is skipped.'
+IMPORTERS['stock']['desc_extra'] = ('One row = one medicine. For a bill with several medicines, add one row per medicine and repeat the same supplier and invoice_number on each row. '
+                                    'You can also put several invoices (and suppliers) in one file. If even one row of an invoice is invalid, the whole invoice is skipped.')
 
 
 def canonical_columns(imp, headers):
