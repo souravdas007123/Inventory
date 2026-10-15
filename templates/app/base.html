@@ -11,6 +11,11 @@
 *{box-sizing:border-box}
 body{margin:0;font:13.5px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
 a{color:inherit;text-decoration:none}
+@view-transition{navigation:auto}
+.side{view-transition-name:side}
+::view-transition-old(root),::view-transition-new(root){animation-duration:.12s}
+@media(prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}
+#nprog{position:fixed;left:0;top:0;height:3px;width:0;background:var(--pri);z-index:9999;opacity:0;pointer-events:none;transition:width .4s ease,opacity .25s}
 .side{position:fixed;inset:0 auto 0 0;width:230px;background:var(--side);padding:18px 14px;overflow:auto;scrollbar-width:thin;z-index:20;transition:transform .2s;display:flex;flex-direction:column;gap:2px}
 .side h2{margin:0 6px 12px;font-size:17px;color:#fff}
 .side a{display:flex;gap:10px;padding:7px 12px;font-size:13px;border-radius:10px;color:var(--sidetxt);font-weight:500}
@@ -98,6 +103,7 @@ img,video{max-width:100%;height:auto}
 </style>
 </head>
 <body>
+<div id="nprog"></div>
 <aside class="side" id="side">
   <h2 style="display:flex;align-items:center;gap:10px">{% include "app/logo.html" with size=30 %}MedSync</h2>
   {% regroup nav by group as groups %}
@@ -116,6 +122,30 @@ img,video{max-width:100%;height:auto}
     <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn ghost sm">Logout</button></form></span>
   </div>
 </aside>
+<script>
+// The menu keeps its scroll position and the groups you opened / closed when you go to another page
+(function () {
+  var side = document.getElementById('side'); if (!side) return;
+  function get(k) { try { return window.sessionStorage.getItem(k); } catch (e) { return null; } }
+  function put(k, v) { try { window.sessionStorage.setItem(k, v); } catch (e) {} }
+  var saved = {}; try { saved = JSON.parse(get('side:groups') || '{}') || {}; } catch (e) { saved = {}; }
+  var groups = side.querySelectorAll('details');
+  groups.forEach(function (d) {
+    var key = (d.querySelector('summary') || {}).textContent; key = key ? key.trim() : '';
+    d.dataset.key = key;
+    var isActive = !!d.querySelector('a.on');
+    if (key in saved && !isActive) d.open = !!saved[key];          // the group of the current page always stays open
+  });
+  side.addEventListener('toggle', function (e) {
+    if (!e.target || e.target.tagName !== 'DETAILS' || !e.target.dataset.key) return;
+    saved[e.target.dataset.key] = e.target.open; put('side:groups', JSON.stringify(saved));
+  }, true);
+  var y = parseInt(get('side:y') || '0', 10); if (y > 0) side.scrollTop = y;
+  function keep() { put('side:y', String(side.scrollTop)); }
+  side.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('a')) keep(); });
+  window.addEventListener('pagehide', keep);
+})();
+</script>
 <main class="main">
   <div class="top"><button class="burger" onclick="document.getElementById('side').classList.toggle('open')">☰</button><b style="display:flex;align-items:center;gap:8px">{% include "app/logo.html" with size=24 %}MedSync</b></div>
   {% for m in messages %}<div class="msg {{ m.tags }}">{{ m }}</div>{% endfor %}
@@ -168,6 +198,37 @@ document.addEventListener('click',function(e){var s=document.getElementById('sid
     }, 0);
   });
   window.addEventListener('pageshow', function (ev) { if (ev.persisted) unlock(); });   // back button
+})();
+</script>
+<script>
+// Thin progress bar at the top as soon as a link / form is used, so the click feels instant
+(function () {
+  var bar = document.getElementById('nprog'), t1, t2;
+  if (!bar) return;
+  function start() {
+    clearTimeout(t1); clearTimeout(t2);
+    bar.style.transition = 'none'; bar.style.width = '0'; bar.style.opacity = '1';
+    void bar.offsetWidth;
+    bar.style.transition = 'width .4s ease, opacity .25s'; bar.style.width = '35%';
+    t1 = setTimeout(function () { bar.style.width = '75%'; }, 500);
+    t2 = setTimeout(stop, 10000);              // e.g. a download: the page never changes
+  }
+  function stop() { clearTimeout(t1); clearTimeout(t2); bar.style.opacity = '0'; bar.style.width = '0'; }
+  document.addEventListener('click', function (e) {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    var a = e.target.closest && e.target.closest('a[href]');
+    if (!a || a.target === '_blank' || a.hasAttribute('download')) return;
+    var h = a.getAttribute('href') || '';
+    if (!h || h.charAt(0) === '#' || /^(javascript|mailto|tel):/i.test(h) || /[?&](export|template|download)=/.test(h)) return;
+    if (a.origin && a.origin !== window.location.origin) return;
+    start();
+  });
+  document.addEventListener('submit', function (e) {
+    var f = e.target;
+    if (e.defaultPrevented || !f || f.target === '_blank') return;
+    start();
+  });
+  window.addEventListener('pageshow', stop);
 })();
 </script>
 {% block scripts %}{% endblock %}

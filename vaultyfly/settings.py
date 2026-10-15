@@ -75,6 +75,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'django.middleware.gzip.GZipMiddleware',       # smaller pages = faster on a slow connection
     'whitenoise.middleware.WhiteNoiseMiddleware',  # serves static files even when DEBUG is off
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',

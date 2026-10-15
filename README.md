@@ -164,3 +164,10 @@ Lists the batches that are expired or expire within 30/60/90/180 days, grouped b
 - **Indexes (migration 0011):** product active/stock, batch product+expiry (FEFO), invoice item product+bill, purchase item product+purchase. They speed up low-stock, reorder, expiry and price-history screens; no data changes.
 - **Double-click protection:** after a form is sent its buttons lock for a moment ("Saving..."), so a double click cannot save a bill or purchase twice. Forms that are cancelled by a confirmation or a validation are not locked, and the lock is released after 8 s or when coming back with the Back button.
 - **Ctrl+S** (Cmd+S) saves the open form.
+
+## Moving between pages feels smoother
+
+- **The menu stays as you left it:** its scroll position and the groups you opened or closed are remembered while you move around (the group of the current page is always open).
+- **Progress bar:** a thin bar appears at the top as soon as a link or form is used, so a click gives instant feedback while the next page loads.
+- **No white flash:** browsers that support cross-page view transitions (Chrome / Edge) fade between pages and keep the menu still; others simply behave as before.
+- **Smaller pages:** HTML is gzip-compressed (`GZipMiddleware`), which helps most on mobile data.
