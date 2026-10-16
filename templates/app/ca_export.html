@@ -1,0 +1,30 @@
+{% extends "app/base.html" %}
+{% block title %}CA / Accountant Export{% endblock %}
+{% block content %}
+<div class="head"><h1>📤 CA / Accountant Export</h1></div>
+<div class="msg info">One Excel file for your CA: sales and purchase registers, credit / debit notes, GST by rate, expenses and payments. Only final bills are counted. Please verify the figures with your CA before filing a return.</div>
+<form method="get" class="card">
+  <div class="grid">
+    <div class="fld"><label for="from">From</label><input id="from" type="date" name="from" value="{{ start|date:'Y-m-d' }}" required></div>
+    <div class="fld"><label for="to">To</label><input id="to" type="date" name="to" value="{{ end|date:'Y-m-d' }}" required></div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
+    {% for p in presets %}<a class="btn ghost sm" href="?from={{ p.start|date:'Y-m-d' }}&to={{ p.end|date:'Y-m-d' }}">{{ p.label }}</a>{% endfor %}
+  </div>
+  {% if error %}<div class="msg error">{{ error }}</div>{% endif %}
+  <div class="bar"><button class="btn ghost">Show totals</button>
+    {% if not error %}<button class="btn" name="export" value="xlsx">⬇ Download Excel</button>{% endif %}</div>
+</form>
+{% if info %}
+<div class="card" style="margin-top:14px"><h3 style="margin-top:0">{{ start|date:"d M Y" }} to {{ end|date:"d M Y" }}</h3>
+  <div class="tw"><table class="t">
+    <thead><tr><th></th><th style="text-align:right">Taxable</th><th style="text-align:right">GST</th><th style="text-align:right">Total</th><th style="text-align:right">Count</th></tr></thead>
+    <tr><td>Sales (final bills)</td><td style="text-align:right">₹{{ info.sales.taxable|floatformat:2 }}</td><td style="text-align:right">₹{{ info.sales.gst_total|floatformat:2 }}</td><td style="text-align:right">₹{{ info.sales.total|floatformat:2 }}</td><td style="text-align:right">{{ info.bills }}</td></tr>
+    <tr><td>Credit notes (sales returns)</td><td style="text-align:right">₹{{ info.credit.taxable|floatformat:2 }}</td><td style="text-align:right">₹{{ info.credit.gst_total|floatformat:2 }}</td><td style="text-align:right">₹{{ info.credit.total|floatformat:2 }}</td><td style="text-align:right">{{ info.credit_notes }}</td></tr>
+    <tr><td>Purchases</td><td style="text-align:right">₹{{ info.purchases.taxable|floatformat:2 }}</td><td style="text-align:right">₹{{ info.purchases.gst|floatformat:2 }}</td><td style="text-align:right">₹{{ info.purchases.total|floatformat:2 }}</td><td style="text-align:right">{{ info.purchase_count }}</td></tr>
+    <tr><td>Debit notes (purchase returns)</td><td style="text-align:right">₹{{ info.debit.taxable|floatformat:2 }}</td><td style="text-align:right">₹{{ info.debit.gst|floatformat:2 }}</td><td style="text-align:right">₹{{ info.debit.total|floatformat:2 }}</td><td style="text-align:right">{{ info.debit_notes }}</td></tr>
+  </table></div>
+  <p style="color:var(--mute);font-size:13px;margin:10px 0 0">Expenses ₹{{ info.expenses|floatformat:2 }} · Paid to suppliers ₹{{ info.supplier_paid|floatformat:2 }} · Received from credit customers ₹{{ info.received|floatformat:2 }} · Cancelled bills (not counted): {{ info.cancelled }}</p>
+</div>
+{% endif %}
+{% endblock %}

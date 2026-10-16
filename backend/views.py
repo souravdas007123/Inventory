@@ -57,6 +57,7 @@ NAV = [
     {'key': 'salary', 'url': '/salary/', 'label': 'Salary Sheet', 'icon': '💼', 'group': 'Accounts'},
     {'key': 'report', 'url': '/report/', 'label': 'Profit & Loss', 'icon': '📊', 'group': 'Accounts', 'staff': True},
     {'key': 'gst', 'url': '/gst/', 'label': 'GST Reports', 'icon': '🧮', 'group': 'Accounts', 'staff': True},
+    {'key': 'ca_export', 'url': '/ca_export/', 'label': 'CA / Accountant Export', 'icon': '📤', 'group': 'Accounts', 'staff': True},
     {'key': 'drug_register', 'url': '/drug_register/', 'label': 'Drug Register (H/H1)', 'icon': '📒', 'group': 'Stock'},
     {'key': 'writeoffs', 'url': '/writeoffs/', 'label': 'Stock Write-off', 'icon': '🗑️', 'group': 'Stock'},
     {'key': 'stock_audits', 'url': '/stock_audits/', 'label': 'Stock Audit', 'icon': '🔎', 'group': 'Stock', 'staff': True},

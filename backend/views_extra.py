@@ -19,7 +19,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import access, auditlog, backup, billview, expiry_returns, levels, notify, refill, reorder, reports, summary, supplier_prices
+from . import access, auditlog, backup, billview, ca_export, expiry_returns, levels, notify, refill, reorder, reports, summary, supplier_prices
 from .models import (
     Batch, Bill, Brand, Category, Customer, Employee, Expense, InvoiceItem, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
     HeldBill, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SalesReturn, Supplier, Unit, SalesReturnItem, ShopProfile, StockAudit, StockAuditItem, StockWriteOff,
@@ -260,6 +260,33 @@ def gst_view(request):
     if request.GET.get('export') == 'xlsx':
         return _xlsx(reports.gst_workbook(rep), f"gst-report-{year}-{month:02d}.xlsx")
     return page(request, 'app/gst.html', active='gst', rep=rep, **_month_ctx(today, month, year))
+
+
+def _fy_start(day):
+    return date_cls(day.year if day.month >= 4 else day.year - 1, 4, 1)
+
+
+@staff_required
+def ca_export_view(request):
+    """Excel for the accountant: sales / purchase registers, credit / debit notes, expenses and payments of a date range."""
+    today = timezone.localdate()
+    first = today.replace(day=1)
+    fy = _fy_start(today)
+    last_month_end = first - timedelta(days=1)
+    presets = [('This month', first, today), ('Last month', last_month_end.replace(day=1), last_month_end),
+               ('This financial year', fy, today), ('Last financial year', date_cls(fy.year - 1, 4, 1), fy - timedelta(days=1))]
+    start, end = _parse_date(request.GET.get('from'), first), _parse_date(request.GET.get('to'), today)
+    error = ''
+    try:
+        ca_export.check_range(start, end)
+    except ca_export.RangeError as e:
+        error = str(e)
+    if request.GET.get('export') == 'xlsx' and not error:
+        auditlog.record(request, 'EXPORT', 'CA export', f'{start} to {end}')
+        return _xlsx(ca_export.build_workbook(start, end), f"medsync-accounts-{start:%Y%m%d}-{end:%Y%m%d}.xlsx")
+    info = None if error else ca_export.summary(start, end)
+    return page(request, 'app/ca_export.html', active='ca_export', start=start, end=end, error=error, info=info,
+                presets=[dict(label=l, start=a, end=b) for l, a, b in presets])
 
 
 SCHEDULE_FILTERS = {'H1X': ('H1', 'X'), 'H': ('H',), 'ALL': ('H', 'H1', 'X')}
