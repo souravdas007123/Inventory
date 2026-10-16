@@ -2,7 +2,7 @@ import json
 import re
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from backend.models import Bill, Purchase
@@ -18,6 +18,7 @@ def embedded(html, element_id):
     return json.loads(m.group(1))
 
 
+@override_settings(SECURE_SSL_REDIRECT=False, SESSION_COOKIE_SECURE=False, CSRF_COOKIE_SECURE=False)  # the live site forces https; tests talk plain http
 class OwnerPagesTests(StockMixin, TestCase):
     """Every page opens for the owner (nothing crashes), with some data in the shop."""
 
@@ -141,6 +142,7 @@ class OwnerPagesTests(StockMixin, TestCase):
         self.assertIn('Dolo 650', resp.content.decode())
 
 
+@override_settings(SECURE_SSL_REDIRECT=False, SESSION_COOKIE_SECURE=False, CSRF_COOKIE_SECURE=False)  # the live site forces https; tests talk plain http
 class AccessTests(StockMixin, TestCase):
     def test_anonymous_users_are_sent_to_the_login_page(self):
         for url in ('/', '/bills/', '/purchases/', '/import/', '/backup/', '/api/bill_preview/1/'):
