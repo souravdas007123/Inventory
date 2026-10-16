@@ -97,13 +97,19 @@ def _verify_backup(path):
     """Opens a backup file and runs the database's own check on it. Returns '' when fine, else the problem."""
     with tempfile.TemporaryDirectory() as tmp:
         snap = Path(tmp) / 'check.sqlite3'
-        with gzip.open(path, 'rb') as f_in, open(snap, 'wb') as f_out:
-            shutil.copyfileobj(f_in, f_out)
-        con = sqlite3.connect(snap)
         try:
-            row = con.execute('PRAGMA quick_check').fetchone()
-        finally:
-            con.close()
+            with gzip.open(path, 'rb') as f_in, open(snap, 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+        except (OSError, EOFError) as exc:            # not a valid .gz file
+            return str(exc)[:120]
+        try:
+            con = sqlite3.connect(snap)
+            try:
+                row = con.execute('PRAGMA quick_check').fetchone()
+            finally:
+                con.close()
+        except sqlite3.DatabaseError as exc:          # "file is not a database" and similar
+            return str(exc)[:120]
     return '' if row and row[0] == 'ok' else str(row[0] if row else 'no answer')[:120]
 
 

@@ -2,7 +2,9 @@
 import gzip
 import sqlite3
 import tempfile
-from datetime import datetime, timedelta
+import os
+import time
+from datetime import timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -66,8 +68,9 @@ class BackupCheckTests(SimpleTestCase):
     def test_backup_age_decides_the_finding(self):
         def run(age):
             with tempfile.TemporaryDirectory() as tmp:
-                when = datetime.now() - age
-                self.make_db(tmp, f'medsync_{when:%Y%m%d_%H%M%S}.sqlite3.gz')
+                path = self.make_db(tmp, 'medsync_20261016_010101.sqlite3.gz')
+                stamp = time.time() - age.total_seconds()
+                os.utime(path, (stamp, stamp))
                 with override_settings(BACKUP_DIR=tmp):
                     return health.safety_checks()
         fresh = run(timedelta(hours=2))
