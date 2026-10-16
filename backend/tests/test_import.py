@@ -89,6 +89,17 @@ class StockImportTests(StockMixin, TestCase):
         self.assertEqual(product.stock_qty, 30)
         self.assertEqual(ProductUnit.objects.get(product=product, unit=self.strip).factor, 15)
 
+    def test_new_product_without_base_unit_uses_the_unit_column(self):
+        res = self.validate([row(product='Azee 500', gst_rate='12', unit='Tablet')], create_products=True)
+        self.assertEqual(res[0]['action'], 'create', self.errors(res[0]))
+        self.commit(res, create_products=True)
+        self.assertEqual(Product.objects.get(name='Azee 500').unit_id, self.tablet.pk)
+
+    def test_base_unit_is_still_needed_when_a_pack_is_given(self):
+        res = self.validate([row(product='Azee 500', gst_rate='12', unit='Strip', pack_unit='Strip', pack_size='15')], create_products=True)
+        self.assertEqual(res[0]['action'], 'error')
+        self.assertIn('base_unit', self.errors(res[0]))
+
     def test_bad_gst_rate_for_a_new_product_is_an_error(self):
         res = self.validate([row(product='Azee 500', gst_rate='7', base_unit='Tablet')], create_products=True)
         self.assertEqual(res[0]['action'], 'error')

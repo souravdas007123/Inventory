@@ -453,7 +453,7 @@ STOCK_COLS = [
     _col('row', False, 'Row', '2', '1'),
     _col('location', False, 'Godown / location', '', ''),
     _col('gst_rate', False, 'NEW product only: GST % (0, 5, 12 or 18). Required when the medicine is not in Products yet', '12', '12'),
-    _col('base_unit', False, 'NEW product only: smallest unit, e.g. Tablet. Required when the medicine is not in Products yet', 'Tablet', 'Tablet'),
+    _col('base_unit', False, 'NEW product only: smallest unit, e.g. Tablet. Blank = the "unit" column is used (when there is no pack_unit / pack_size)', 'Tablet', 'Tablet'),
     _col('pack_unit', False, 'NEW product only: larger pack, e.g. Strip (fill together with pack_size)', 'Strip', 'Strip'),
     _col('pack_size', False, 'NEW product only: base units in 1 pack (e.g. 15 tablets in a Strip)', '15', '10'),
     _col('composition', False, 'NEW product only: salt / composition', 'Paracetamol 650mg', 'Azithromycin 500mg'),
@@ -508,8 +508,11 @@ def _new_product_spec(raw, pname, known, barcodes, errors):
         errors.append(f"product '{pname}' is not in Products. To create it, fill in gst_rate (0, 5, 12 or 18) and base_unit, or add it in Products first")
     elif gst not in GST_ALLOWED:
         errors.append(f"gst_rate {gst} is not allowed; use only 0, 5, 12 or 18")
+    if not base and not pack_unit and pack_size is None:
+        base = _unit_name(raw.get('unit'))              # no packs: the unit of the qty is the unit the stock is counted in
     if not base:
-        errors.append(f"product '{pname}' is not in Products. To create it, fill in base_unit (e.g. Tablet)")
+        errors.append(f"product '{pname}' is not in Products. To create it, fill in base_unit (the smallest unit, e.g. Tablet)"
+                      + (" - it is needed because you filled pack_unit / pack_size" if pack_unit or pack_size is not None else ' or unit'))
     if pack_unit or pack_size is not None:
         if not pack_unit or pack_size is None:
             errors.append('fill in both pack_unit and pack_size')
