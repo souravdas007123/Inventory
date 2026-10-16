@@ -96,6 +96,19 @@ class OwnerPagesTests(StockMixin, TestCase):
         self.assertEqual(len(flagged), 1)
         self.assertEqual(flagged[0]['items'][0]['flag'], 'soon')
 
+    def test_product_list_has_the_preview_data_of_every_product(self):
+        data = embedded(self.client.get('/products/').content.decode(), 'product-data')
+        self.assertTrue(data)
+        for d in data.values():
+            self.assertTrue(d['ok'] and d['name'] and 'batches' in d and 'stock' in d)
+            self.assertTrue(d['edit_url'] and d['prices_url'])
+
+    def test_product_preview_api_matches_the_embedded_data(self):
+        data = embedded(self.client.get('/products/').content.decode(), 'product-data')
+        pk = next(iter(data))
+        self.assertEqual(self.client.get(reverse('product_preview', args=[pk])).json(), data[pk])
+        self.assertEqual(self.client.get(reverse('product_preview', args=[99999])).status_code, 404)
+
     def test_page_title_is_clean(self):
         for url in ('/purchases/', '/bills/', '/products/'):
             with self.subTest(url=url):

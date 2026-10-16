@@ -237,7 +237,7 @@ def product_names(o, limit=3):
 CONFIG = {
     'products': dict(
         title='Products', one='Product', model=Product, order=['name'], no_new=True,    # products are created from Purchases
-        related=['brand', 'category', 'unit', 'default_supplier'], prefetch=['unit_conversions__unit', 'batches'],
+        related=['brand', 'category', 'unit', 'default_supplier'], prefetch=['unit_conversions__unit', models.Prefetch('batches', queryset=Batch.objects.select_related('supplier'))],
         search=['name', 'composition', 'sku', 'hsn_code', 'barcode'],
         cols=[('Name', lambda o: o.name), ('Composition', lambda o: o.composition or '-'),
               ('Brand', lambda o: o.brand or '-'), ('Category', lambda o: o.category or '-'),
@@ -669,6 +669,12 @@ def listing(request, key):
         bill_data = {p.pk: billview.purchase_preview_data(
             p, list(p.items.all()), today, edit_url=reverse('edit', args=['purchases', p.pk]) if can_edit_p else '',
             return_url=reverse('purchase_return_new', args=[p.pk]) if can_ret_p else '') for p in pg}
+    if key == 'products':       # the 👁 Preview window of each product (details, unit conversion, batches) is embedded too
+        today = timezone.localdate()
+        can_edit_pr = access.can(request.user, 'change', 'product')
+        bill_data = {p.pk: billview.product_preview_data(
+            p, today, edit_url=reverse('edit', args=['products', p.pk]) if can_edit_pr else '',
+            prices_url=f'/supplier_prices/{p.pk}/') for p in pg}
     shown = cfg.get('list_cols') or cfg['cols']          # on screen; the export above always uses all columns
     rows = [dict(pk=o.pk, obj=o, cells=[fn(o) for _, fn in shown], acts=acts(o) if acts else []) for o in pg]
     return page(request, 'app/list.html', key=key, active=key, cfg=cfg, heads=[h for h, _ in shown], summary_line=summary_line,

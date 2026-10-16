@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import IntegrityError
+from django.db import IntegrityError, models
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import F, Q, Sum
@@ -764,6 +764,17 @@ def expiry_view(request):
         g['wa'] = notify.whatsapp_link(expiry_returns.whatsapp_text(shop.name, g['supplier'], items), g['phone']) if items else ''
     return page(request, 'app/expiry.html', active='expiry', groups=groups, days=days, day_choices=expiry_returns.DAY_CHOICES,
                 grand=sum((g['total'] for g in groups), Decimal('0')), today=today)
+
+
+@access.perm_required(('view', 'product'))
+def product_preview(request, pk):
+    """The same data as the Preview window of the Products list (which normally has it embedded already)."""
+    p = get_object_or_404(Product.objects.select_related('unit', 'brand', 'category', 'default_supplier')
+                          .prefetch_related('unit_conversions__unit', models.Prefetch('batches', queryset=Batch.objects.select_related('supplier'))), pk=pk)
+    return JsonResponse(billview.product_preview_data(
+        p, timezone.localdate(),
+        edit_url=reverse('edit', args=['products', p.pk]) if access.can(request.user, 'change', 'product') else '',
+        prices_url=f'/supplier_prices/{p.pk}/'))
 
 
 @access.perm_required(('view', 'purchase'))

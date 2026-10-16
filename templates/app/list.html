@@ -31,6 +31,7 @@
           {% if r.obj.status == 'FINAL' and can_return %}<a class="btn ghost sm" href="{% url 'sales_return_new' r.pk %}">↩ Return</a>{% endif %}
           {% if r.obj.status == 'FINAL' and is_owner %}<form method="post" action="{% url 'bill_cancel' r.pk %}" style="display:inline" onsubmit="return confirm('Cancel this bill? The stock will be added back.')">{% csrf_token %}<button class="btn red sm">Cancel</button></form>{% endif %}
         {% else %}
+          {% if key == 'products' %}<button type="button" class="btn ghost sm" data-xpk="{{ r.pk }}" data-xpreview="{% url 'product_preview' r.pk %}" title="See the details and batches of this product">👁 Preview</button>{% endif %}
           {% if key == 'purchases' %}<button type="button" class="btn ghost sm" data-ppk="{{ r.pk }}" data-ppreview="{% url 'purchase_preview' r.pk %}" title="See what was bought in this purchase">👁 Preview</button>{% endif %}
           {% for a in r.acts %}
             {% if a.post %}<form method="post" action="{{ a.url }}" style="display:inline"{% if a.confirm %} onsubmit="return confirm('{{ a.confirm|escapejs }}')"{% endif %}>{% csrf_token %}<button class="btn {% if a.cls %}{{ a.cls }}{% endif %} sm">{{ a.label }}</button></form>
@@ -193,6 +194,79 @@
       .catch(function () { fail('Could not load this purchase. Please check your connection.'); });
   });
   document.getElementById('pur-close').addEventListener('click', function () { dlg.close(); });
+})();
+</script>
+{% endif %}
+{% if key == 'products' %}
+{{ bill_data|json_script:"product-data" }}
+<dialog id="prd-dlg" class="dlg" style="width:min(860px,calc(100% - 24px))">
+  <div class="np-head"><h3 id="prd-title">Product</h3><button type="button" class="btn ghost sm" id="prd-close" aria-label="Close">✕</button></div>
+  <div id="prd-body"></div>
+  <div id="prd-foot" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"></div>
+</dialog>
+<script>
+// 👁 Preview: details of a product, its unit conversion and the batches in stock, in a window (no need to open Edit)
+(function () {
+  var DATA = {}; try { DATA = JSON.parse(document.getElementById('product-data').textContent) || {}; } catch (err) {}
+  var dlg = document.getElementById('prd-dlg'), body = document.getElementById('prd-body'), foot = document.getElementById('prd-foot');
+  if (!dlg) return;
+  function el(tag, text, cls) { var e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; }
+  function badge(text, kind) { return el('span', text, 'badge ' + kind); }
+  function footer(d) {
+    foot.textContent = '';
+    if (d.edit_url) { var a = el('a', '✏️ Edit', 'btn'); a.href = d.edit_url; foot.appendChild(a); }
+    if (d.prices_url) { var r = el('a', '⚖️ Prices', 'btn ghost'); r.href = d.prices_url; foot.appendChild(r); }
+    var c = el('button', 'Close', 'btn ghost'); c.type = 'button'; c.addEventListener('click', function () { dlg.close(); }); foot.appendChild(c);
+  }
+  function render(d) {
+    document.getElementById('prd-title').textContent = d.name;
+    body.textContent = '';
+    var meta = el('div'); meta.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px';
+    if (d.comp) meta.appendChild(el('span', d.comp, 'sub'));
+    if (d.schedule) meta.appendChild(badge('Schedule ' + d.schedule, 'amber'));
+    meta.appendChild(badge(d.status, d.status_kind));
+    if (!d.active) meta.appendChild(badge('Inactive', 'grey'));
+    body.appendChild(meta);
+    var big = el('div'); big.style.cssText = 'display:flex;flex-wrap:wrap;gap:22px;margin-bottom:12px';
+    [['In stock', d.stock + (d.base ? '  (' + d.base + ')' : '')], ['Can be sold', d.sellable], ['Expired', d.expired]].forEach(function (x) {
+      if (!x[1]) return;
+      var b = el('div'); b.appendChild(el('small', x[0], 'sub')); b.appendChild(document.createElement('br')); var v = el('b', x[1]); v.style.fontSize = '17px'; b.appendChild(v); big.appendChild(b);
+    });
+    body.appendChild(big);
+    if (d.units.length) body.appendChild(el('p', 'Units: ' + d.units.join(' · '), 'sub'));
+    var grid = el('div'); grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:4px 18px;margin:8px 0 12px';
+    d.facts.forEach(function (f) { var r = el('div'); r.appendChild(el('small', f[0] + ': ', 'sub')); r.appendChild(el('span', f[1])); grid.appendChild(r); });
+    body.appendChild(grid);
+    body.appendChild(el('h4', 'Batches in stock (sell first on top)'));
+    var wrap = el('div', undefined, 'tw'), t = el('table', undefined, 't'), hr = el('tr');
+    ['Batch', 'Exp', 'Qty', 'Supplier', 'Place'].forEach(function (h) { hr.appendChild(el('th', h)); });
+    var th = el('thead'); th.appendChild(hr); t.appendChild(th);
+    var tb = el('tbody');
+    d.batches.forEach(function (i) {
+      var tr = el('tr'); tr.appendChild(el('td', i.batch));
+      var ex = el('td'); if (i.flag) ex.appendChild(badge(i.exp + (i.flag === 'expired' ? ' · expired' : ' · soon'), i.flag === 'expired' ? 'red' : 'amber')); else ex.textContent = i.exp;
+      tr.appendChild(ex); tr.appendChild(el('td', i.qty)); tr.appendChild(el('td', i.supplier)); tr.appendChild(el('td', i.place));
+      tb.appendChild(tr);
+    });
+    if (!d.batches.length) { var er = el('tr'), ec = el('td', 'No batch in stock.', 'empty'); ec.colSpan = 5; er.appendChild(ec); tb.appendChild(er); }
+    t.appendChild(tb); wrap.appendChild(t); body.appendChild(wrap); footer(d);
+  }
+  function fail(msg) { document.getElementById('prd-title').textContent = 'Product'; body.textContent = msg; footer({}); }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-xpreview]');
+    if (!b) return;
+    e.preventDefault();
+    if (typeof dlg.showModal !== 'function') { window.location.href = '/products/' + b.dataset.xpk + '/'; return; }
+    var known = DATA[b.dataset.xpk];
+    if (known) { body.textContent = ''; dlg.showModal(); render(known); return; }
+    document.getElementById('prd-title').textContent = 'Loading...';
+    body.textContent = ''; foot.textContent = ''; dlg.showModal();
+    fetch(b.dataset.xpreview, {credentials: 'same-origin'})
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d && d.ok) render(d); else fail('Could not load this product. Please try again.'); })
+      .catch(function () { fail('Could not load this product. Please check your connection.'); });
+  });
+  document.getElementById('prd-close').addEventListener('click', function () { dlg.close(); });
 })();
 </script>
 {% endif %}

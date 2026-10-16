@@ -197,3 +197,6 @@ All admin panel sections now carry a serial number (01-26; 12 is not used), so t
 
 ## Admin panel look
 The admin (`/admin/`) now has the MedSync look (teal, rounded, light/dark), a "← Back to MedSync" link, models grouped in sections (Master data, Purchases, Sales, Stock, Accounts, Settings, Users & access) and summary cards (sales today, low stock, expiring, expired, supplier balance) shown only to users who may view that data. Code: `backend/admin_site.py`, `templates/admin/`. It is cosmetic only and falls back to the normal admin on any error. No migration needed.
+
+## Product preview
+The Products list has a **👁 Preview** button on every row: details (brand, GST, MRP, place, supplier), how the units convert (1 Strip = 15 Tablet), stock in packs, how much can be sold / is expired, and every batch in stock (sell-first on top, short expiry flagged), with Edit and Prices buttons. The data is embedded in the page, so it opens instantly (fallback: `/api/product_preview/<id>/`). No migration needed.

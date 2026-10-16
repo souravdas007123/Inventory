@@ -69,3 +69,51 @@ def purchase_preview_data(purchase, items, today, edit_url='', return_url='', wa
         supplier=purchase.supplier.company, count=len(rows), short=short, items=rows,
         totals=dict(taxable=money(s('tax')), gst=money(s('gst')), total=money(s('purchase_price'))),
         edit_url=edit_url, return_url=return_url)
+
+
+def pack_text(qty, convs, base):
+    """`qty` base units as packs, e.g. 33 -> '2 Strip 3 Tablet'. `convs` = [(unit name, factor)] (factor > 1)."""
+    parts, left = [], qty or 0
+    for name, factor in sorted(convs, key=lambda c: c[1], reverse=True):
+        n, left = divmod(left, factor)
+        if n:
+            parts.append(f"{n} {name}")
+    if left or not parts:
+        parts.append(f"{left} {base}")
+    return ' '.join(parts)
+
+
+def product_preview_data(product, today, edit_url='', prices_url='', warn_days=90):
+    """Preview of a product: details, how its units convert, stock split in batches (first to expire first)."""
+    from datetime import timedelta
+    p, limit = product, today + timedelta(days=warn_days)
+    base = p.unit.name if p.unit_id else 'unit'
+    convs = [(c.unit.name, c.factor) for c in p.unit_conversions.all() if c.factor and c.factor > 1]
+    batches = sorted((b for b in p.batches.all() if b.qty and b.qty > 0),
+                     key=lambda b: (b.expire_date is None, b.expire_date or today, b.id))
+    rows, sellable, expired = [], 0, 0
+    for b in batches:
+        exp = b.expire_date
+        flag = '' if not exp else ('expired' if exp < today else ('soon' if exp <= limit else ''))
+        if flag == 'expired':
+            expired += b.qty
+        else:
+            sellable += b.qty
+        place = ' / '.join(x for x in (b.location, b.rack, b.row) if x)
+        rows.append(dict(batch=b.batch_number or '-', exp=exp.strftime('%m-%y') if exp else '-', flag=flag,
+                         qty=pack_text(b.qty, convs, base), supplier=(b.supplier.company if b.supplier_id else '') or '-',
+                         place=place or '-'))
+    status = ('Out of stock', 'red') if p.stock_qty == 0 else (('Low stock', 'amber') if p.stock_qty <= p.reorder_level else ('In stock', 'green'))
+    facts = [('Brand', p.brand), ('Category', p.category), ('HSN', p.hsn_code), ('GST', f"{format(Decimal(p.gst_rate or 0).normalize(), 'f')}%"),
+             ('MRP', f"{money(p.mrp)} per {base}" if p.mrp is not None else None), ('SKU', p.sku), ('Barcode', p.barcode),
+             ('Supplier', p.default_supplier.company if p.default_supplier_id else None),
+             ('Place', ' / '.join(x for x in (p.location, p.rack, p.row) if x) or None),
+             ('Reorder at', pack_text(p.reorder_level, convs, base))]
+    return dict(
+        ok=True, name=p.name or '-', comp=p.composition or '', schedule=p.schedule if p.schedule and p.schedule != 'NONE' else '',
+        active=p.is_active is not False, status=status[0], status_kind=status[1],
+        stock=pack_text(p.stock_qty, convs, base), base=f"{p.stock_qty} {base}" if convs else '',
+        sellable=pack_text(sellable, convs, base), expired=pack_text(expired, convs, base) if expired else '',
+        units=[f"1 {n} = {f} {base}" for n, f in sorted(convs, key=lambda c: c[1])],
+        facts=[[k, str(v)] for k, v in facts if v not in (None, '')], batches=rows, count=len(rows),
+        edit_url=edit_url, prices_url=prices_url)
