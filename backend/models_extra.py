@@ -698,3 +698,24 @@ class ImportLayout(models.Model):
 
     def __str__(self):
         return f"{self.kind}: {self.headers[:60]}"
+
+
+# ======================================================
+# HELD BILLS (a bill in progress that is parked and opened again later)
+# ======================================================
+
+class HeldBill(models.Model):
+    """What was typed on the new-bill screen, parked. No stock is touched; the bill is created only when it is saved after resuming."""
+    created_at = models.DateTimeField(auto_now_add=True)
+    user = models.CharField(max_length=150, blank=True, default='')
+    label = models.CharField(max_length=150, blank=True, default='')
+    items_count = models.PositiveIntegerField(default=0)
+    payload = models.JSONField(default=list)          # [[field name, value], ...] of the bill form
+
+    def __str__(self):
+        return f"Held bill #{self.pk}: {self.label}"
+
+    class Meta:
+        ordering = ['-id']
+        verbose_name = 'Held Bill'
+        verbose_name_plural = 'Held Bills'

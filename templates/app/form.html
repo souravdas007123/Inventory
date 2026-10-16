@@ -2,7 +2,19 @@
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
 <div class="head"><h1>{{ title }}</h1><a class="btn ghost" href="{{ back_url }}">← Back</a></div>
+{% if key == 'bills' and held_list %}
+<div class="card" style="margin-bottom:12px" id="held-bar">
+  <b>⏸ Bills on hold ({{ held_list|length }})</b>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+    {% for h in held_list %}<div style="display:flex;gap:4px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:4px 6px{% if h.id == held_id %};background:var(--soft){% endif %}">
+      <a class="btn sm" href="?resume={{ h.id }}" title="Open this bill again">▶ {{ h.label }} · {{ h.count }} item{{ h.count|pluralize }} · {{ h.time }}</a>
+      <form method="post" action="{% url 'bill_hold_discard' h.id %}" style="display:inline" onsubmit="return confirm('Discard this held bill? It cannot be brought back.')">{% csrf_token %}<button class="btn red sm" title="Discard this held bill">✕</button></form>
+    </div>{% endfor %}
+  </div>
+</div>
+{% endif %}
 <form method="post" class="card">{% csrf_token %}
+  {% if key == 'bills' and held_id %}<input type="hidden" name="held_id" value="{{ held_id }}">{% endif %}
   {% if note %}<div class="msg success">{{ note }}</div>{% endif %}
   {{ form.non_field_errors }}
   {% if warnings %}<div class="msg warning" id="warn-box"><b>Please double-check before saving:</b>
@@ -47,8 +59,9 @@
   </div>
   {% endif %}
 
-  <div class="bar">{% if warnings %}<button class="btn" name="confirm_warnings" value="1">✔ Save anyway</button>{% else %}<button class="btn">💾 Save</button>{% endif %}<a class="btn ghost" href="{{ back_url }}">Cancel</a></div>
+  <div class="bar">{% if warnings %}<button class="btn" name="confirm_warnings" value="1">✔ Save anyway</button>{% else %}<button class="btn">💾 Save</button>{% endif %}{% if key == 'bills' and not form.instance.pk %}<button type="button" class="btn ghost" id="hold-btn" title="Park this bill and open it again later (no stock is used)">⏸ Hold bill</button>{% endif %}<a class="btn ghost" href="{{ back_url }}">Cancel</a></div>
 </form>
+{% if key == 'bills' and held_resume %}{{ held_resume|json_script:"held-resume" }}{% endif %}
 {% if key == 'purchases' and can_add_product %}
 <dialog id="np-dialog" class="dlg">
   <div class="np-head"><h3>➕ New product</h3><button type="button" class="btn ghost sm" id="np-close" aria-label="Close">✕</button></div>
@@ -170,7 +183,36 @@ function drawBatches(tr, p) {
     }
   }
   if (p.expired_qty > 0) bchip(box, p.expired_batches + ' expired batch' + (p.expired_batches > 1 ? 'es' : '') + ' (' + p.expired_qty + ' ' + unit + ') will not be sold. Take them off the shelf.', 'red');
+  drawAlts(tr, p, box);
   hr.style.display = '';
+}
+// ---- Out of stock (or short): the other medicines with the same salt that can be sold now; one click uses it ----
+function drawAlts(tr, p, box) {
+  const uSel = rowField(tr, 'unit'), qEl = rowField(tr, 'qty'), unit = p.unit_name || '';
+  const f = uSel && uSel.value && p.factors[uSel.value] ? p.factors[uSel.value] : 1;
+  const need = Math.round((parseFloat(qEl && qEl.value) || 0) * f), avail = +p.available_qty || 0;
+  const out = avail <= 0, short = !out && need > avail;
+  if (!out && !short) return;
+  const alts = p.alts || [];
+  if (!alts.length) { bchip(box, out ? 'Out of stock, and no other medicine with the same salt is available.' : 'Only ' + avail + ' ' + unit + ' available, and no other medicine with the same salt is available.', 'red'); return; }
+  bchip(box, out ? 'Out of stock. Same salt available (cheapest first):' : 'Only ' + avail + ' ' + unit + ' available. The same salt can cover the rest:', 'amber');
+  alts.forEach(a => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost sm';
+    b.textContent = a.name + ' · ' + a.stock + (a.mrp ? ' · MRP ₹' + (+a.mrp).toFixed(2) + (a.unit_name ? ' per ' + a.unit_name : '') : '') + (a.schedule && a.schedule !== 'NONE' ? ' · Sch ' + a.schedule : '');
+    b.title = out ? 'Use this medicine in place of the one in this row' : 'Add this medicine as a new row';
+    b.onclick = () => useAlt(tr, a, out);
+    box.appendChild(b);
+  });
+}
+async function useAlt(tr, a, replace) {
+  const info = await getInfo(a.id);
+  if (!info) { alert('Could not load this medicine. Please try again.'); return; }
+  if (!replace) { addProduct(info, true); return; }
+  rowField(tr, 'product').value = String(a.id);
+  const uSel = rowField(tr, 'unit'); if (uSel && uSel.value && !info.factors[uSel.value]) uSel.value = '';     // this medicine has no such pack: use its base unit
+  const rate = rowField(tr, 'rate'); if (rate) { rate.value = ''; rate.dataset.auto = '1'; }
+  applyRate(tr, info); showBatches(tr);
+  const q = rowField(tr, 'qty'); if (q) { q.focus(); q.select(); }
 }
 async function showBatches(tr) {
   if (!NEW_BILL) return;
@@ -213,7 +255,7 @@ function showResults(list) {
   list.forEach(p => {
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'btn ghost sm';
-    b.textContent = p.name + (p.mrp ? ' · MRP ₹' + (+p.mrp).toFixed(2) : '') + ' · stock ' + p.stock + (p.schedule !== 'NONE' ? ' · Sch ' + p.schedule : '');
+    b.textContent = p.name + (p.mrp ? ' · MRP ₹' + (+p.mrp).toFixed(2) : '') + ' · stock ' + p.stock + (+p.available_qty <= 0 ? ' · OUT OF STOCK' : '') + (p.schedule !== 'NONE' ? ' · Sch ' + p.schedule : '');
     b.onclick = () => { addProduct(p, true); scan.value = ''; resBox.textContent = ''; };
     resBox.appendChild(b);
   });
@@ -247,7 +289,51 @@ rowsBody.addEventListener('keydown', e => {
   if (i >= 0 && i < fields.length - 1 && !(e.target.name || '').endsWith('-qty')) fields[i + 1].focus();
   else if (scan) { scan.focus(); scan.select(); }
 });
-{% if not form.instance.pk %}if (scan) scan.focus();{% endif %}
+
+// ---- Hold bill: park what is typed and open it again later (nothing is saved as a bill, no stock is used) ----
+const holdBtn = document.getElementById('hold-btn');
+if (holdBtn) holdBtn.addEventListener('click', async () => {
+  const form = holdBtn.form, fields = [];
+  for (const el of form.elements) {
+    if (!el.name || el.disabled || el.name === 'csrfmiddlewaretoken' || el.name === 'held_id' || el.name === 'confirm_warnings') continue;
+    if (el.type === 'submit' || el.type === 'button' || el.type === 'file') continue;
+    if (el.type === 'checkbox') fields.push([el.name, el.checked ? '1' : '0']);
+    else if (el.type === 'radio') { if (el.checked) fields.push([el.name, el.value]); }
+    else fields.push([el.name, el.value]);
+  }
+  const token = (form.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
+  holdBtn.disabled = true;
+  try {
+    const r = await fetch('{% url "bill_hold" %}', {method: 'POST', credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': token}, body: JSON.stringify({fields: fields})});
+    const d = await r.json().catch(() => null);
+    if (r.ok && d && d.ok) { window.location.href = '{% url "new" key="bills" %}'; return; }
+    alert((d && d.error) || 'Could not put the bill on hold. Please try again.');
+  } catch (e) { alert('Could not put the bill on hold. Please check your connection.'); }
+  holdBtn.disabled = false;
+});
+// ---- Resume: fill the form again from the held bill ----
+(function () {
+  const el = document.getElementById('held-resume'); if (!el) return;
+  let pairs = []; try { pairs = JSON.parse(el.textContent) || []; } catch (e) { return; }
+  const form = rowsBody.closest('form'), addBtn = document.getElementById('add');
+  const rowCount = () => [...rowsBody.querySelectorAll('tr')].filter(tr => rowField(tr, 'product')).length;
+  const want = Math.min(200, Math.max(0, ...pairs.filter(p => /-TOTAL_FORMS$/.test(p[0])).map(p => parseInt(p[1], 10) || 0)));
+  while (rowCount() < want && addBtn) addBtn.click();
+  const skip = /-(TOTAL_FORMS|INITIAL_FORMS|MIN_NUM_FORMS|MAX_NUM_FORMS)$/;
+  const fire = (f, t) => f.dispatchEvent(new Event(t, {bubbles: true}));
+  const later = [];
+  for (const [name, value] of pairs) {
+    if (skip.test(name)) continue;
+    const f = form.querySelector('[name="' + name.replace(/"/g, '\\"') + '"]'); if (!f) continue;
+    if (f.type === 'checkbox') f.checked = value === '1';
+    else if (f.type === 'radio') { const r = form.querySelector('[name="' + name + '"][value="' + value + '"]'); if (r) r.checked = true; }
+    else f.value = value;
+    if (f.tagName === 'SELECT') later.push(f);
+  }
+  later.forEach(f => fire(f, 'change'));                      // show / hide parts of the form, load the customer, batches and stock hints
+})();
+{% if not form.instance.pk %}if (scan && !document.getElementById('held-resume')) scan.focus();{% endif %}
 
 // ---- Customer: type the phone number to pick the customer and see the credit due ----
 (function () {

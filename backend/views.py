@@ -21,7 +21,7 @@ from django.views.decorators.http import require_POST
 
 from . import access, auditlog, backup, billview, checks, levels, notify, recurring, supplier_prices
 from .models import (
-    AuditLog, Batch, Bill, Brand, Category, Customer, CustomerPayment, Employee, Expense, InvoiceItem, Order, Payment,
+    AuditLog, HeldBill, Batch, Bill, Brand, Category, Customer, CustomerPayment, Employee, Expense, InvoiceItem, Order, Payment,
     Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, RecurringExpense,
     Sale, SalesReturn, ShopProfile, StockAudit, StockWriteOff, Supplier, Transaction, Unit,
 )
@@ -119,10 +119,10 @@ def pick_batch_txt(p):
 
 
 def alt_txt(p):
-    if p.stock_qty > 0:
+    if p.available_qty() > 0:
         return '-'
     alts = p.get_alternatives()
-    return ', '.join(f"{a.name} ({a.stock_qty})" for a in alts) if alts else 'No alternative'
+    return ', '.join(f"{a.name} ({a.available_qty()})" for a in alts) if alts else 'No alternative'
 
 
 def expiry_badge(b):
@@ -818,6 +818,8 @@ def edit(request, key, pk=None):
         form.fields['order'].label_from_instance = lambda o: (
             f"{o.order_id} · {o.customers_name or '-'} · {o.customer_product or '-'} x {o.customer_qty or 0}")
 
+    held_id = (request.POST.get('held_id', '') if post else request.GET.get('resume', '')).strip()
+    held_id = int(held_id) if held_id.isdigit() else None
     warnings = []
     if post and form.is_valid() and (fs is None or fs.is_valid()):
         problems = bill_form_errors(form, fs) if key == 'bills' else []
@@ -838,6 +840,8 @@ def edit(request, key, pk=None):
                         po.save(update_fields=['status'])
                 auditlog.record(request, 'EDIT' if obj else 'CREATE', cfg['one'], str(form.instance))
                 messages.success(request, f"{cfg['one']} saved ✅")
+                if key == 'bills' and not obj and held_id:       # this bill was resumed from "hold": it is done now
+                    HeldBill.objects.filter(pk=held_id).delete()
                 if po and po.status == 'COMPLETED':
                     short = po_shortfall(po_items, form.instance)
                     if short:
@@ -869,6 +873,15 @@ def edit(request, key, pk=None):
                            lines=', '.join(f"{i.product.name or i.product} x {i.order_qty}" for i in po_items))
     if key == 'purchases':
         quick['no_products'] = not Product.objects.exists()       # shows a hint: no import needed, create products right here
+    if key == 'bills' and not obj and access.can(request.user, 'add', 'bill'):     # bills on hold + the one being resumed
+        HeldBill.objects.filter(created_at__lt=timezone.now() - timedelta(days=7)).delete()
+        held = HeldBill.objects.filter(pk=held_id).first() if held_id else None
+        if held_id and not held and not post:
+            messages.warning(request, 'That held bill is not there any more (it may already be open or finished).')
+        quick['held_list'] = [dict(id=h.pk, label=h.label, count=h.items_count, user=h.user, time=timezone.localtime(h.created_at).strftime('%d %b %H:%M'))
+                              for h in HeldBill.objects.all()[:30]]
+        quick['held_id'] = held.pk if held else (held_id if post else None)
+        quick['held_resume'] = held.payload if held and not post else None
     return page(request, 'app/form.html', key=key, active=key, title=title, form=form, fs=fs, back_url=f'/{key}/',
                 inline_title=inl['title'] if inl else '', warnings=warnings, **quick,
                 note=f"{po.po_number} ({po.supplier.company}) has been pre-filled. Enter the invoice number, price and MFG/EXP dates. The PO will be marked Completed when you save." if po else '')

@@ -11,6 +11,8 @@ urlpatterns = [
     path('report/', views.report, name='report'),
     path('shop/', views.shop, name='shop'),
     path('bills/<int:pk>/invoice/', views.invoice, name='invoice'),
+    path('bills/hold/', views_extra.bill_hold, name='bill_hold'),
+    path('bills/hold/<int:pk>/discard/', views_extra.bill_hold_discard, name='bill_hold_discard'),
     path('bills/<int:pk>/cancel/', views.bill_cancel, name='bill_cancel'),
 
     # Customer ledger / returns / write-off

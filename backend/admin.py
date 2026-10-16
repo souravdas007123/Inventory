@@ -197,12 +197,12 @@ class ProductAdmin(ImportExportModelAdmin):
     pick_batch.short_description = 'Pick Batch (FEFO)'
 
     def alternatives(self, obj):
-        if obj.stock_qty > 0:
+        if obj.available_qty() > 0:
             return '-'
         alts = obj.get_alternatives()
         if not alts:
             return '❌ No alternative'
-        return ', '.join(f"{a.name} ({a.stock_qty})" for a in alts)
+        return ', '.join(f"{a.name} ({a.available_qty()})" for a in alts)
 
     alternatives.short_description = 'Alternative'
 

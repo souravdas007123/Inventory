@@ -1,6 +1,7 @@
 """Views for the newer features: customer ledger, returns, write-off, GST/drug reports, barcode lookup,
 alerts, Purchase Order share, stock audit."""
 import calendar
+import json
 import re
 from datetime import date as date_cls, timedelta
 from decimal import Decimal
@@ -21,7 +22,7 @@ from django.views.decorators.http import require_POST
 from . import access, auditlog, backup, billview, expiry_returns, levels, notify, refill, reorder, reports, summary, supplier_prices
 from .models import (
     Batch, Bill, Brand, Category, Customer, Employee, Expense, InvoiceItem, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
-    PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SalesReturn, Supplier, Unit, SalesReturnItem, ShopProfile, StockAudit, StockAuditItem, StockWriteOff,
+    HeldBill, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SalesReturn, Supplier, Unit, SalesReturnItem, ShopProfile, StockAudit, StockAuditItem, StockWriteOff,
 )
 from .imports import GST_ALLOWED, _fk, table_download
 from .views import page, post_recurring
@@ -519,13 +520,17 @@ def product_lookup(request):
         qs = base.filter(Q(barcode=q) | Q(sku__iexact=q) | Q(name__icontains=q) | Q(composition__icontains=q))
     else:
         return JsonResponse({'results': [], 'exact': False})
-    qs = qs.select_related('unit').prefetch_related('unit_conversions__unit').order_by('name')[:8]
+    qs = qs.select_related('unit').prefetch_related('unit_conversions__unit', 'batches').order_by('name')[:8]
     products = list(qs)
     batch_info = _batch_info([p.pk for p in products]) if pid.isdigit() else {}     # only when one product is picked
     results = [dict(id=p.pk, name=p.name or str(p), composition=p.composition or '', barcode=p.barcode or '',
                     mrp=str(p.mrp) if p.mrp is not None else '', rate1=_bill_rate(p), factors=_unit_factors(p),
-                    stock=p.stock_display(), stock_qty=p.stock_qty, schedule=p.schedule,
+                    stock=p.stock_display(), stock_qty=p.stock_qty, available_qty=p.available_qty(), schedule=p.schedule,
                     unit_name=p.unit.name if p.unit_id else '', **batch_info.get(p.pk, {})) for p in products]
+    if pid.isdigit() and results:       # a picked product: the same-salt medicines that can be sold instead (shown when it is out / short)
+        results[0]['alts'] = [dict(id=a.pk, name=a.name or str(a), stock=a.stock_display(a.available_qty()), available_qty=a.available_qty(),
+                                   mrp=str(a.mrp) if a.mrp is not None else '', unit_name=a.unit.name if a.unit_id else '',
+                                   schedule=a.schedule) for a in products[0].get_alternatives(limit=5)]
     exact = any(r['barcode'] == q for r in results)
     return JsonResponse({'results': results, 'exact': exact})
 
@@ -775,6 +780,49 @@ def product_preview(request, pk):
         p, timezone.localdate(),
         edit_url=reverse('edit', args=['products', p.pk]) if access.can(request.user, 'change', 'product') else '',
         prices_url=f'/supplier_prices/{p.pk}/'))
+
+
+HOLD_LIMIT = 30                  # most bills that can be on hold at the same time
+HOLD_DROP = {'csrfmiddlewaretoken', 'held_id', 'confirm_warnings'}
+ITEM_PRODUCT = re.compile(r'^[\w]+-\d+-product$')
+
+
+@access.perm_required(('add', 'bill'))
+@require_POST
+def bill_hold(request):
+    """Parks the bill that is being typed (the fields of the new-bill form). Stock and numbers are not touched."""
+    def fail(msg):
+        return JsonResponse(dict(ok=False, error=msg), status=400)
+
+    try:
+        fields = json.loads(request.body.decode('utf-8') or '{}').get('fields')
+    except (ValueError, AttributeError):
+        return fail('Could not read the bill.')
+    if (not isinstance(fields, list) or len(fields) > 3000
+            or not all(isinstance(f, list) and len(f) == 2 and all(isinstance(x, str) for x in f) and len(f[0]) <= 120 and len(f[1]) <= 2000
+                       for f in fields)):
+        return fail('Could not read the bill.')
+    fields = [f for f in fields if f[0] not in HOLD_DROP]
+    count = sum(1 for n, v in fields if ITEM_PRODUCT.match(n) and v.strip())
+    if not count:
+        return fail('Add at least one medicine before putting the bill on hold.')
+    if HeldBill.objects.count() >= HOLD_LIMIT:
+        return fail(f'{HOLD_LIMIT} bills are already on hold. Finish or discard some first.')
+    name = next((v.strip() for n, v in fields if n == 'customer_name'), '')
+    held = HeldBill.objects.create(user=request.user.get_username(), label=(name or 'Walk-in')[:150], items_count=count, payload=fields)
+    auditlog.record(request, 'HOLD', 'Bill', held.label)
+    messages.success(request, f'Bill of {held.label} is on hold ({count} item{"" if count == 1 else "s"}). Open it again from the list above.')
+    return JsonResponse(dict(ok=True, id=held.pk, count=count, label=held.label))
+
+
+@access.perm_required(('add', 'bill'))
+@require_POST
+def bill_hold_discard(request, pk):
+    held = HeldBill.objects.filter(pk=pk).first()
+    if held:
+        held.delete()
+        messages.success(request, 'The held bill was discarded.')
+    return redirect('new', key='bills')
 
 
 @access.perm_required(('view', 'purchase'))

@@ -200,3 +200,8 @@ The admin (`/admin/`) now has the MedSync look (teal, rounded, light/dark), a "�
 
 ## Product preview
 The Products list has a **👁 Preview** button on every row: details (brand, GST, MRP, place, supplier), how the units convert (1 Strip = 15 Tablet), stock in packs, how much can be sold / is expired, and every batch in stock (sell-first on top, short expiry flagged), with Edit and Prices buttons. The data is embedded in the page, so it opens instantly (fallback: `/api/product_preview/<id>/`). No migration needed.
+
+## Billing: same-salt alternatives and Hold bill
+**Alternatives.** When a medicine in a bill is out of stock (or the quantity is more than what can be sold), the row shows the other medicines with the **same salt** that can be sold now, cheapest first, with stock and MRP. One click replaces the medicine (or adds it as a new row when only part is short). "Same salt" ignores case, spaces, punctuation and the order of the salts ("Paracetamol 500mg" = "paracetamol 500 mg"); expired batches are not counted as stock. The search buttons also say "OUT OF STOCK". The Products list uses the same logic.
+
+**Hold bill.** On a new bill, **⏸ Hold bill** parks what has been typed (no stock is used, no invoice number is taken). Held bills are listed above the form; **▶** opens one again, **✕** discards it. Saving a resumed bill removes it from the list. At most 30 bills are held at a time and a held bill is deleted after 7 days. Needs `python manage.py migrate` (migration 0013, one new table).

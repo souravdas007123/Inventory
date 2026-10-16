@@ -1,6 +1,7 @@
 from datetime import timedelta
 from decimal import ROUND_HALF_UP, Decimal
 import random
+import re
 import string
 
 from django.core.exceptions import ValidationError
@@ -157,6 +158,13 @@ class Supplier(models.Model):
 # PRODUCT
 # ======================================================
 
+def norm_composition(text):
+    """A key that is the same for the same salts: 'Paracetamol 500 mg + Caffeine 50mg' == 'caffeine 50MG, paracetamol 500mg'
+    (case, spaces, punctuation and the order of the salts are ignored)."""
+    parts = [re.sub(r'[^a-z0-9.]+', '', p) for p in re.split(r'[+,/&;]|\band\b', (text or '').lower())]
+    return '|'.join(sorted(p for p in parts if p))
+
+
 class Product(models.Model):
     GST_CHOICES = (
         (Decimal('0.00'), '0% (Nil / Exempt)'),
@@ -221,10 +229,10 @@ class Product(models.Model):
             )
         return conv.factor
 
-    def stock_display(self):
-        """Shows stock in pack format, e.g. '2 Box 3 Strip'."""
+    def stock_display(self, qty=None):
+        """Shows stock in pack format, e.g. '2 Box 3 Strip' (`qty` = base units to show; default = the stock)."""
         base = self.unit.name if self.unit_id else "unit"
-        remaining = self.stock_qty
+        remaining = self.stock_qty if qty is None else qty
         parts = []
         # with prefetch_related('unit_conversions__unit') no extra query is made
         if 'unit_conversions' in getattr(self, '_prefetched_objects_cache', {}):
@@ -261,12 +269,26 @@ class Product(models.Model):
         return sum(b.qty for b in self.batches.all()
                    if b.qty > 0 and b.expire_date is not None and b.expire_date < today)
 
+    def available_qty(self):
+        """What can really be sold now, in base units: the unexpired batches (the whole stock if it has no batch record)."""
+        batches = list(self.batches.all())
+        if not batches:
+            return self.stock_qty
+        today = timezone.localdate()
+        return sum(b.qty for b in batches if b.qty > 0 and (b.expire_date is None or b.expire_date >= today))
+
     def get_alternatives(self, limit=2):
-        if not self.composition:
-            return Product.objects.none()
-        return Product.objects.filter(
-            composition__iexact=self.composition, stock_qty__gt=0
-        ).exclude(pk=self.pk)[:limit]
+        """Other active medicines with the same salt(s) that can be sold now, cheapest MRP first."""
+        key = norm_composition(self.composition)
+        word = re.search(r'[a-z]{4,}', (self.composition or '').lower())
+        if not key or not word:
+            return []
+        cands = (Product.objects.exclude(is_active=False).exclude(pk=self.pk)
+                 .filter(composition__icontains=word.group(0), stock_qty__gt=0)
+                 .select_related('unit').prefetch_related('batches').order_by('name')[:200])
+        same = [c for c in cands if norm_composition(c.composition) == key and c.available_qty() > 0]
+        same.sort(key=lambda c: (c.mrp is None, c.mrp or 0, c.name or ''))
+        return same[:limit]
 
     def __str__(self):
         return self.name or f"Product #{self.pk}"
