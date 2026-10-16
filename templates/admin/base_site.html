@@ -39,6 +39,13 @@ input[type=time], select, textarea { border-radius:8px; }
 #changelist table { border-radius:12px; overflow:hidden; }
 #changelist table thead th { background:var(--darkened-bg); text-transform:uppercase; font-size:11px; letter-spacing:.4px; }
 #result_list tbody tr:hover td, #result_list tbody tr:hover th { background:var(--selected-bg); }
+/* home page: use the full width instead of a narrow column with empty space on the right */
+.dashboard #content { width:auto; max-width:none; margin-right:0; }
+.dashboard #content-main { float:none; width:auto; display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:16px; align-items:start; }
+.dashboard #content-main .module { margin:0; }
+.dashboard #content-main .module table { width:100%; }
+.dashboard #content-related { float:none; width:auto; margin:22px 0 0; }
+.dashboard #content-related .module { max-width:560px; }
 .ms-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin:0 0 22px; }
 .ms-card { display:block; background:var(--body-bg); border:1px solid var(--hairline-color); border-left:4px solid var(--accent);
   border-radius:12px; padding:12px 14px; color:var(--body-fg); text-decoration:none; box-shadow:0 1px 3px rgba(0,0,0,.06); }
