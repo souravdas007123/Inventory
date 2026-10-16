@@ -179,3 +179,14 @@ Each bill in the Billing list has a **👁 Preview** button that opens a window 
 ## Purchase preview (Purchases list → 👁 Preview)
 
 Like the Billing list, each purchase invoice has a **👁 Preview** button that shows everything bought in it: supplier, invoice no. / date, every item (medicine, composition, batch, expiry, qty with unit, rate per unit, MRP, GST %, amount) and the totals (taxable, GST, total). An item that expires within 90 days is marked **soon** (amber) and an already expired one **expired** (red), with a "⚠ n short-expiry" badge at the top, so short-expiry stock is noticed the moment it is purchased. The window has **Open / Edit** and **↩ Return** buttons (shown only if the user has that permission). The data is embedded in the list page (`backend/billview.py`), so it opens instantly; `api/purchase_preview/<id>/` is the fallback. No migration.
+
+## Automatic tests
+
+`python manage.py test` runs about 100 checks of the important logic, on a temporary database (your real data is never touched):
+- **Purchases:** stock, batch and supplier balance after a purchase, edit and delete; GST split; MRP update; unit conversion; duplicate invoice numbers.
+- **Billing:** stock taken from the right batch (earliest expiry first, expired stock never sold), GST / IGST / discounts, invoice numbers, cancel, credit limit, customer balance and receipts.
+- **Returns:** sales returns (credit notes) and purchase returns (debit notes), partial and full, with no paise lost, and the "cannot edit / cannot return what was sold" guards.
+- **Import:** stock entry rows, new products, whole-invoice skipping, duplicates, column names.
+- **Pages:** every list / form / report page opens, exports work, the Billing and Purchases preview data, access rules (login, owner only), login lock after 5 wrong passwords, backup path safety.
+
+Run it after every update: `cd ~/Inventory; workon inv; python manage.py test`. A line `OK` at the end means all is well; if something fails, send the failure text.
