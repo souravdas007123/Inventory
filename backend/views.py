@@ -271,7 +271,7 @@ CONFIG = {
     ),
     'purchases': dict(
         title='Purchases', one='Purchase Invoice', model=Purchase, order=['-invoice_date', '-id'],
-        related=['supplier'], prefetch=['items__product'],
+        related=['supplier'], prefetch=[models.Prefetch('items', queryset=PurchaseItem.objects.select_related('product', 'unit'))],
         search=['invoice_number', 'supplier__company', 'items__product__name'],
         cols=[('Invoice No.', lambda o: o.invoice_number), ('Date', lambda o: d(o.invoice_date)),
               ('Supplier', lambda o: o.supplier.company), ('Products', product_names),
@@ -663,6 +663,12 @@ def listing(request, key):
         page_bills = list(pg)
         bmap = Batch.objects.in_bulk({int(k) for b in page_bills for it in b.items.all() for k in (it.batch_history or {})})
         bill_data = {b.pk: billview.preview_data(b, list(b.items.all()), bmap, reverse('invoice', args=[b.pk])) for b in page_bills}
+    if key == 'purchases':      # same for the purchases: what was bought, with batch / expiry / price, in the 👁 Preview window
+        today = timezone.localdate()
+        can_edit_p, can_ret_p = access.can(request.user, 'change', 'purchase'), access.can(request.user, 'add', 'purchasereturn')
+        bill_data = {p.pk: billview.purchase_preview_data(
+            p, list(p.items.all()), today, edit_url=reverse('edit', args=['purchases', p.pk]) if can_edit_p else '',
+            return_url=reverse('purchase_return_new', args=[p.pk]) if can_ret_p else '') for p in pg}
     shown = cfg.get('list_cols') or cfg['cols']          # on screen; the export above always uses all columns
     rows = [dict(pk=o.pk, obj=o, cells=[fn(o) for _, fn in shown], acts=acts(o) if acts else []) for o in pg]
     return page(request, 'app/list.html', key=key, active=key, cfg=cfg, heads=[h for h, _ in shown], summary_line=summary_line,

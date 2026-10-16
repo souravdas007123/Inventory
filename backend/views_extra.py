@@ -766,6 +766,17 @@ def expiry_view(request):
                 grand=sum((g['total'] for g in groups), Decimal('0')), today=today)
 
 
+@access.perm_required(('view', 'purchase'))
+def purchase_preview(request, pk):
+    """The same data as the Preview window of the Purchases list (which normally has it embedded already)."""
+    p = get_object_or_404(Purchase.objects.select_related('supplier'), pk=pk)
+    items = list(p.items.select_related('product', 'unit'))
+    return JsonResponse(billview.purchase_preview_data(
+        p, items, timezone.localdate(),
+        edit_url=reverse('edit', args=['purchases', p.pk]) if access.can(request.user, 'change', 'purchase') else '',
+        return_url=reverse('purchase_return_new', args=[p.pk]) if access.can(request.user, 'add', 'purchasereturn') else ''))
+
+
 @access.perm_required(('view', 'bill'))
 def bill_preview(request, pk):
     """The same data as the Preview window of the Billing list (which normally has it embedded already)."""

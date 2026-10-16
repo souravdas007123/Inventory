@@ -41,3 +41,31 @@ def preview_data(bill, items, batch_map, invoice_url):
                     discount=money(disc_total) if disc_total > 0 else '', round_off=money(grand - total) if grand != total else '',
                     grand=money(grand), paid=money(paid) if credit else '', due=money(max(grand - paid, ZERO)) if credit else ''),
         invoice_url=invoice_url)
+
+
+def purchase_preview_data(purchase, items, today, edit_url='', return_url='', warn_days=90):
+    """Preview of a supplier purchase invoice: every item with batch / expiry / qty / price, and the totals.
+    `items` = PurchaseItem rows (product / unit loaded). An item that expires within `warn_days` (or already did) is flagged."""
+    from datetime import timedelta
+    limit = today + timedelta(days=warn_days)
+    rows, short = [], 0
+    for n, it in enumerate(items, 1):
+        exp = it.expire_date
+        flag = '' if not exp else ('expired' if exp < today else ('soon' if exp <= limit else ''))
+        short += bool(flag)
+        per = (it.purchase_price / it.qty).quantize(TWO) if it.qty and it.purchase_price is not None else None
+        rows.append(dict(n=n, name=(it.product.name if it.product_id else '') or '-',
+                         comp=(it.composition or (it.product.composition if it.product_id else '')) or '',
+                         batch=it.batch or '-', exp=exp.strftime('%m-%y') if exp else '-', flag=flag,
+                         qty=f"{it.qty} {it.unit or ''}".strip(), rate=money(per) if per is not None else '-',
+                         mrp=money(it.selling_price) if it.selling_price else '-',
+                         gst=f"{it.gst_rate or 0}%", total=money(it.purchase_price)))
+
+    def s(field):
+        return sum((getattr(i, field) or ZERO for i in items), ZERO)
+
+    return dict(
+        ok=True, invoice=purchase.invoice_number, date=purchase.invoice_date.strftime('%d %b %Y') if purchase.invoice_date else '-',
+        supplier=purchase.supplier.company, count=len(rows), short=short, items=rows,
+        totals=dict(taxable=money(s('tax')), gst=money(s('gst')), total=money(s('purchase_price'))),
+        edit_url=edit_url, return_url=return_url)
