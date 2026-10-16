@@ -150,7 +150,8 @@ def import_view(request, kind):
                 try:
                     headers, rows = read_table(upload, max_rows=imp['max_rows'])
                     opts = {'update': bool(request.POST.get('update')),
-                            'create_products': bool(request.POST.get('create_products'))}
+                            'create_products': bool(request.POST.get('create_products')),
+                            'default_gst': request.POST.get('default_gst', '').strip()}
                     payload = dict(kind=kind, user=request.user.pk, stage='raw', headers=headers, rows=rows,
                                    filename=upload.name, opts=opts)
                     token = imports.stash(payload)

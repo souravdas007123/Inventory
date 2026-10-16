@@ -179,3 +179,10 @@ Each bill in the Billing list has a **👁 Preview** button that opens a window 
 ## Purchase preview (Purchases list → 👁 Preview)
 
 Like the Billing list, each purchase invoice has a **👁 Preview** button that shows everything bought in it: supplier, invoice no. / date, every item (medicine, composition, batch, expiry, qty with unit, rate per unit, MRP, GST %, amount) and the totals (taxable, GST, total). An item that expires within 90 days is marked **soon** (amber) and an already expired one **expired** (red), with a "⚠ n short-expiry" badge at the top, so short-expiry stock is noticed the moment it is purchased. The window has **Open / Edit** and **↩ Return** buttons (shown only if the user has that permission). The data is embedded in the list page (`backend/billview.py`), so it opens instantly; `api/purchase_preview/<id>/` is the fallback. No migration.
+
+## Purchase import: fewer required columns for new medicines
+
+For a medicine that is not in Products yet, `gst_rate` and `base_unit` no longer have to be in the file:
+- On the import page choose **"GST for new products when the file has no gst_rate"** (0 / 5 / 12 / 18). It is used only for new medicines whose row has no `gst_rate`; the preview shows "GST x% taken from the default" on each such row. Leave it on "Take from the file" to keep gst_rate required.
+- If `base_unit` is blank, the **unit** column of the row (e.g. Strip) becomes the product's unit.
+A wrong value (for example `gst_rate` = 7 or a non-number) is still an error. No migration.
