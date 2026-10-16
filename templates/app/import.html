@@ -33,7 +33,7 @@
         <td><b>{{ m.header }}</b></td><td>{{ m.sample|default:"-" }}</td>
         <td><select name="m{{ m.i }}">
           <option value="">- ignore this column -</option>
-          {% for c in cols %}<option value="{{ c.name }}"{% if c.name == m.selected %} selected{% endif %}>{{ c.name }}{% if c.required %} *{% endif %}</option>{% endfor %}
+          {% for c in cols %}<option value="{{ c.name }}"{% if c.name == m.selected %} selected{% endif %}>{{ c.name }}{% if c.required %} *{% elif c.need %} ({{ c.need|lower }}){% endif %}</option>{% endfor %}
         </select></td></tr>{% endfor %}
     </table></div>
     <p style="color:var(--mute);margin:8px 0">* = required. Leave a column on "ignore" if you do not need it.</p>
@@ -50,6 +50,7 @@
     <div class="card stat"><small>Will be skipped</small><b>{{ counts.skip }}</b></div>
     <div class="card stat {% if counts.error %}warn{% endif %}"><small>Rows with errors</small><b>{{ counts.error }}</b></div>
   </div>
+  {% if kind == 'stock' %}<div class="msg info">If a medicine is <b>not in Products yet</b> it is created from its row, so that row needs: <b>gst_rate</b> (0, 5, 12 or 18) and <b>base_unit</b> (or the <b>unit</b> column when there is no pack); <b>pack_unit</b> and <b>pack_size</b> go together. For medicines already in Products these are not needed.</div>{% endif %}
   {% if layout_used %}<div class="msg info">The column matching saved earlier for this file layout was applied.</div>{% endif %}
   {% if ignored %}<div class="msg warning">These columns were not recognised and were ignored: {{ ignored|join:", " }}
     <form method="post" style="display:inline;margin-left:8px">{% csrf_token %}<input type="hidden" name="action" value="remap"><input type="hidden" name="raw_token" value="{{ raw_token }}"><button class="btn ghost sm">⚙ Match columns</button></form></div>
@@ -99,7 +100,7 @@
   <div class="card"><h3 style="margin-top:0">Columns</h3>
     <div class="tw"><table class="t">
       <thead><tr><th>Column</th><th>Required?</th><th>What to enter</th><th>Example</th></tr></thead>
-      {% for c in cols %}<tr><td><b>{{ c.name }}</b></td><td>{% if c.required %}<span class="badge green">Yes</span>{% else %}<span class="badge grey">Optional</span>{% endif %}</td><td>{{ c.help }}</td><td>{{ c.samples.0 }}{% if c.samples.1 and c.samples.1 != c.samples.0 %}, {{ c.samples.1 }}{% endif %}</td></tr>{% endfor %}
+      {% for c in cols %}<tr><td><b>{{ c.name }}</b></td><td>{% if c.required %}<span class="badge green">Yes</span>{% elif c.need %}<span class="badge amber">{{ c.need }}</span>{% else %}<span class="badge grey">Optional</span>{% endif %}</td><td>{{ c.help }}</td><td>{{ c.samples.0 }}{% if c.samples.1 and c.samples.1 != c.samples.0 %}, {{ c.samples.1 }}{% endif %}</td></tr>{% endfor %}
     </table></div></div>
 {% endif %}
 {% endblock %}

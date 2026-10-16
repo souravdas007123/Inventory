@@ -100,6 +100,15 @@ class StockImportTests(StockMixin, TestCase):
         self.assertEqual(res[0]['action'], 'error')
         self.assertIn('base_unit', self.errors(res[0]))
 
+    def test_columns_needed_only_for_a_new_medicine_are_marked(self):
+        from backend import imports
+        need = {c['name']: c['need'] for c in imports.STOCK_COLS}
+        for name in ('gst_rate', 'base_unit', 'pack_unit', 'pack_size'):
+            self.assertTrue(need[name], name)
+        self.assertFalse(need['qty'])
+        for name in ('gst_rate', 'base_unit'):
+            self.assertIn('new medicine', need[name])
+
     def test_bad_gst_rate_for_a_new_product_is_an_error(self):
         res = self.validate([row(product='Azee 500', gst_rate='7', base_unit='Tablet')], create_products=True)
         self.assertEqual(res[0]['action'], 'error')

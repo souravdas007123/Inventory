@@ -52,8 +52,9 @@ SCHEDULE_MAP = {
 }
 
 
-def _col(name, required=False, help='', s1='', s2=''):
-    return dict(name=name, required=required, help=help, samples=(s1, s2))
+def _col(name, required=False, help='', s1='', s2='', need=''):
+    """`need` = a short note for a column that is optional in general but needed in some case (shown instead of "Optional")."""
+    return dict(name=name, required=required, help=help, samples=(s1, s2), need=need)
 
 
 def _unit_name(raw):
@@ -452,10 +453,10 @@ STOCK_COLS = [
     _col('rack', False, 'Rack', 'A1', 'A2'),
     _col('row', False, 'Row', '2', '1'),
     _col('location', False, 'Godown / location', '', ''),
-    _col('gst_rate', False, 'NEW product only: GST % (0, 5, 12 or 18). Required when the medicine is not in Products yet', '12', '12'),
-    _col('base_unit', False, 'NEW product only: smallest unit, e.g. Tablet. Blank = the "unit" column is used (when there is no pack_unit / pack_size)', 'Tablet', 'Tablet'),
-    _col('pack_unit', False, 'NEW product only: larger pack, e.g. Strip (fill together with pack_size)', 'Strip', 'Strip'),
-    _col('pack_size', False, 'NEW product only: base units in 1 pack (e.g. 15 tablets in a Strip)', '15', '10'),
+    _col('gst_rate', False, 'NEW product only: GST % (0, 5, 12 or 18). Required when the medicine is not in Products yet', '12', '12', need='Needed for a new medicine'),
+    _col('base_unit', False, 'NEW product only: smallest unit, e.g. Tablet. Blank = the "unit" column is used (when there is no pack_unit / pack_size)', 'Tablet', 'Tablet', need='Needed for a new medicine (or fill unit)'),
+    _col('pack_unit', False, 'NEW product only: larger pack, e.g. Strip (fill together with pack_size)', 'Strip', 'Strip', need='With pack_size'),
+    _col('pack_size', False, 'NEW product only: base units in 1 pack (e.g. 15 tablets in a Strip)', '15', '10', need='With pack_unit'),
     _col('composition', False, 'NEW product only: salt / composition', 'Paracetamol 650mg', 'Azithromycin 500mg'),
     _col('category', False, 'NEW product only: category (created if it is new)', 'Tablet', 'Tablet'),
     _col('brand', False, 'NEW product only: brand / company (created if it is new)', 'Micro Labs', 'Alembic'),
@@ -989,7 +990,7 @@ def template_download(kind):
         dict(title='Example', headers=heads, rows=[list(c['samples'][i] for c in imp['cols']) for i in (0, 1)],
              required=required),
         dict(title='Help', headers=['Column', 'Required?', 'What to enter'],
-             rows=[[c['name'], 'YES' if c['required'] else 'optional', c['help']] for c in imp['cols']]),
+             rows=[[c['name'], 'YES' if c['required'] else (c.get('need') or 'optional'), c['help']] for c in imp['cols']]),
     ])
     resp = HttpResponse(data, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     resp['Content-Disposition'] = f'attachment; filename="medsync_{kind}_template.xlsx"'
