@@ -3,7 +3,7 @@ alerts, Purchase Order share, stock audit."""
 import calendar
 import json
 import re
-from datetime import date as date_cls, timedelta
+from datetime import date as date_cls, datetime as datetime_cls, timedelta
 from decimal import Decimal
 from urllib.parse import urlencode
 
@@ -19,7 +19,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import access, auditlog, backup, billview, ca_export, expiry_returns, levels, notify, refill, reorder, reports, summary, supplier_prices
+from . import access, auditlog, backup, billview, ca_export, health, expiry_returns, levels, notify, refill, reorder, reports, summary, supplier_prices
 from .models import (
     Batch, Bill, Brand, Category, Customer, Employee, Expense, InvoiceItem, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
     HeldBill, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SalesReturn, Supplier, Unit, SalesReturnItem, ShopProfile, StockAudit, StockAuditItem, StockWriteOff,
@@ -287,6 +287,30 @@ def ca_export_view(request):
     info = None if error else ca_export.summary(start, end)
     return page(request, 'app/ca_export.html', active='ca_export', start=start, end=end, error=error, info=info,
                 presets=[dict(label=l, start=a, end=b) for l, a, b in presets])
+
+
+@staff_required
+def health_view(request):
+    """The health score: what was measured, and the reason for every point lost. POST = measure again now."""
+    if request.method == 'POST':
+        try:
+            health.refresh()
+            messages.success(request, 'The health score was measured again.')
+        except Exception:
+            messages.error(request, 'Could not measure the health score right now. Please try again.')
+        return redirect('health')
+    try:
+        data, problem = health.current(max_age_minutes=60), ''
+    except Exception:
+        data, problem = None, 'The health score could not be measured right now. Please try again.'
+    checked = None
+    if data:
+        try:
+            checked = timezone.localtime(datetime_cls.fromisoformat(data['checked_at']))
+        except (KeyError, ValueError, TypeError):
+            checked = None
+    return page(request, 'app/health.html', active='health', data=data, problem=problem, checked=checked,
+                history=health.history() if data else [])
 
 
 SCHEDULE_FILTERS = {'H1X': ('H1', 'X'), 'H': ('H',), 'ALL': ('H', 'H1', 'X')}

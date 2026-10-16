@@ -56,7 +56,7 @@ def owner_required(view):
 NAV_RULES = {
     'dashboard': ('view', 'sale'), 'drug_register': ('view', 'bill'), 'supplier_prices': ('view', 'purchase'),
     'reorder': ('view', 'purchaseorder'), 'refill': ('view', 'bill'), 'expiry': ('add', 'purchasereturn'), 'salary': ('view', 'employee'),
-    'import': 'owner', 'report': 'owner', 'gst': 'owner', 'ca_export': 'owner', 'audit': 'owner', 'backup': 'owner', 'shop': 'owner',
+    'import': 'owner', 'report': 'owner', 'gst': 'owner', 'ca_export': 'owner', 'health': 'owner', 'audit': 'owner', 'backup': 'owner', 'shop': 'owner',
     'stock_audits': 'owner',
 }
 

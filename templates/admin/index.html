@@ -1,5 +1,10 @@
 {% extends "admin/index.html" %}
 {% block content %}
+{% if medsync_health %}<a class="ms-health {{ medsync_health.tone }}" href="{% url 'health' %}" title="See what was measured">
+  <span class="ms-ring" style="--v:{{ medsync_health.score }}"><b>{{ medsync_health.score }}</b></span>
+  <span class="ms-htxt"><small>Health score</small><b>{{ medsync_health.label }}</b>
+    <span>{% for s in medsync_health.sections %}{{ s.title }} {% if s.score is None %}-{% else %}{{ s.score }}{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</span></span>
+  <span class="ms-hgo">Details →</span></a>{% endif %}
 {% if medsync_cards %}<div class="ms-cards">{% for c in medsync_cards %}<a class="ms-card {{ c.tone }}" href="{{ c.url }}"><small>{{ c.label }}</small><b>{{ c.value }}</b><span>{{ c.hint }}</span></a>{% endfor %}</div>{% endif %}
 {{ block.super }}
 {% endblock %}

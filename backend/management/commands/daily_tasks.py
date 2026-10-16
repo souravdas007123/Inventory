@@ -3,7 +3,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
 
-from backend import backup, levels, notify, recurring, summary
+from backend import backup, health, levels, notify, recurring, summary
 from backend.models import ShopProfile
 
 
@@ -24,6 +24,10 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"Backup created: {backup.make_backup(keep=opts['keep'])}"))
             except backup.BackupError as e:      # keep going: the summary is still useful
                 self.stderr.write(self.style.ERROR(f"Backup failed: {e}"))
+        try:
+            self.stdout.write(f"Health score: {health.refresh()['score']}/100")
+        except Exception as e:       # must not stop the summary
+            self.stderr.write(self.style.ERROR(f"Health score failed: {e}"))
         try:
             made = recurring.post_due()
             if made:

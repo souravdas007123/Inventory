@@ -1,0 +1,60 @@
+{% extends "app/base.html" %}
+{% block title %}Health Score{% endblock %}
+{% block content %}
+<style>
+.hs-top{display:flex;gap:22px;align-items:center;flex-wrap:wrap}
+.hs-ring{--v:0;width:132px;height:132px;border-radius:50%;display:grid;place-items:center;flex:none;
+  background:conic-gradient(var(--c) calc(var(--v) * 1%), var(--line) 0)}
+.hs-ring>div{width:104px;height:104px;border-radius:50%;background:var(--card);display:grid;place-items:center;text-align:center}
+.hs-ring b{font-size:34px;line-height:1}.hs-ring small{color:var(--mute);display:block;font-size:12px}
+.hs-ring.green{--c:var(--green)}.hs-ring.amber{--c:var(--amber)}.hs-ring.red{--c:var(--red)}
+.hs-secs{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;flex:1;min-width:260px}
+.hs-sec{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.hs-sec small{color:var(--mute)}.hs-sec b{font-size:22px;display:block}
+.hs-bar{height:6px;border-radius:6px;background:var(--line);margin-top:6px;overflow:hidden}.hs-bar i{display:block;height:100%;background:var(--green)}
+.hs-bar.amber i{background:var(--amber)}.hs-bar.red i{background:var(--red)}
+.hs-chk{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--line)}.hs-chk:first-of-type{border-top:0}
+.hs-ico{flex:none;width:22px;text-align:center;font-weight:700}
+.hs-ico.ok{color:var(--green)}.hs-ico.warn{color:var(--amber)}.hs-ico.bad{color:var(--red)}.hs-ico.info,.hs-ico.unknown{color:var(--mute)}
+.hs-chk ul{margin:4px 0 0 18px;color:var(--mute);font-size:13px}
+.hs-hist{display:flex;gap:3px;align-items:flex-end;height:60px}.hs-hist i{flex:1;background:var(--pri);border-radius:3px 3px 0 0;min-width:4px;opacity:.85}
+</style>
+<div class="head"><h1>🩺 Health Score</h1>
+  <form method="post" style="margin:0">{% csrf_token %}<button class="btn">🔄 Measure again</button></form></div>
+{% if problem %}<div class="msg error">{{ problem }}</div>{% else %}
+<div class="card">
+  <div class="hs-top">
+    <div class="hs-ring {{ data.tone }}" style="--v:{{ data.score }}"><div><span><b>{{ data.score }}</b><small>out of 100</small></span></div></div>
+    <div style="flex:1;min-width:240px">
+      <h2 style="margin:0 0 4px">{{ data.label }}</h2>
+      <p style="color:var(--mute);margin:0 0 10px">Measured {% if checked %}{{ checked|date:"d M Y, H:i" }}{% endif %} on this server in {{ data.took_ms }} ms. Every point lost has a reason below. Nothing here changes your data.</p>
+      {% if data.unchecked %}<p style="color:var(--amber);margin:0">{{ data.unchecked }} check(s) could not run and are left out of the score.</p>{% endif %}
+    </div>
+    <div class="hs-secs">
+      {% for s in data.sections %}<div class="hs-sec"><small>{{ s.title }} · {{ s.weight }}%</small>
+        <b>{% if s.score is None %}-{% else %}{{ s.score }}{% endif %}</b>
+        <div class="hs-bar {% if s.score is not None and s.score < 60 %}red{% elif s.score is not None and s.score < 85 %}amber{% endif %}"><i style="width:{% if s.score is None %}0{% else %}{{ s.score }}{% endif %}%"></i></div></div>{% endfor %}
+    </div>
+  </div>
+</div>
+{% for s in data.sections %}
+<div class="card" style="margin-top:14px"><h3 style="margin-top:0">{{ s.title }} <small style="color:var(--mute);font-weight:400">· {% if s.score is None %}not measured{% else %}{{ s.score }} / 100{% endif %}</small></h3>
+  {% for c in s.checks %}<div class="hs-chk">
+    <div class="hs-ico {{ c.status }}">{% if c.status == 'ok' %}✓{% elif c.status == 'warn' %}⚠{% elif c.status == 'bad' %}✖{% elif c.status == 'info' %}ℹ{% else %}?{% endif %}</div>
+    <div><b>{{ c.title }}</b>{% if c.lost %} <span class="badge {% if c.status == 'bad' %}red{% else %}amber{% endif %}">-{{ c.lost }}</span>{% endif %}
+      <div style="color:var(--mute)">{{ c.detail }}</div>
+      {% if c.items %}<ul>{% for i in c.items %}<li>{{ i }}</li>{% endfor %}</ul>{% endif %}</div>
+  </div>{% endfor %}
+</div>
+{% endfor %}
+{% if history|length > 1 %}
+<div class="card" style="margin-top:14px"><h3 style="margin-top:0">Score over time <small style="color:var(--mute);font-weight:400">(last {{ history|length }} measurements)</small></h3>
+  <div class="hs-hist">{% for h in history %}<i style="height:{{ h.score }}%" title="{{ h.when }}: {{ h.score }}"></i>{% endfor %}</div>
+</div>
+{% endif %}
+{% if data.stats %}<p style="color:var(--mute);margin-top:12px;font-size:13px">{{ data.stats.products }} products · {{ data.stats.bills }} bills · {{ data.stats.purchases }} purchases{% if data.stats.db_mb is not None %} · database {{ data.stats.db_mb }} MB{% endif %}</p>{% endif %}
+<div class="card" style="margin-top:14px"><h3 style="margin-top:0">How the score is worked out</h3>
+  <p style="margin:0;color:var(--mute)">Each part starts at 100 and loses points for every real problem found (the number next to the problem). The total is a weighted average: Data 40%, Safety 25%, Speed 20%, Shop 15%. Speed is how long the main queries take on this server right now. A check that cannot run is never counted as good: it is shown as "?" and left out. The score is measured again every night by the daily task and whenever you press "Measure again".</p>
+</div>
+{% endif %}
+{% endblock %}

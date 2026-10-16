@@ -208,3 +208,12 @@ The Products list has a **👁 Preview** button on every row: details (brand, GS
 
 ## CA / Accountant Export
 Accounts > **CA / Accountant Export** (owner only): choose the dates (or press This month / Last month / This financial year / Last financial year) and **Download Excel**. One file with the sheets Summary (net sales, net purchases, GST payable), Sales Register, Sales by GST rate, Credit Notes, Purchase Register, Purchases by GST rate, Debit Notes, Expenses, Supplier Payments and Customer Receipts. Only final bills are counted (cancelled ones are only counted in the Summary). Totals at the bottom of each register are Excel formulas. A range over about 2 years, or with more than 100,000 entries, is refused instead of being cut off. Code: `backend/ca_export.py`. No migration needed. (A Tally XML import file is not included: it needs the ledger names of your Tally company.)
+
+## Health score
+
+Owner only. Shown on the admin home (a ring with the score) and in full on **Health Score** (`/health/`).
+
+* Four sections, all from real measurements: **Data** (40) – stock vs batches, negative batches; **Safety** (25) – backup age, whether the latest backup really opens, database integrity, debug/https; **Speed** (20) – timed queries on this server; **Shop** (15) – expired stock, low stock, missing MRP / HSN.
+* Every lost point is listed with its reason. A check that cannot run is left out of the score, never counted as good.
+* `daily_tasks` refreshes it after the backup; the page re-measures when older than an hour, or with **Measure again**. The last 120 measurements are kept (migration `0014`).
+* Tests: `backend/tests/test_health.py`.

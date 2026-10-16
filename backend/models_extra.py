@@ -719,3 +719,21 @@ class HeldBill(models.Model):
         ordering = ['-id']
         verbose_name = 'Held Bill'
         verbose_name_plural = 'Held Bills'
+
+
+# ======================================================
+# HEALTH SNAPSHOTS (the health score as it was measured at a time)
+# ======================================================
+
+class HealthSnapshot(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    score = models.PositiveIntegerField(default=0)
+    data = models.JSONField(default=dict)
+
+    def __str__(self):
+        return f"Health {self.score}/100 at {self.created_at:%d %b %H:%M}"
+
+    class Meta:
+        ordering = ['-id']
+        verbose_name = 'Health Snapshot'
+        verbose_name_plural = 'Health Snapshots'

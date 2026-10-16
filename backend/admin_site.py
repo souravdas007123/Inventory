@@ -7,7 +7,7 @@ from django.db.models import F, Sum
 from django.urls import reverse
 from django.utils import timezone
 
-from . import access
+from . import access, health
 
 admin.site.site_header = 'MedSync Admin'
 admin.site.site_title = 'MedSync Admin'
@@ -98,6 +98,14 @@ def index(request, extra_context=None):
         extra['medsync_cards'] = summary_cards(request.user)
     except Exception:                    # cosmetic only: never break the admin
         extra['medsync_cards'] = []
+    extra['medsync_health'] = None
+    try:
+        if access.is_owner(request.user):
+            data = health.current(max_age_minutes=180)           # a recent measurement; a new one only when it is old
+            extra['medsync_health'] = dict(score=data['score'], label=data['label'], tone=data['tone'],
+                                           sections=[dict(title=s['title'], score=s['score']) for s in data['sections']])
+    except Exception:                    # the admin must open even if the health check fails
+        extra['medsync_health'] = None
     return _original_index(request, extra)
 
 

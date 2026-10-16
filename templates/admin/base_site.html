@@ -46,6 +46,17 @@ input[type=time], select, textarea { border-radius:8px; }
 .dashboard #content-main .module table { width:100%; }
 .dashboard #content-related { float:none; width:auto; margin:22px 0 0; }
 .dashboard #content-related .module { max-width:560px; }
+.ms-health { display:flex; align-items:center; gap:16px; background:var(--body-bg); border:1px solid var(--hairline-color); border-radius:12px;
+  padding:12px 16px; margin:0 0 14px; color:var(--body-fg); text-decoration:none; box-shadow:0 1px 3px rgba(0,0,0,.06); flex-wrap:wrap; }
+.ms-health:hover { box-shadow:0 4px 12px rgba(0,0,0,.12); text-decoration:none; }
+.ms-ring { --c:#16a34a; width:64px; height:64px; border-radius:50%; display:grid; place-items:center; flex:none;
+  background:conic-gradient(var(--c) calc(var(--v) * 1%), var(--hairline-color) 0); position:relative; }
+.ms-ring::after { content:""; position:absolute; inset:7px; border-radius:50%; background:var(--body-bg); }
+.ms-ring b { position:relative; z-index:1; font-size:20px; }
+.ms-health.amber .ms-ring { --c:#f59e0b; } .ms-health.red .ms-ring { --c:#dc2626; }
+.ms-htxt small { display:block; color:var(--body-quiet-color); font-size:11px; text-transform:uppercase; letter-spacing:.4px; }
+.ms-htxt b { display:block; font-size:18px; } .ms-htxt span { font-size:12px; color:var(--body-quiet-color); }
+.ms-hgo { margin-left:auto; color:var(--link-fg); font-weight:600; }
 .ms-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin:0 0 22px; }
 .ms-card { display:block; background:var(--body-bg); border:1px solid var(--hairline-color); border-left:4px solid var(--accent);
   border-radius:12px; padding:12px 14px; color:var(--body-fg); text-decoration:none; box-shadow:0 1px 3px rgba(0,0,0,.06); }
