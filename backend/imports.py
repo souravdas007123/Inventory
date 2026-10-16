@@ -452,8 +452,8 @@ STOCK_COLS = [
     _col('rack', False, 'Rack', 'A1', 'A2'),
     _col('row', False, 'Row', '2', '1'),
     _col('location', False, 'Godown / location', '', ''),
-    _col('gst_rate', False, 'NEW product only: GST % (0, 5, 12 or 18). Required when the medicine is not in Products yet, unless you pick a default GST on the import page', '12', '12'),
-    _col('base_unit', False, 'NEW product only: smallest unit, e.g. Tablet. Required when the medicine is not in Products yet (blank = the unit column is used)', 'Tablet', 'Tablet'),
+    _col('gst_rate', False, 'NEW product only: GST % (0, 5, 12 or 18). Required when the medicine is not in Products yet', '12', '12'),
+    _col('base_unit', False, 'NEW product only: smallest unit, e.g. Tablet. Required when the medicine is not in Products yet', 'Tablet', 'Tablet'),
     _col('pack_unit', False, 'NEW product only: larger pack, e.g. Strip (fill together with pack_size)', 'Strip', 'Strip'),
     _col('pack_size', False, 'NEW product only: base units in 1 pack (e.g. 15 tablets in a Strip)', '15', '10'),
     _col('composition', False, 'NEW product only: salt / composition', 'Paracetamol 650mg', 'Azithromycin 500mg'),
@@ -478,7 +478,7 @@ STOCK_ALIASES = {'supplier_name': 'supplier', 'party': 'supplier', 'invoice': 'i
 BARCODE_LIKE = re.compile(r'\d{8,}')
 
 
-def _new_product_spec(raw, pname, known, barcodes, errors, default_gst='', default_unit=''):
+def _new_product_spec(raw, pname, known, barcodes, errors):
     """Details of a medicine that is not in Products yet, taken from the stock row (or from an earlier row of the same
     name). Returns a JSON-safe dict, or None after adding to `errors`."""
     if BARCODE_LIKE.fullmatch(pname):
@@ -501,12 +501,7 @@ def _new_product_spec(raw, pname, known, barcodes, errors, default_gst='', defau
         errors.append(f"schedule '{txt(raw.get('schedule'))}' is invalid (NONE, H, H1 or X)")
         schedule = None
     gst = to_dec(raw.get('gst_rate'), 'gst_rate', errors)
-    gst_note = ''
-    if gst is None and not txt(raw.get('gst_rate')) and default_gst in ('0', '5', '12', '18'):
-        gst, gst_note = Decimal(default_gst), f"GST {default_gst}% taken from the default chosen on the import page"
     base = _unit_name(raw.get('base_unit'))
-    if not base and default_unit:        # no base_unit column: the unit the qty is in becomes the product's unit
-        base = default_unit
     pack_unit = _unit_name(raw.get('pack_unit'))
     pack_size = to_int(raw.get('pack_size'), 'pack_size', errors, minimum=2)
     if gst is None:
@@ -514,7 +509,7 @@ def _new_product_spec(raw, pname, known, barcodes, errors, default_gst='', defau
     elif gst not in GST_ALLOWED:
         errors.append(f"gst_rate {gst} is not allowed; use only 0, 5, 12 or 18")
     if not base:
-        errors.append(f"product '{pname}' is not in Products. To create it, fill in base_unit (e.g. Tablet) or the unit column")
+        errors.append(f"product '{pname}' is not in Products. To create it, fill in base_unit (e.g. Tablet)")
     if pack_unit or pack_size is not None:
         if not pack_unit or pack_size is None:
             errors.append('fill in both pack_unit and pack_size')
@@ -525,8 +520,7 @@ def _new_product_spec(raw, pname, known, barcodes, errors, default_gst='', defau
     spec = dict(name=pname, gst_rate=str(gst), base_unit=base,
                 pack_unit=pack_unit if pack_size is not None else '', pack_size=pack_size or 0,
                 composition=txt(raw.get('composition')), hsn_code=txt(raw.get('hsn_code')),
-                category=txt(raw.get('category')), brand=txt(raw.get('brand')), barcode=barcode, schedule=schedule,
-                note=gst_note)
+                category=txt(raw.get('category')), brand=txt(raw.get('brand')), barcode=barcode, schedule=schedule)
     known[pname.lower()] = spec
     if barcode:
         barcodes[barcode] = pname.lower()
@@ -576,14 +570,11 @@ def validate_stock(rows, opts):
         elif not pname and prod:
             pname = prod.name or ''
         spec = None
-        unit_name = _unit_name(raw.get('unit'))
         if pname and not prod:
             if create_new:
-                spec = _new_product_spec(raw, pname, new_specs, new_codes, errors,
-                                         default_gst=str(opts.get('default_gst') or ''), default_unit=unit_name)
+                spec = _new_product_spec(raw, pname, new_specs, new_codes, errors)
                 if spec:
-                    warnings.append(f"new product '{spec['name']}' will be created (GST {spec['gst_rate']}%, unit {spec['base_unit']})"
-                                    + (f" \u2014 {spec['note']}" if spec.get('note') else ''))
+                    warnings.append(f"new product '{spec['name']}' will be created (GST {spec['gst_rate']}%, unit {spec['base_unit']})")
             else:
                 errors.append(f"product '{pname}' was not found (add it in Products, or tick \"Create new products\" and fill gst_rate and base_unit)")
 
@@ -602,6 +593,7 @@ def validate_stock(rows, opts):
         if inv_date > today:
             errors.append('invoice_date cannot be in the future')
 
+        unit_name = _unit_name(raw.get('unit'))
         unit = None
         row_unit = ''                 # name of the qty unit when it is a pack of a product that is about to be created
         if spec:
