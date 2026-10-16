@@ -1,0 +1,5 @@
+{% extends "admin/index.html" %}
+{% block content %}
+{% if medsync_cards %}<div class="ms-cards">{% for c in medsync_cards %}<a class="ms-card {{ c.tone }}" href="{{ c.url }}"><small>{{ c.label }}</small><b>{{ c.value }}</b><span>{{ c.hint }}</span></a>{% endfor %}</div>{% endif %}
+{{ block.super }}
+{% endblock %}

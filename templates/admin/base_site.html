@@ -1,0 +1,51 @@
+{% extends "admin/base.html" %}
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | MedSync Admin{% endblock %}
+{% block extrastyle %}{{ block.super }}
+<style>
+:root, html[data-theme="light"] {
+  --primary:#0f766e; --secondary:#115e59; --accent:#14b8a6; --primary-fg:#fff;
+  --header-bg:#0f766e; --header-color:#fff; --header-branding-color:#fff; --header-link-color:#fff;
+  --breadcrumbs-bg:#e6f4f2; --breadcrumbs-fg:#115e59; --breadcrumbs-link-fg:#0f766e;
+  --link-fg:#0f766e; --link-hover-color:#115e59; --link-selected-fg:#115e59;
+  --button-bg:#0f766e; --button-hover-bg:#115e59; --default-button-bg:#115e59; --default-button-hover-bg:#0f766e;
+  --object-tools-bg:#64748b; --object-tools-hover-bg:#475569;
+  --body-bg:#f4f7f7; --darkened-bg:#eef3f3; --selected-bg:#e6f4f2; --hairline-color:#e2e8e8; --border-color:#d5dede;
+}
+html[data-theme="dark"] {
+  --primary:#134e4a; --secondary:#0f766e; --accent:#2dd4bf; --header-bg:#134e4a;
+  --breadcrumbs-bg:#16302f; --breadcrumbs-fg:#99f6e4; --breadcrumbs-link-fg:#5eead4;
+  --link-fg:#5eead4; --link-hover-color:#99f6e4; --button-bg:#0f766e; --button-hover-bg:#14b8a6;
+  --body-bg:#0f1b1b; --darkened-bg:#162424; --selected-bg:#1d3534; --hairline-color:#243838; --border-color:#2c4343;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary:#134e4a; --secondary:#0f766e; --accent:#2dd4bf; --header-bg:#134e4a;
+    --breadcrumbs-bg:#16302f; --breadcrumbs-fg:#99f6e4; --breadcrumbs-link-fg:#5eead4;
+    --link-fg:#5eead4; --link-hover-color:#99f6e4; --button-bg:#0f766e; --button-hover-bg:#14b8a6;
+    --body-bg:#0f1b1b; --darkened-bg:#162424; --selected-bg:#1d3534; --hairline-color:#243838; --border-color:#2c4343;
+  }
+}
+#header { flex-wrap:wrap; padding:10px 24px; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+#site-name a { display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:.2px; }
+#header .ms-back { color:#fff; font-size:13px; margin-left:18px; background:rgba(255,255,255,.16); padding:6px 12px; border-radius:999px; margin-right:12px; }
+#header .ms-back:hover { background:rgba(255,255,255,.3); text-decoration:none; }
+.module, #changelist .paginator, #changelist-filter, .results { border-radius:12px; }
+.module { border:1px solid var(--hairline-color); overflow:hidden; background:var(--body-bg); }
+.module h2, .module caption, .inline-group h2 { background:var(--primary); font-weight:600; letter-spacing:.2px; }
+.button, input[type=submit], input[type=button], .submit-row input, a.button { border-radius:8px; }
+.object-tools a { border-radius:999px; }
+input[type=text], input[type=number], input[type=email], input[type=password], input[type=url], input[type=date],
+input[type=time], select, textarea { border-radius:8px; }
+#changelist table { border-radius:12px; overflow:hidden; }
+#changelist table thead th { background:var(--darkened-bg); text-transform:uppercase; font-size:11px; letter-spacing:.4px; }
+#result_list tbody tr:hover td, #result_list tbody tr:hover th { background:var(--selected-bg); }
+.ms-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin:0 0 22px; }
+.ms-card { display:block; background:var(--body-bg); border:1px solid var(--hairline-color); border-left:4px solid var(--accent);
+  border-radius:12px; padding:12px 14px; color:var(--body-fg); text-decoration:none; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+.ms-card:hover { box-shadow:0 4px 12px rgba(0,0,0,.12); text-decoration:none; }
+.ms-card small { display:block; color:var(--body-quiet-color); font-size:11px; text-transform:uppercase; letter-spacing:.4px; }
+.ms-card b { display:block; font-size:22px; margin:4px 0 2px; }
+.ms-card span { font-size:12px; color:var(--body-quiet-color); }
+.ms-card.warn { border-left-color:#f59e0b; } .ms-card.bad { border-left-color:#dc2626; } .ms-card.ok { border-left-color:#16a34a; }
+</style>{% endblock %}
+{% block branding %}<h1 id="site-name"><a href="{% url 'admin:index' %}">{% include "app/logo.html" with size=30 %}MedSync Admin</a></h1><a class="ms-back" href="{% url 'dashboard' %}">← Back to MedSync</a>{% endblock %}
