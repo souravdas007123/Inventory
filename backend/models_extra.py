@@ -96,8 +96,8 @@ class Customer(models.Model):
         return self.name + (f" ({self.phone})" if self.phone else "")
 
     class Meta:
-        verbose_name = "Customer"
-        verbose_name_plural = "Customers"
+        verbose_name = '17. Customer'
+        verbose_name_plural = '17. Customers'
 
 
 class CustomerPayment(models.Model):
@@ -126,8 +126,8 @@ class CustomerPayment(models.Model):
         return f"Receipt #{self.pk} - {self.customer} ₹{self.amount}"
 
     class Meta:
-        verbose_name = "Customer Payment"
-        verbose_name_plural = "Customer Payments"
+        verbose_name = '18. Customer Payment'
+        verbose_name_plural = '18. Customer Payments'
 
 
 # ======================================================
@@ -183,8 +183,8 @@ class SalesReturn(models.Model):
         return self.note_number or f"Return #{self.pk}"
 
     class Meta:
-        verbose_name = "Sales Return (Credit Note)"
-        verbose_name_plural = "Sales Returns (Credit Notes)"
+        verbose_name = '19. Sales Return (Credit Note)'
+        verbose_name_plural = '19. Sales Returns (Credit Notes)'
 
 
 class SalesReturnItem(models.Model):
@@ -359,8 +359,8 @@ class PurchaseReturn(models.Model):
         return self.note_number or f"Purchase Return #{self.pk}"
 
     class Meta:
-        verbose_name = "Purchase Return (Debit Note)"
-        verbose_name_plural = "Purchase Returns (Debit Notes)"
+        verbose_name = '20. Purchase Return (Debit Note)'
+        verbose_name_plural = '20. Purchase Returns (Debit Notes)'
 
 
 class PurchaseReturnItem(models.Model):
@@ -500,8 +500,8 @@ class StockWriteOff(models.Model):
         return f"{self.batch} x {self.qty} ({self.get_reason_display()})"
 
     class Meta:
-        verbose_name = "Stock Write-off"
-        verbose_name_plural = "Stock Write-offs"
+        verbose_name = '21. Stock Write-off'
+        verbose_name_plural = '21. Stock Write-offs'
 
 
 # ======================================================
@@ -571,8 +571,8 @@ class StockAudit(models.Model):
         return f"Stock Audit #{self.pk} ({self.date})"
 
     class Meta:
-        verbose_name = "Stock Audit"
-        verbose_name_plural = "Stock Audits"
+        verbose_name = '22. Stock Audit'
+        verbose_name_plural = '22. Stock Audits'
 
 
 class StockAuditItem(models.Model):
@@ -647,8 +647,8 @@ class Employee(models.Model):
         return f"{self.code} - {self.name}"
 
     class Meta:
-        verbose_name = "Employee"
-        verbose_name_plural = "Employees"
+        verbose_name = '23. Employee'
+        verbose_name_plural = '23. Employees'
 
 
 class RecurringExpense(models.Model):
@@ -674,8 +674,8 @@ class RecurringExpense(models.Model):
         return self.title
 
     class Meta:
-        verbose_name = "Fixed Expense"
-        verbose_name_plural = "Fixed Expenses"
+        verbose_name = '24. Fixed Expense'
+        verbose_name_plural = '24. Fixed Expenses'
 
 
 # ======================================================
@@ -693,8 +693,8 @@ class ImportLayout(models.Model):
 
     class Meta:
         unique_together = ('kind', 'signature')
-        verbose_name = 'Import file layout'
-        verbose_name_plural = 'Import file layouts'
+        verbose_name = '26. Import file layout'
+        verbose_name_plural = '26. Import file layouts'
 
     def __str__(self):
         return f"{self.kind}: {self.headers[:60]}"

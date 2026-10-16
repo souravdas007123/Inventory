@@ -190,3 +190,7 @@ Like the Billing list, each purchase invoice has a **👁 Preview** button that 
 - **Pages:** every list / form / report page opens, exports work, the Billing and Purchases preview data, access rules (login, owner only), login lock after 5 wrong passwords, backup path safety.
 
 Run it after every update: `cd ~/Inventory; workon inv; python manage.py test`. A line `OK` at the end means all is well; if something fails, send the failure text.
+
+## Admin panel serial numbers
+
+All admin panel sections now carry a serial number (01-26; 12 is not used), so they stay in a fixed order: 17 Customers, 18 Customer Payments, 19 Sales Returns, 20 Purchase Returns, 21 Stock Write-offs, 22 Stock Audits, 23 Employees, 24 Fixed Expenses, 25 Shop Profile, 26 Import file layouts (01-16 as before). Migration `0012` only changes the names; run `python manage.py migrate` as usual.

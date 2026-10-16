@@ -710,8 +710,8 @@ class ShopProfile(models.Model):
         return self.name
 
     class Meta:
-        verbose_name = "Shop Profile"
-        verbose_name_plural = "Shop Profile"
+        verbose_name = '25. Shop Profile'
+        verbose_name_plural = '25. Shop Profile'
 
 
 class InvoiceCounter(models.Model):
