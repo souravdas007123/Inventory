@@ -84,7 +84,7 @@ class HoldBillTests(StockMixin, TestCase):
         self.buy(qty=5)
 
     def fields(self, **extra):
-        data = {'customer_name': 'Ramesh', 'date': today().isoformat(), 'invoice_mode': 'offline', 'payment_mode': 'CASH',
+        data = {'customer_name': 'Ramesh', 'date': today().isoformat(), 'invoice_mode': 'offline', 'payment_mode': 'CASH', 'amount_paid': '0',
                 'items-TOTAL_FORMS': '2', 'items-INITIAL_FORMS': '0', 'items-MIN_NUM_FORMS': '0', 'items-MAX_NUM_FORMS': '1000',
                 'items-0-product': str(self.product.pk), 'items-0-qty': '3', 'items-0-rate': '10.00',
                 'items-1-product': '', 'items-1-qty': '', 'csrfmiddlewaretoken': 'x'}
