@@ -151,7 +151,7 @@ class _All:
         return self._items
 
 
-def stub_product(batches, convs=((' Strip'.strip(), 15),), stock=33, reorder=5):
+def stub_product(batches, convs=(('Strip', 15),), stock=33, reorder=5):
     return NS(name='Dolo 650', composition='Paracetamol', schedule='NONE', is_active=True, stock_qty=stock, reorder_level=reorder,
               unit_id=1, unit=NS(name='Tablet'), unit_conversions=_All([NS(unit=NS(name=n), factor=f) for n, f in convs]),
               batches=_All(batches), brand='Micro', category=None, hsn_code='3004', gst_rate=Decimal('12.00'), mrp=Decimal('2.5'),
