@@ -186,3 +186,13 @@ For a medicine that is not in Products yet, `gst_rate` and `base_unit` no longer
 - On the import page choose **"GST for new products when the file has no gst_rate"** (0 / 5 / 12 / 18). It is used only for new medicines whose row has no `gst_rate`; the preview shows "GST x% taken from the default" on each such row. Leave it on "Take from the file" to keep gst_rate required.
 - If `base_unit` is blank, the **unit** column of the row (e.g. Strip) becomes the product's unit.
 A wrong value (for example `gst_rate` = 7 or a non-number) is still an error. No migration.
+
+## Purchase import: supplier files with their own columns
+
+Real supplier files (for example headers `Products`, `Total amount`, `MFG`, `Pack`) now import with far fewer manual steps:
+- **More column names are recognised automatically**: Products / Item name / Particulars -> product, Total amount / Net amount / Line total -> purchase_price, Manufacturer / Mfr -> brand, and so on. Anything else can still be matched on the "Match columns" screen (and is remembered).
+- **MFG with a company name** (no digits, e.g. LUPI, SUN) is not read as a date: it is used as the brand of a new medicine. A real wrong date (for example `13/25x`) is still an error.
+- **Pack notes** such as `10'S`, `15T`, `100ML` (they contain digits and there is no pack_size) are ignored instead of causing an error. The pack size is deliberately NOT guessed from them, because the stock would be wrong if the guess is wrong; the qty is counted in the unit of the product.
+- **Unit for new products** (import page): the unit in which the qty of the file is counted, e.g. Strip. Used for new medicines whose row has no `unit` / `base_unit`.
+- **Price column with or without GST** (import page): choose "Without GST" when the supplier's total excludes GST; the medicine's GST is added and the preview shows the new total of each row (`total 257.95 is without GST: 5% GST added = 270.85`). Default is "With GST", as before.
+No migration.

@@ -15,7 +15,7 @@ import secrets
 import tempfile
 import time
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 from django.core.validators import validate_email
@@ -472,7 +472,13 @@ STOCK_ALIASES = {'supplier_name': 'supplier', 'party': 'supplier', 'invoice': 'i
                  'batch_no': 'batch', 'batch_number': 'batch', 'mrp': 'selling_price', 'selling': 'selling_price',
                  'sale_price': 'selling_price', 'selling_rate': 'selling_price',
                  'gst': 'gst_rate', 'hsn': 'hsn_code', 'salt': 'composition', 'pack': 'pack_unit',
-                 'strip_size': 'pack_size', 'pack_factor': 'pack_size', 'smallest_unit': 'base_unit'}
+                 'strip_size': 'pack_size', 'pack_factor': 'pack_size', 'smallest_unit': 'base_unit',
+                 'products': 'product', 'item_name': 'product', 'items': 'product',
+                 'medicine_name': 'product', 'particulars': 'product', 'description': 'product',
+                 'total_amount': 'purchase_price', 'total_amont': 'purchase_price', 'net_amount': 'purchase_price',
+                 'line_total': 'purchase_price', 'total': 'purchase_price', 'bill_amount': 'purchase_price',
+                 'expiry_dt': 'exp_date', 'exp_dt': 'exp_date',
+                 'manufacturer': 'brand', 'mfr': 'brand', 'hsn_sac': 'hsn_code', 'hsn_no': 'hsn_code'}
 
 
 BARCODE_LIKE = re.compile(r'\d{8,}')
@@ -533,6 +539,24 @@ def _new_product_spec(raw, pname, known, barcodes, errors, default_gst='', defau
     return spec
 
 
+def _tidy_stock_row(raw):
+    """Supplier files often put other things in the mfg / pack columns. Returns (row, notes):
+    - mfg_date that is plain text (no digits, e.g. a company like LUPI) is the manufacturer -> used as the brand;
+    - pack_unit that has digits (10'S, 100ML, 15T) is a pack size note, not a unit -> ignored (unless pack_size is given)."""
+    raw, notes = dict(raw), []
+    mfg = txt(raw.get('mfg_date'))
+    if mfg and re.search(r'[A-Za-z]', mfg) and not re.search(r'\d', mfg):
+        raw['mfg_date'] = ''
+        if not txt(raw.get('brand')):
+            raw['brand'] = mfg
+            notes.append(f"'{mfg}' in the MFG column is not a date; used as the brand")
+    pk = txt(raw.get('pack_unit'))
+    if pk and re.search(r'\d', pk) and not txt(raw.get('pack_size')):
+        raw['pack_unit'] = ''
+        notes.append(f"pack '{pk}' is a size note, not a unit; ignored (qty is counted in the product's unit)")
+    return raw, notes
+
+
 def validate_stock(rows, opts):
     create_new = bool(opts.get('create_products'))
     new_specs, new_codes = {}, {}
@@ -560,6 +584,7 @@ def validate_stock(rows, opts):
         if not invoice:
             errors.append('invoice_number is required')
 
+        raw, row_notes = _tidy_stock_row(raw)
         pname = txt(raw.get('product'))
         bcode = txt(raw.get('barcode'))
         by_name = (products_by_code.get(pname) or products_by_name.get(pname.lower())) if pname else None
@@ -580,15 +605,25 @@ def validate_stock(rows, opts):
         if pname and not prod:
             if create_new:
                 spec = _new_product_spec(raw, pname, new_specs, new_codes, errors,
-                                         default_gst=str(opts.get('default_gst') or ''), default_unit=unit_name)
+                                         default_gst=str(opts.get('default_gst') or ''),
+                                         default_unit=unit_name or _unit_name(opts.get('default_unit')))
                 if spec:
                     warnings.append(f"new product '{spec['name']}' will be created (GST {spec['gst_rate']}%, unit {spec['base_unit']})"
                                     + (f" \u2014 {spec['note']}" if spec.get('note') else ''))
+                    warnings.extend(row_notes)
             else:
                 errors.append(f"product '{pname}' was not found (add it in Products, or tick \"Create new products\" and fill gst_rate and base_unit)")
 
         qty = to_int(raw.get('qty'), 'qty', errors, required=True, minimum=1)
         price = to_dec(raw.get('purchase_price'), 'purchase_price', errors, required=True, minimum=Decimal('0'))
+        if price is not None and opts.get('price_mode') == 'excl':      # the file's total is WITHOUT GST: add the product's GST
+            g = Decimal(spec['gst_rate']) if spec else (Decimal(prod.gst_rate) if prod and prod.gst_rate is not None else None)
+            if g is None:
+                errors.append('the GST rate of this product is not known, so the total cannot be converted (total without GST)')
+            else:
+                with_gst = (price * (100 + g) / 100).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                warnings.append(f"total {price} is without GST: {g.normalize():f}% GST added = {with_gst}")
+                price = with_gst
         selling = to_dec(raw.get('selling_price'), 'selling_price', errors, minimum=Decimal('0'))
         if selling is not None and selling <= 0:
             errors.append('selling_price must be greater than 0 (leave it blank to keep the current MRP)')

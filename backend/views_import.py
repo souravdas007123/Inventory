@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from . import access, auditlog, imports
 from .imports import IMPORTERS
-from .models import ImportLayout
+from .models import ImportLayout, Unit
 from .tabular import ImportFileError, read_table, txt
 from .views import page
 
@@ -124,7 +124,8 @@ def import_view(request, kind):
                                       request.GET.get('export'), required)
 
     # NB: callables (export/validate...) are auto-called in templates, so only use plain values from imp
-    ctx = dict(active='import', kind=kind, imp=imp, cols=imp['cols'], stage='upload', can_export=bool(imp['export']))
+    ctx = dict(active='import', kind=kind, imp=imp, cols=imp['cols'], stage='upload', can_export=bool(imp['export']),
+               unit_names=list(Unit.objects.order_by('name').values_list('name', flat=True)[:200]) if imp.get('can_create_products') else [])
 
     if request.method == 'POST':
         if request.POST.get('action') == 'commit':
@@ -151,7 +152,9 @@ def import_view(request, kind):
                     headers, rows = read_table(upload, max_rows=imp['max_rows'])
                     opts = {'update': bool(request.POST.get('update')),
                             'create_products': bool(request.POST.get('create_products')),
-                            'default_gst': request.POST.get('default_gst', '').strip()}
+                            'default_gst': request.POST.get('default_gst', '').strip(),
+                            'default_unit': request.POST.get('default_unit', '').strip()[:100],
+                            'price_mode': 'excl' if request.POST.get('price_mode') == 'excl' else 'incl'}
                     payload = dict(kind=kind, user=request.user.pk, stage='raw', headers=headers, rows=rows,
                                    filename=upload.name, opts=opts)
                     token = imports.stash(payload)
