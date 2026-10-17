@@ -453,7 +453,7 @@ class PurchaseReturnItem(models.Model):
 class StockWriteOff(models.Model):
     REASONS = (
         ('EXPIRED', 'Expired'),
-        ('DAMAGED', 'Damaged / toota-phoota'),
+        ('DAMAGED', 'Damaged / broken'),
         ('OTHER', 'Other'),
     )
     batch = models.ForeignKey(Batch, on_delete=models.PROTECT, related_name='writeoffs')

@@ -238,3 +238,7 @@ Public articles for SEO, written in the admin under **Website → Blog Articles*
 * The home page links to the blog and shows the latest 3 articles.
 * **Pictures:** every article can show a ready-made illustration (pick one under *Cover*: Expiry, GST, Drug register, FEFO, Supplier prices, Excel import; drawn in code, so nothing to upload or host) or your own picture: put its address (`https://...` or `/...`) in *Image url* and a short description in *Image alt*. Your picture replaces the illustration and is also used when the article is shared. Inside the text, a line like `![Billing screen](https://...)` adds a picture. Only `https://` and site-relative addresses are accepted. Migration `0017` adds the fields and gives the first 6 articles their illustrations.
 * Migration `0015` creates the table; `0016` adds 6 first articles once (an article that already exists is never overwritten, so your edits are safe). Files: `backend/blog.py`, `backend/blog_seed.py`, `templates/app/blog_*.html`, tests in `backend/tests/test_blog.py`.
+
+## Dashboard: expenses and net profit
+
+Owner only (in the **Money** section, with a breakdown below it): expenses today and this month, **net profit this month** and expenses by type. Net profit = gross profit - expenses - stock write-offs, worked out exactly as on the Profit & Loss page (a test checks that both pages agree). If this part ever fails, the rest of the dashboard still opens. Migration `0018` only changes the wording of one write-off reason ("Damaged / broken"); the database is not touched.

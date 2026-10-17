@@ -340,6 +340,28 @@ def _pct(value, peak):
     return int(round(float(value / peak) * 100)) if peak and peak > 0 and value > 0 else 0
 
 
+def expense_overview(today, gross_month):
+    """Expenses today / this month, expenses by type, write-offs and the net profit of this month.
+
+    Net profit = gross profit - expenses - write-offs, exactly as on the Profit & Loss page."""
+    from .models import Expense, StockWriteOff
+    month_exp = Expense.objects.filter(date__month=today.month, date__year=today.year)
+    expenses_month = dec(month_exp.aggregate(s=Sum('amount'))['s'])
+    writeoffs_month = dec(StockWriteOff.objects.filter(date__month=today.month, date__year=today.year)
+                          .aggregate(s=Sum('cost'))['s'])
+    labels = dict(Expense.EXPENSES_TYPES)
+    by_type = list(month_exp.values('name').annotate(s=Sum('amount')).order_by('-s'))
+    peak = max([dec(r['s']) for r in by_type] + [ZERO])
+    return dict(
+        exp=True,
+        expenses_today=dec(Expense.objects.filter(date=today).aggregate(s=Sum('amount'))['s']),
+        expenses_month=expenses_month,
+        writeoffs_month=writeoffs_month,
+        net_month=gross_month - expenses_month - writeoffs_month,
+        expense_rows=[dict(label=labels.get(r['name'], r['name']), amount=dec(r['s']), pct=_pct(dec(r['s']), peak)) for r in by_type],
+    )
+
+
 def dashboard_overview(today=None, include_money=False):
     """
     Extra dashboard numbers. With include_money=False (non-staff), profit / stock value are not computed.
@@ -480,6 +502,10 @@ def dashboard_overview(today=None, include_money=False):
         out['stock_value'] = sum((dec(rate) * qty for qty, rate in
                                   Batch.objects.filter(qty__gt=0, purchase_item__isnull=False)
                                   .values_list('qty', 'purchase_item__rate')), ZERO)
+        try:                  # expenses and net profit; the same figures as the Profit & Loss page, and never able to break the dashboard
+            out.update(expense_overview(today, out['profit_month']))
+        except Exception:
+            out['exp'] = False
 
     # ---- Supplier price jumps: latest price 10%+ above that supplier's previous price (last 60 days) ----
     recent = (PurchaseItem.objects.filter(purchase__invoice_date__gte=today - timedelta(days=60))

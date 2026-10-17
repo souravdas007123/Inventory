@@ -58,8 +58,32 @@
   <a class="card stat {% if ov.profit_today >= 0 %}ok{% else %}warn{% endif %}" href="/report/"><small>Gross profit today</small><b>₹{{ ov.profit_today|floatformat:2 }}</b><span class="sub">before expenses</span></a>
   <a class="card stat {% if ov.profit_month >= 0 %}ok{% else %}warn{% endif %}" href="/report/"><small>Gross profit this month</small><b>₹{{ ov.profit_month|floatformat:2 }}</b><span class="sub">View P&amp;L →</span></a>
   <div class="card stat"><small>Stock value (at purchase price)</small><b>₹{{ ov.stock_value|floatformat:2 }}</b></div>
+  {% if ov.exp %}
+  <a class="card stat" href="/expenses/"><small>Expenses (today / this month)</small><b>₹{{ ov.expenses_today|floatformat:2 }} / ₹{{ ov.expenses_month|floatformat:2 }}</b><span class="sub">View expenses →</span></a>
+  <a class="card stat {% if ov.net_month >= 0 %}ok{% else %}warn{% endif %}" href="/report/"><small>Net profit this month</small><b>₹{{ ov.net_month|floatformat:2 }}</b><span class="sub">after expenses and write-offs</span></a>
+  {% endif %}
   {% endif %}
 </div>
+
+{% if ov.exp %}
+<div class="two" style="margin-bottom:14px">
+  <div class="card"><h3 style="margin-top:0">Expenses this month</h3>
+    {% for r in ov.expense_rows %}<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;gap:8px"><span>{{ r.label }}</span><b>₹{{ r.amount|floatformat:2 }}</b></div>
+      <div class="hbar"><span style="width:{{ r.pct }}%"></span></div></div>
+    {% empty %}<div class="empty">No expenses recorded this month.</div>{% endfor %}
+  </div>
+  <div class="card"><h3 style="margin-top:0">Profit this month</h3>
+    <div class="donut-list">
+      <div><span>Gross profit</span><b>₹{{ ov.profit_month|floatformat:2 }}</b></div>
+      <div><span>− Expenses</span><b>₹{{ ov.expenses_month|floatformat:2 }}</b></div>
+      <div><span>− Stock written off</span><b>₹{{ ov.writeoffs_month|floatformat:2 }}</b></div>
+      <div style="border-top:1px solid var(--line);padding-top:8px;margin-top:4px"><span><b>Net profit</b></span><b>₹{{ ov.net_month|floatformat:2 }}</b></div>
+    </div>
+    <small style="color:var(--mute)">The same figures as the <a href="/report/">Profit &amp; Loss</a> page.</small>
+  </div>
+</div>
+{% endif %}
 
 <div class="sec">📦 Stock alerts</div>
 <div class="stats">
@@ -112,7 +136,7 @@
   <div class="card"><h3 style="margin-top:0">🏆 Top selling medicines (30 days)</h3>
     {% for t in charts.top_rows %}<div style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;gap:8px"><span>{{ t.name }}</span><b>₹{{ t.amount|floatformat:2 }}</b></div>
-      <div class="hbar"><span style="width:{{ t.pct }}%"></span></div><small style="color:var(--mute)">{{ t.qty }} (base unit) bika</small></div>
+      <div class="hbar"><span style="width:{{ t.pct }}%"></span></div><small style="color:var(--mute)">{{ t.qty }} sold (base unit)</small></div>
     {% empty %}<div class="empty">No sales data yet.</div>{% endfor %}
   </div>
   <div class="card"><h3 style="margin-top:0">🧊 Dead stock (no sales in 90 days)</h3>
