@@ -603,6 +603,8 @@ def report(request):
         month, year = today.month, today.year
     if not 1 <= month <= 12:
         month = today.month
+    if not 2000 <= year <= today.year + 1:          # a typed-in year such as 0 or 99999 must not crash the page
+        year = today.year
 
     pl = profit_and_loss(month, year)
     return page(
@@ -770,7 +772,7 @@ def edit(request, key, pk=None):
     # Clicking "Receive" on a Purchase Order opens the invoice pre-filled
     po, po_items = None, []
     po_id = request.GET.get('from_po', '')
-    if key == 'purchases' and not obj and po_id.isdigit():
+    if key == 'purchases' and not obj and po_id.isdecimal():
         po = PurchaseOrder.objects.filter(pk=po_id).select_related('supplier').first()
         if po:
             po_items = list(po.items.select_related('product'))
@@ -781,12 +783,12 @@ def edit(request, key, pk=None):
 
     post = request.POST if request.method == 'POST' else None
     initial = cfg['initial']() if cfg.get('initial') and not obj else None
-    if key == 'expenses' and not obj and request.GET.get('employee', '').isdigit():   # "Add salary" on the Employees list
+    if key == 'expenses' and not obj and request.GET.get('employee', '').isdecimal():   # "Add salary" on the Employees list
         emp = Employee.objects.filter(pk=int(request.GET['employee']), is_active=True).first()
         if emp:
             initial = {**(initial or {}), 'name': 'SALARY', 'employee': emp.pk, 'amount': emp.monthly_salary,
                        'note': f"Salary {timezone.localdate():%b %Y}"}
-    if key == 'customer_payments' and not obj and request.GET.get('customer', '').isdigit():
+    if key == 'customer_payments' and not obj and request.GET.get('customer', '').isdecimal():
         initial = {**(initial or {}), 'customer': int(request.GET['customer'])}   # Customers list se "+ Receipt"
     if po:
         initial = {'supplier': po.supplier_id}
@@ -821,7 +823,7 @@ def edit(request, key, pk=None):
             f"{o.order_id} · {o.customers_name or '-'} · {o.customer_product or '-'} x {o.customer_qty or 0}")
 
     held_id = (request.POST.get('held_id', '') if post else request.GET.get('resume', '')).strip()
-    held_id = int(held_id) if held_id.isdigit() else None
+    held_id = int(held_id) if held_id.isdecimal() else None
     warnings = []
     if post and form.is_valid() and (fs is None or fs.is_valid()):
         problems = bill_form_errors(form, fs) if key == 'bills' else []

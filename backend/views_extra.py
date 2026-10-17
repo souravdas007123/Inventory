@@ -49,6 +49,8 @@ def _month_year(request):
         month, year = today.month, today.year
     if not 1 <= month <= 12:
         month = today.month
+    if not 2000 <= year <= today.year + 1:          # a typed-in year such as 0 or 99999 must not crash the page
+        year = today.year
     return today, month, year
 
 
@@ -354,7 +356,7 @@ def customer_lookup(request):
     """Billing helper: find a customer by phone number (last 10 digits) or id; returns name and credit due."""
     pid = request.GET.get('id', '').strip()
     customer = None
-    if pid.isdigit():
+    if pid.isdecimal():
         customer = Customer.objects.filter(pk=int(pid), is_active=True).first()
     else:
         digits = re.sub(r'\D', '', request.GET.get('phone', ''))
@@ -481,15 +483,15 @@ def product_quick_add(request):
         return fail('Please choose the GST rate.')
     if gst not in GST_ALLOWED:
         return fail('GST rate must be 0, 5, 12 or 18.')
-    unit = Unit.objects.filter(pk=post.get('unit', '')).first() if post.get('unit', '').isdigit() else None
+    unit = Unit.objects.filter(pk=post.get('unit', '')).first() if post.get('unit', '').isdecimal() else None
     if not unit:
         return fail('Please choose the base unit (the smallest unit, e.g. Tablet).')
 
     pack_unit, pack_factor = None, None
     raw_pu, raw_pf = post.get('pack_unit', ''), post.get('pack_factor', '').strip()
     if raw_pu or raw_pf:
-        pack_unit = Unit.objects.filter(pk=raw_pu).first() if raw_pu.isdigit() else None
-        if not pack_unit or not raw_pf.isdigit() or int(raw_pf) < 2:
+        pack_unit = Unit.objects.filter(pk=raw_pu).first() if raw_pu.isdecimal() else None
+        if not pack_unit or not raw_pf.isdecimal() or int(raw_pf) < 2:
             return fail('For a pack, choose the pack unit and enter how many base units it holds (2 or more).')
         if pack_unit.pk == unit.pk:
             return fail('The pack unit must be different from the base unit.')
@@ -565,7 +567,7 @@ def product_lookup(request):
     q = request.GET.get('q', '').strip()
     pid = request.GET.get('id', '').strip()
     base = Product.objects.exclude(is_active=False)
-    if pid.isdigit():
+    if pid.isdecimal():
         qs = base.filter(pk=int(pid))                      # exact product (used when a product is picked from the list)
     elif q:
         qs = base.filter(Q(barcode=q) | Q(sku__iexact=q) | Q(name__icontains=q) | Q(composition__icontains=q))
@@ -573,12 +575,12 @@ def product_lookup(request):
         return JsonResponse({'results': [], 'exact': False})
     qs = qs.select_related('unit').prefetch_related('unit_conversions__unit', 'batches').order_by('name')[:8]
     products = list(qs)
-    batch_info = _batch_info([p.pk for p in products]) if pid.isdigit() else {}     # only when one product is picked
+    batch_info = _batch_info([p.pk for p in products]) if pid.isdecimal() else {}     # only when one product is picked
     results = [dict(id=p.pk, name=p.name or str(p), composition=p.composition or '', barcode=p.barcode or '',
                     mrp=str(p.mrp) if p.mrp is not None else '', rate1=_bill_rate(p), factors=_unit_factors(p),
                     stock=p.stock_display(), stock_qty=p.stock_qty, available_qty=p.available_qty(), schedule=p.schedule,
                     unit_name=p.unit.name if p.unit_id else '', **batch_info.get(p.pk, {})) for p in products]
-    if pid.isdigit() and results:       # a picked product: the same-salt medicines that can be sold instead (shown when it is out / short)
+    if pid.isdecimal() and results:       # a picked product: the same-salt medicines that can be sold instead (shown when it is out / short)
         results[0]['alts'] = [dict(id=a.pk, name=a.name or str(a), stock=a.stock_display(a.available_qty()), available_qty=a.available_qty(),
                                    mrp=str(a.mrp) if a.mrp is not None else '', unit_name=a.unit.name if a.unit_id else '',
                                    schedule=a.schedule) for a in products[0].get_alternatives(limit=5)]
@@ -645,7 +647,7 @@ def reorder_view(request):
             raise PermissionDenied
         picked = {}
         for raw in request.POST.getlist('pick'):
-            if raw.isdigit():
+            if raw.isdecimal():
                 try:
                     qty = int(request.POST.get(f'qty_{raw}', '0') or 0)
                 except ValueError:
@@ -733,7 +735,7 @@ def refill_view(request):
                  and products[i['product_id']].is_active is not False]
         if not cust or not items:
             continue
-        digits = ''.join(ch for ch in (cust.phone or '') if ch.isdigit())
+        digits = ''.join(ch for ch in (cust.phone or '') if ch.isdecimal())
         link = notify.refill_reminder_link(shop.name, cust.name, cust.phone, [i['name'] for i in items]) if len(digits) >= 10 else ''
         late = c['late']
         out.append(dict(customer=cust, items=items, link=link, late=late,
@@ -766,7 +768,7 @@ def _expiry_rows(batches):
 
 def _expiry_make_returns(request, today):
     """Books a purchase return (debit note) per original invoice for the ticked batches, all or nothing."""
-    ids = [int(x) for x in request.POST.getlist('batch') if x.isdigit()]
+    ids = [int(x) for x in request.POST.getlist('batch') if x.isdecimal()]
     if not ids:
         messages.error(request, 'Tick at least one batch to return.')
         return redirect('expiry')

@@ -378,6 +378,8 @@ class FinancialReportAdmin(admin.ModelAdmin):
             month, year = today.month, today.year
         if not 1 <= month <= 12:
             month = today.month
+        if not 2000 <= year <= today.year + 1:      # a typed-in year such as 0 or 99999 must not crash the page
+            year = today.year
 
         pl = profit_and_loss(month, year)
 

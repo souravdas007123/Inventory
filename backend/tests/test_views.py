@@ -200,3 +200,20 @@ class AccessTests(StockMixin, TestCase):
         cache.clear()
         resp = self.client.post('/login/', {'username': 'shop', 'password': 'right-pass-1'})
         self.assertEqual(resp.status_code, 302)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False, SESSION_COOKIE_SECURE=False, CSRF_COOKIE_SECURE=False)
+class OddUrlValueTests(TestCase):
+    """Typed-in or broken values in the address must give a normal page, never a 500."""
+
+    def setUp(self):
+        self.client.force_login(get_user_model().objects.create_superuser('boss', 'b@example.com', 'pw-12345-xyz'))
+
+    def test_absurd_year_or_month_values_do_not_crash(self):
+        for path in ('/report/', '/gst/', '/drug_register/', '/salary/'):
+            for qs in ('?year=0', '?year=99999', '?year=abc', '?month=13&year=1', '?month=0', '?year=-5'):
+                self.assertEqual(self.client.get(path + qs).status_code, 200, path + qs)
+
+    def test_odd_digit_characters_in_ids_do_not_crash(self):
+        self.assertEqual(self.client.get('/expenses/new/?employee=%C2%B2').status_code, 200)
+        self.assertEqual(self.client.get('/customer_payments/new/?customer=%C2%B2').status_code, 200)
