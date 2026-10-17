@@ -246,10 +246,3 @@ Owner only (in the **Money** section, with a breakdown below it): expenses today
 ## Deleting records safely
 
 A purchase that was already sold from, or that has a return or write-off linked, cannot be deleted. The site and the admin now say why in a message (for example "5 (base unit) of this purchase has already been sold/used/returned, so it cannot be deleted. If there is a mistake, create a Purchase Return.") instead of showing a Server Error (500). `Purchase.delete_problem()` answers the question without changing anything. In the admin, "delete selected" skips a record that cannot go and deletes the others. Any business-rule error (`ValidationError`) raised while saving or deleting in the admin becomes a message, and the database work is rolled back. Tests: `backend/tests/test_purchase_delete.py`.
-
-## Pricing, legal pages and customer register
-- `/pricing/` shows the active **Subscription Plans** (admin: Business -> Subscription Plans). Leave the prices empty and it shows "Price on request". Yearly saving, setup fee and a note such as "GST extra" appear automatically. The button opens WhatsApp when `DJANGO_WHATSAPP` is set, otherwise the login.
-- `/terms/`, `/privacy/`, `/refund/` and the "included in every plan" box are texts you edit in admin: Website -> Website Text Pages. They are neutral first drafts: have a lawyer or your CA read them before you rely on them.
-- **Subscribers (Customer Shops)** (admin: Business) is your register of customers: plan, amount, status, renewal date, server address. Filter "Due within 15 days", and after a payment select the shops and run **Mark renewed** (moves the date by one month or one year). The admin home shows "Renewals due in 15 days".
-- Payment is manual (UPI / bank transfer): note it in the invoice and press Mark renewed. There is no payment gateway.
-- `DJANGO_ADMIN_EMAILS`: with debug off, every 500 error is emailed to these addresses. `DJANGO_BACKUP_EMAIL_TO`: the newest daily backup is also emailed (off-server copy); it holds all shop data, so use a mailbox only you can read. Both need the email settings (`DJANGO_EMAIL_*`).

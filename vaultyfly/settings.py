@@ -210,14 +210,6 @@ DEFAULT_FROM_EMAIL = os.environ.get('DJANGO_FROM_EMAIL', 'MedSync <noreply@local
 # Recipients of the daily alert digest (low stock / expiry). If empty, the Shop Settings email is used.
 ALERT_EMAILS = env_list('DJANGO_ALERT_EMAILS')
 
-# Server error alerts: with DEBUG off, Django emails every 500 error (with the traceback) to these addresses.
-ADMINS = [('MedSync admin', e) for e in env_list('DJANGO_ADMIN_EMAILS')]
-SERVER_EMAIL = os.environ.get('DJANGO_SERVER_EMAIL', DEFAULT_FROM_EMAIL)
-
-# Off-server backup: when set, the newest daily backup is also emailed to these addresses (skipped if bigger than the limit).
-BACKUP_EMAIL_TO = env_list('DJANGO_BACKUP_EMAIL_TO')
-BACKUP_EMAIL_MAX_MB = 15
-
 # Cache: file-based so it is shared across all workers (needed for the login lock)
 CACHES = {
     'default': {

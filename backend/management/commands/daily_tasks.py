@@ -21,10 +21,7 @@ class Command(BaseCommand):
     def handle(self, *args, **opts):
         if not opts['skip_backup']:
             try:
-                made = backup.make_backup(keep=opts['keep'])
-                self.stdout.write(self.style.SUCCESS(f"Backup created: {made}"))
-                if settings.BACKUP_EMAIL_TO:
-                    self.stdout.write(backup.email_backup(made))
+                self.stdout.write(self.style.SUCCESS(f"Backup created: {backup.make_backup(keep=opts['keep'])}"))
             except backup.BackupError as e:      # keep going: the summary is still useful
                 self.stderr.write(self.style.ERROR(f"Backup failed: {e}"))
         try:

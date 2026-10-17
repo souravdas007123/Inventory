@@ -1,5 +1,4 @@
 import calendar
-from datetime import timedelta
 
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -13,7 +12,7 @@ from import_export.widgets import ForeignKeyWidget
 
 from .reports import profit_and_loss
 from .models import (
-    BlogPost, Plan, SitePage, Subscriber,
+    BlogPost,
     Batch, Bill, Brand, Category, Customer, CustomerPayment, Employee, Expense, RecurringExpense, ShopProfile, FinancialReport,
     InvoiceItem, Order, Payment, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
     PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, Sale, SalesReturn, SalesReturnItem,
@@ -556,75 +555,4 @@ class BlogPostAdmin(admin.ModelAdmin):
         form = super().get_form(request, obj, **kwargs)
         form.base_fields['body'].widget.attrs.update(rows=28, style='width:100%;font-family:system-ui,sans-serif;font-size:15px')
         form.base_fields['summary'].widget.attrs.update(style='width:100%')
-        return form
-
-
-class RenewalFilter(admin.SimpleListFilter):
-    title = 'renewal'
-    parameter_name = 'renewal'
-
-    def lookups(self, request, model_admin):
-        return (('due', 'Due within 15 days (or overdue)'), ('none', 'No renewal date'))
-
-    def queryset(self, request, queryset):
-        if self.value() == 'due':
-            return queryset.filter(renews_on__isnull=False, renews_on__lte=timezone.localdate() + timedelta(days=15))
-        if self.value() == 'none':
-            return queryset.filter(renews_on__isnull=True)
-        return queryset
-
-
-@admin.register(Subscriber)
-class SubscriberAdmin(admin.ModelAdmin):
-    """Your customers (shops using MedSync): plan, amount and renewal date. Use 'Mark renewed' after a payment arrives."""
-    list_display = ('shop_name', 'city', 'phone', 'plan', 'billing', 'amount', 'status', 'renews_on', 'renewal_info')
-    list_filter = ('status', 'plan', 'billing', RenewalFilter)
-    search_fields = ('shop_name', 'contact_person', 'phone', 'email', 'city')
-    actions = ['mark_renewed']
-
-    @admin.display(description='Renewal')
-    def renewal_info(self, obj):
-        days = obj.days_to_renewal()
-        if days is None:
-            return '-'
-        if days < 0:
-            return format_html('<b style="color:#b3261e">Overdue {} day(s)</b>', -days)
-        if days <= 15:
-            return format_html('<b style="color:#9a5b00">In {} day(s)</b>', days)
-        return f'In {days} days'
-
-    @admin.action(description='Mark renewed (payment received): move the renewal date forward by one period')
-    def mark_renewed(self, request, queryset):
-        done = 0
-        for sub in queryset:
-            sub.renews_on = sub.extended_renewal()
-            if sub.status in ('TRIAL', 'PAUSED'):
-                sub.status = 'ACTIVE'
-            sub.save(update_fields=['renews_on', 'status'])
-            done += 1
-        self.message_user(request, f'{done} subscriber(s) renewed.', messages.SUCCESS)
-
-
-@admin.register(Plan)
-class PlanAdmin(admin.ModelAdmin):
-    """Plans shown on the public /pricing/ page. Leave a price empty to show 'Price on request'."""
-    list_display = ('name', 'monthly_price', 'yearly_price', 'setup_fee', 'highlight', 'is_active', 'sort_order')
-    list_editable = ('is_active', 'sort_order')
-    fields = ('name', 'tagline', 'monthly_price', 'yearly_price', 'setup_fee', 'price_note', 'features', 'highlight', 'is_active', 'sort_order')
-
-    def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
-        form.base_fields['features'].widget.attrs.update(rows=10, style='width:100%')
-        return form
-
-
-@admin.register(SitePage)
-class SitePageAdmin(admin.ModelAdmin):
-    """Terms, privacy, refund and 'included in every plan' texts of the public website."""
-    list_display = ('title', 'slug', 'updated_at')
-    fields = ('slug', 'title', 'body')
-
-    def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
-        form.base_fields['body'].widget.attrs.update(rows=26, style='width:100%;font-family:system-ui,sans-serif;font-size:15px')
         return form

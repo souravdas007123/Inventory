@@ -79,9 +79,9 @@ footer a{margin-right:16px;text-decoration:none}
 <body>
 <header><div class="w">
 <a class="logo" href="/" aria-label="MedSync home"><i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 2h6v7h7v6h-7v7H9v-7H2V9h7z" fill="#1b1305"/></svg></i>MedSync</a>
-<nav aria-label="Main"><a class="h" href="/">Home</a><a href="/pricing/">Pricing</a><a href="/blog/">Blog</a><a href="{% url 'login' %}">Login</a><a class="btn" href="{{ cta_url }}">{{ cta_nav }}</a></nav>
+<nav aria-label="Main"><a class="h" href="/">Home</a><a href="/blog/">Blog</a><a href="{% url 'login' %}">Login</a><a class="btn" href="{{ cta_url }}">{{ cta_nav }}</a></nav>
 </div></header>
 <main>{% block content %}{% endblock %}</main>
-<footer><div class="w"><div><a href="/">Home</a><a href="/pricing/">Pricing</a><a href="/blog/">Blog</a><a href="{% url 'login' %}">Login</a><a href="/terms/">Terms</a><a href="/privacy/">Privacy</a><a href="/refund/">Refunds</a></div><div>© MedSync. Pharmacy inventory and billing software.</div></div></footer>
+<footer><div class="w"><div><a href="/">Home</a><a href="/blog/">Blog</a><a href="{% url 'login' %}">Login</a></div><div>© MedSync. Pharmacy inventory and billing software.</div></div></footer>
 </body>
 </html>

@@ -78,24 +78,3 @@ def backup_path(name):
         return None
     p = backup_dir() / name
     return p if p.is_file() else None
-
-
-def email_backup(path, max_mb=None):
-    """Emails one backup file to settings.BACKUP_EMAIL_TO. Returns a short message; never raises.
-    Nothing is sent when no address is set or the file is bigger than the limit (mail servers refuse large files)."""
-    to = list(getattr(settings, 'BACKUP_EMAIL_TO', []) or [])
-    if not to:
-        return 'Off-server backup email is not set (DJANGO_BACKUP_EMAIL_TO).'
-    limit = (max_mb or getattr(settings, 'BACKUP_EMAIL_MAX_MB', 15)) * 1024 * 1024
-    try:
-        path = Path(path)
-        if path.stat().st_size > limit:
-            return f'Backup is bigger than {limit // (1024 * 1024)} MB, so it was not emailed.'
-        from django.core.mail import EmailMessage
-        msg = EmailMessage(f'MedSync backup {path.name}', 'The latest MedSync database backup is attached. Keep it safe: it holds all shop data.',
-                           settings.DEFAULT_FROM_EMAIL, to)
-        msg.attach(path.name, path.read_bytes(), 'application/gzip')
-        msg.send(fail_silently=False)
-    except Exception as e:
-        return f'Backup email failed: {e}'
-    return f'Backup emailed to {", ".join(to)}.'

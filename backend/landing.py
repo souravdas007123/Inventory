@@ -48,7 +48,7 @@ def home(request):
 
 @require_GET
 def robots_txt(request):
-    body = f"User-agent: *\nAllow: /$\nAllow: /blog/\nAllow: /pricing/\nAllow: /terms/\nAllow: /privacy/\nAllow: /refund/\nDisallow: /\n\nSitemap: {_site_url(request)}/sitemap.xml\n"
+    body = f"User-agent: *\nAllow: /$\nAllow: /blog/\nDisallow: /\n\nSitemap: {_site_url(request)}/sitemap.xml\n"
     return HttpResponse(body, content_type='text/plain')
 
 
@@ -56,9 +56,7 @@ def robots_txt(request):
 def sitemap_xml(request):
     base = _site_url(request)
     urls = [f'  <url><loc>{base}/</loc><changefreq>monthly</changefreq><priority>1.0</priority></url>',
-            f'  <url><loc>{base}/pricing/</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>',
-            f'  <url><loc>{base}/blog/</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>',
-            *[f'  <url><loc>{base}/{slug}/</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>' for slug in ('terms', 'privacy', 'refund')]]
+            f'  <url><loc>{base}/blog/</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>']
     try:
         for p in BlogPost.live():
             urls.append(f'  <url><loc>{base}{escape(p.get_absolute_url())}</loc><lastmod>{p.updated_at:%Y-%m-%d}</lastmod>'
