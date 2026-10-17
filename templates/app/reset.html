@@ -1,0 +1,43 @@
+{% extends "app/base.html" %}
+{% block title %}Reset Data{% endblock %}
+{% block content %}
+<div class="head"><h1>♻️ Reset Data</h1></div>
+<div class="msg warning"><b>Use this to start again with fresh data.</b> What you tick below is removed for good. A backup of the current data is saved automatically just before, so a mistake can be undone from the <a href="{% url 'backup' %}">Backup</a> page. Shop Settings, user logins and permissions, and the Audit Log are never removed.</div>
+<form method="post" class="card" id="reset-form" style="margin-bottom:14px">{% csrf_token %}
+  <h3 style="margin-top:0">1. What should be removed?</h3>
+  {% for g in groups %}
+  <label style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer">
+    <input type="checkbox" name="groups" value="{{ g.key }}" class="rg" data-first="{{ g.needs_first|yesno:'1,0' }}" style="margin-top:4px;width:18px;height:18px">
+    <span><b>{{ g.title }}</b>
+      <span style="display:block;color:var(--mute);font-size:.92em;margin-top:2px">{{ g.text }}</span>
+      <span style="display:block;margin-top:4px;font-size:.92em">Now in the system: {% for l, n in g.rows %}<b>{{ n }}</b> {{ l|lower }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+      {% if g.needs_first %}<span style="display:block;color:var(--mute);font-size:.88em;margin-top:2px">This also removes the bills, purchases and money records, because they depend on it.</span>{% endif %}
+    </span>
+  </label>
+  {% endfor %}
+  <button type="button" class="btn ghost sm" id="pick-all" style="margin-top:10px">Tick everything</button>
+  <h3>2. Confirm</h3>
+  <div style="display:grid;gap:10px;max-width:380px">
+    <label>Type <b>{{ word }}</b> to confirm<input type="text" name="confirm" autocomplete="off" required placeholder="{{ word }}"></label>
+    <label>Your password<input type="password" name="password" autocomplete="current-password" required></label>
+  </div>
+  <div class="bar" style="margin-top:14px"><button class="btn" style="background:#b91c1c;border-color:#b91c1c" id="go">♻️ Remove the ticked data</button><a class="btn ghost" href="/">Cancel</a></div>
+  <p style="color:var(--mute);margin:12px 0 0">Invoice numbers start again from 0001 after a reset. If you already filed GST returns with those numbers, do not reset in the same financial year.</p>
+</form>
+{% endblock %}
+{% block scripts %}<script>
+(function () {
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('.rg'));
+  function sync() {
+    var first = boxes[0];
+    if (boxes.some(function (b, i) { return i > 0 && b.checked; })) { first.checked = true; first.disabled = true; }
+    else first.disabled = false;
+  }
+  boxes.forEach(function (b) { b.addEventListener('change', sync); });
+  document.getElementById('pick-all').addEventListener('click', function () { boxes.forEach(function (b) { b.checked = true; }); sync(); });
+  document.getElementById('reset-form').addEventListener('submit', function (e) {
+    boxes[0].disabled = false;                       // a disabled box is not sent: enable it before submitting
+    if (!window.confirm('This removes the ticked data. A backup is made first. Continue?')) { e.preventDefault(); sync(); }
+  });
+})();
+</script>{% endblock %}

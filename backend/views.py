@@ -69,6 +69,7 @@ NAV = [
     {'key': 'health', 'url': '/health/', 'label': 'Health Score', 'icon': '🩺', 'group': 'Master Data', 'staff': True},
     {'key': 'backup', 'url': '/backup/', 'label': 'Backup', 'icon': '💾', 'group': 'Master Data', 'staff': True},
     {'key': 'shop', 'url': '/shop/', 'label': 'Shop Settings', 'icon': '🏪', 'group': 'Master Data', 'staff': True},
+    {'key': 'reset', 'url': '/reset/', 'label': 'Reset Data', 'icon': '♻️', 'group': 'Master Data', 'staff': True},
 ]
 
 

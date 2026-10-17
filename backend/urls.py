@@ -68,6 +68,7 @@ urlpatterns = [
 
     # Backup
     path('backup/', views_extra.backup_page, name='backup'),
+    path('reset/', views_extra.reset_data, name='reset_data'),
     path('backup/download/<str:name>/', views_extra.backup_download, name='backup_download'),
 
     # Bulk import / export

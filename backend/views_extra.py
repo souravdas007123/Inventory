@@ -19,7 +19,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import access, auditlog, backup, billview, ca_export, health, expiry_returns, levels, notify, refill, reorder, reports, summary, supplier_prices
+from . import access, auditlog, backup, billview, ca_export, health, expiry_returns, levels, notify, refill, reorder, reports, reset, summary, supplier_prices
 from .models import (
     Batch, Bill, Brand, Category, Customer, Employee, Expense, InvoiceItem, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
     HeldBill, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SalesReturn, Supplier, Unit, SalesReturnItem, ShopProfile, StockAudit, StockAuditItem, StockWriteOff,
@@ -1054,6 +1054,47 @@ def backup_download(request, name):
     if not path:
         raise Http404
     return FileResponse(open(path, 'rb'), as_attachment=True, filename=path.name)
+
+
+# ======================================================
+# RESET DATA (owner only): remove the shop's data in one step to start with fresh data
+# ======================================================
+
+RESET_WORD = 'RESET'
+
+
+@access.owner_required
+def reset_data(request):
+    chosen = reset.normalise(request.POST.getlist('groups')) if request.method == 'POST' else []
+    if request.method == 'POST':
+        problem = ''
+        if not chosen:
+            problem = 'Please tick what you want to remove.'
+        elif request.POST.get('confirm', '').strip() != RESET_WORD:
+            problem = f'Type {RESET_WORD} (in capital letters) to confirm.'
+        elif not request.user.check_password(request.POST.get('password', '')):
+            problem = 'The password is not correct.'
+        if problem:
+            messages.error(request, problem)
+        else:
+            try:
+                path = backup.make_backup()          # a safety copy first; if it cannot be made, nothing is removed
+            except backup.BackupError as e:
+                messages.error(request, f'Nothing was removed, because the safety backup could not be made: {e}')
+                return redirect('reset_data')
+            try:
+                done = reset.run(chosen)
+            except Exception as e:                     # noqa: BLE001 - nothing was changed (one transaction)
+                messages.error(request, f'Nothing was removed, because of an error: {e}')
+                return redirect('reset_data')
+            reset.log_entry(request, done, path.name)
+            labels = ', '.join(t for k, t, _d, _f in reset.GROUPS if k in done)
+            messages.success(request, f'Done. Removed: {labels}. A backup of the old data was saved as {path.name}.')
+            return redirect('reset_data')
+    cnt = reset.counts()
+    groups = [dict(key=k, title=t, text=d, needs_first=f, rows=cnt[k], total=sum(n for _l, n in cnt[k]))
+              for k, t, d, f in reset.GROUPS]
+    return page(request, 'app/reset.html', active='reset', groups=groups, word=RESET_WORD)
 
 
 # ======================================================
