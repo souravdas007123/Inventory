@@ -39,9 +39,10 @@ class ResetTests(StockMixin, TestCase):
         self.fill()
         done = reset.run(list(reset.KEYS))
         self.assertEqual(done, list(reset.KEYS))
-        for model in (Bill, Purchase, Batch, Expense, Product, Supplier, Customer, Employee, RecurringExpense, Category, Brand):
+        for model in (Bill, Purchase, Batch, Expense, Product, Supplier, Customer, Employee, RecurringExpense, Brand):
             self.assertEqual(model.objects.count(), 0, model.__name__)
         self.assertEqual(set(Unit.objects.values_list('name', flat=True)), set(reset.DEFAULT_UNITS))
+        self.assertEqual(set(Category.objects.values_list('name', flat=True)), set(reset.DEFAULT_CATEGORIES))
 
     def test_choosing_medicines_also_removes_the_records_that_depend_on_them(self):
         self.fill()

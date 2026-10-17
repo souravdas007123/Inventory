@@ -17,6 +17,7 @@ from .models import (Batch, Bill, Brand, Category, Customer, CustomerPayment, Do
                      PurchaseOrder, PurchaseReturn, RecurringExpense, Sale, SalesReturn, StockAudit, StockWriteOff,
                      Supplier, Transaction, Unit)
 
+DEFAULT_CATEGORIES = ('Tablet', 'Capsule', 'Syrup', 'Injection', 'Ointment / Cream', 'Drops', 'Powder', 'Surgical', 'General')
 DEFAULT_UNITS = ('Tablet', 'Capsule', 'Strip', 'Bottle', 'Tube', 'Box', 'Piece')
 
 GROUPS = (
@@ -26,7 +27,7 @@ GROUPS = (
      False),
     ('medicines', 'Medicines and master data',
      'All products with their batches and unit conversions, plus brands, categories and units. '
-     'The common units (Tablet, Strip, Box ...) are added back so you can start at once.',
+     'The common units (Tablet, Strip, Box ...) and categories (Tablet, Syrup, Injection ...) are added back so you can start at once.',
      True),
     ('parties', 'Suppliers and customers',
      'All suppliers and all customers (their credit balances go with them).',
@@ -75,6 +76,8 @@ def _medicines():
         model.objects.all().delete()
     for name in DEFAULT_UNITS:
         Unit.objects.create(name=name)
+    for name in DEFAULT_CATEGORIES:
+        Category.objects.create(name=name)
 
 
 def _parties():
