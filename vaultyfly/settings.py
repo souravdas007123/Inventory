@@ -182,7 +182,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL = '/login/'
+LOGOUT_REDIRECT_URL = '/'          # after logout, visitors land on the public home page (it has a Login button)
 
 
 # ---- HTTPS / cookies (production me DJANGO_HTTPS=1) ----

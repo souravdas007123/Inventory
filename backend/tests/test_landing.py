@@ -67,3 +67,18 @@ class LandingTests(TestCase):
         resp = self.client.get('/')
         self.assertEqual(resp.status_code, 200)
         self.assertNotContains(resp, 'See what it does')
+
+
+@override_settings(**SAFE)
+class LogoutAndLoginLinksTests(TestCase):
+    def test_logging_out_leads_to_the_home_page_which_has_a_login_link(self):
+        user = get_user_model().objects.create_user('clerk', password='pw-12345')
+        self.client.force_login(user)
+        resp = self.client.post('/logout/')
+        self.assertEqual((resp.status_code, resp['Location']), (302, '/'))
+        self.assertContains(self.client.get('/'), 'href="/login/"')
+
+    def test_the_login_page_links_back_to_the_home_page(self):
+        resp = self.client.get('/login/')
+        self.assertContains(resp, 'href="/">')
+        self.assertContains(resp, 'Back to home page')

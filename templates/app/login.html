@@ -10,6 +10,7 @@ h1{margin:0 0 4px;font-size:24px}p{margin:0 0 18px;opacity:.65}
 label{display:block;font-weight:600;font-size:13px;margin:12px 0 4px}
 input{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit}
 button{width:100%;margin-top:20px;padding:12px;border:0;border-radius:10px;background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;font:inherit;font-weight:700;cursor:pointer}
+.back{display:block;text-align:center;margin-top:16px;color:inherit;opacity:.7;text-decoration:none;font-weight:600}.back:hover{opacity:1}
 .err{background:#e11d4822;color:var(--red);padding:10px;border-radius:10px;margin-bottom:8px}
 </style></head>
 <body><form class="box" method="post">{% csrf_token %}
@@ -18,4 +19,4 @@ button{width:100%;margin-top:20px;padding:12px;border:0;border-radius:10px;backg
 <label>Username</label>{{ form.username }}
 <label>Password</label>{{ form.password }}
 <input type="hidden" name="next" value="{{ next }}">
-<button>Login</button></form></body></html>
+<button>Login</button><a class="back" href="/">&larr; Back to home page</a></form></body></html>
