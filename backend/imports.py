@@ -873,6 +873,21 @@ IMPORTERS['stock']['desc_extra'] = ('One row = one medicine. For a bill with sev
                                     'You can also put several invoices (and suppliers) in one file. If even one row of an invoice is invalid, the whole invoice is skipped.')
 
 
+def _column_order(c):
+    """Required columns first, then the ones needed only in some cases (e.g. a new medicine), then optional ones."""
+    return 0 if c['required'] else (1 if c.get('need') else 2)
+
+
+for _imp in IMPORTERS.values():
+    if _imp.get('cols'):
+        _imp['cols'] = sorted(_imp['cols'], key=_column_order)      # sorted() is stable: the original order is kept inside each group
+
+
+def display_header(name):
+    """Header shown in downloaded templates: first letter capital (invoice_number -> Invoice_number). Matching ignores case."""
+    return name[:1].upper() + name[1:]
+
+
 def layout_signature(headers):
     """Identifies a file layout (e.g. one supplier's export) by the set of its column headers."""
     return hashlib.sha1('|'.join(sorted(h for h in headers if h)).encode('utf-8')).hexdigest()
@@ -983,14 +998,14 @@ def table_download(filename, headers, rows, fmt='xlsx', required=()):
 
 def template_download(kind):
     imp = IMPORTERS[kind]
-    heads = [c['name'] for c in imp['cols']]
-    required = {c['name'] for c in imp['cols'] if c['required']}
+    heads = [display_header(c['name']) for c in imp['cols']]
+    required = {display_header(c['name']) for c in imp['cols'] if c['required']}
     data = build_xlsx([
         dict(title='Data', headers=heads, rows=[], required=required),
         dict(title='Example', headers=heads, rows=[list(c['samples'][i] for c in imp['cols']) for i in (0, 1)],
              required=required),
         dict(title='Help', headers=['Column', 'Required?', 'What to enter'],
-             rows=[[c['name'], 'YES' if c['required'] else (c.get('need') or 'optional'), c['help']] for c in imp['cols']]),
+             rows=[[display_header(c['name']), 'YES' if c['required'] else (c.get('need') or 'optional'), c['help']] for c in imp['cols']]),
     ])
     resp = HttpResponse(data, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     resp['Content-Disposition'] = f'attachment; filename="medsync_{kind}_template.xlsx"'

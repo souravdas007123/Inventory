@@ -207,3 +207,29 @@ class ColumnNameTests(TestCase):
                 self.assertEqual(resp.status_code, 200)
                 self.assertIn('spreadsheetml', resp['Content-Type'])
                 self.assertGreater(len(resp.content), 1000)
+
+
+class TemplateLayoutTests(TestCase):
+    """The downloaded template lists required columns first and capitalises the first letter of each header."""
+
+    def _headers(self, kind, sheet):
+        import io
+        from openpyxl import load_workbook
+        wb = load_workbook(io.BytesIO(imports.template_download(kind).content))
+        return [c.value for c in wb[sheet][1]]
+
+    def test_stock_template_required_first_and_capitalised(self):
+        heads = self._headers('stock', 'Data')
+        self.assertEqual(heads[:6], ['Supplier', 'Invoice_number', 'Product', 'Qty', 'Purchase_price', 'Exp_date'])
+        self.assertTrue(all(h[0].isupper() for h in heads))
+        cols = imports.IMPORTERS['stock']['cols']
+        flags = [c['required'] for c in cols]
+        self.assertEqual(flags, sorted(flags, reverse=True))            # every required column comes before every optional one
+
+    def test_capitalised_headers_still_import(self):
+        imp = imports.IMPORTERS['stock']
+        mapped, missing, _ = imports.prepare_rows(imp, ['supplier', 'invoice_number', 'product', 'qty', 'purchase_price', 'exp_date'],
+                                                  [(2, {'supplier': 'A'})])
+        self.assertFalse(missing)
+        from backend.tabular import norm_header
+        self.assertEqual(norm_header('Invoice_number'), 'invoice_number')
