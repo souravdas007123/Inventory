@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from backend.models import Bill, Purchase
+from backend.models import Bill, Product, Purchase
 from backend.views import CONFIG
 
 from .helpers import StockMixin
@@ -166,10 +166,11 @@ class AccessTests(StockMixin, TestCase):
 
     def test_the_home_page_is_public_but_shows_no_shop_data(self):
         self.buy()
+        Product.objects.filter(pk=self.product.pk).update(name='Zyxwvut Secret Tablet')
         resp = self.client.get('/')
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'href="/login/"')
-        self.assertNotContains(resp, 'Dolo 650')
+        self.assertNotContains(resp, 'Zyxwvut')
 
     def test_a_user_without_rights_cannot_see_the_shop_data(self):
         user = get_user_model().objects.create_user('clerk', password='pw-12345')
