@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MedSync – Pharmacy Billing, GST &amp; Expiry Software for Medical Stores</title>
-<meta name="description" content="MedSync is pharmacy software for Indian medical stores: fast GST billing, batch and expiry tracking, supplier price comparison, Schedule H register, CA export and daily auto-backup.">
+<title>MedSync – Pharmacy Billing, GST, Batch &amp; Expiry Software for Medical Stores</title>
+<meta name="description" content="MedSync is pharmacy software for Indian medical stores: fast GST billing, batch and expiry (FEFO) tracking, supplier price comparison, Schedule H register, GSTR reports, CA Excel export, daily backup and a measured health score.">
 <link rel="canonical" href="{{ site_url }}/">
 <meta name="robots" content="index,follow,max-image-preview:large">
-<meta name="theme-color" content="#0f766e">
+<meta name="theme-color" content="#0a2f2a">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MedSync">
-<meta property="og:title" content="MedSync – Pharmacy Billing, GST &amp; Expiry Software">
-<meta property="og:description" content="Fast GST billing, batch and expiry tracking, supplier price comparison and CA-ready Excel export for medical stores.">
+<meta property="og:title" content="MedSync – Pharmacy Billing, GST, Batch &amp; Expiry Software">
+<meta property="og:description" content="Fast GST billing, batch and expiry tracking, supplier prices, Schedule H register and CA-ready Excel export for medical stores.">
 <meta property="og:url" content="{{ site_url }}/">
 <meta property="og:image" content="{{ site_url }}/og.png">
 <meta property="og:image:width" content="1200">
@@ -20,182 +20,339 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
-{"@type":"SoftwareApplication","name":"MedSync","applicationCategory":"BusinessApplication","operatingSystem":"Web browser","url":"{{ site_url }}/","description":"Pharmacy inventory, GST billing, batch and expiry management software for medical stores in India.","featureList":["GST billing","Batch and expiry (FEFO) tracking","Supplier price comparison","Schedule H/H1/X drug register","GSTR-1 and GSTR-3B reports","Accountant Excel export","Daily automatic backup","Health score"],"offers":{"@type":"Offer","description":"Free demo on request","price":"0","priceCurrency":"INR"}},
+{"@type":"SoftwareApplication","name":"MedSync","applicationCategory":"BusinessApplication","operatingSystem":"Web browser","url":"{{ site_url }}/","description":"Pharmacy inventory, GST billing, batch and expiry management software for medical stores in India.","featureList":["GST billing with barcode scan","Batch and expiry (FEFO) tracking","Alternative medicine suggestion","Supplier price comparison","Reorder suggestions","Schedule H/H1/X drug register","GSTR-1, GSTR-3B and HSN reports","Accountant Excel export","Customer credit ledger","Sales and purchase returns","Import from Excel","Daily automatic backup","Measured health score"],"offers":{"@type":"Offer","description":"Free demo on request","price":"0","priceCurrency":"INR"}},
 {"@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"Where is my data stored?","acceptedAnswer":{"@type":"Answer","text":"In your own database on your own server. Nothing is shared with anyone, and a compressed backup is taken every day."}},
-{"@type":"Question","name":"Do I need special hardware?","acceptedAnswer":{"@type":"Answer","text":"No. MedSync runs in a web browser on any computer, tablet or phone. A barcode scanner works as a keyboard."}},
-{"@type":"Question","name":"Can my accountant use it?","acceptedAnswer":{"@type":"Answer","text":"Yes. The accountant export gives sales and purchase registers, credit and debit notes, GST by rate, expenses and payments in one Excel file."}},
-{"@type":"Question","name":"Is Schedule H and H1 selling tracked?","acceptedAnswer":{"@type":"Answer","text":"Yes. Billing asks for doctor and patient details for scheduled drugs and the drug register can be exported to Excel."}},
-{"@type":"Question","name":"Can I move my existing stock into MedSync?","acceptedAnswer":{"@type":"Answer","text":"Yes. Products, stock and purchases can be imported from Excel or CSV with a preview before anything is saved."}}]}]}
+{"@type":"Question","name":"Do I need special hardware?","acceptedAnswer":{"@type":"Answer","text":"No. MedSync runs in a web browser on any computer, tablet or phone. A barcode scanner works like a keyboard."}},
+{"@type":"Question","name":"Can my accountant use it?","acceptedAnswer":{"@type":"Answer","text":"Yes. One Excel export has the sales and purchase registers, credit and debit notes, GST by rate, expenses and payments. The GST page also gives GSTR-1, GSTR-3B and HSN summaries."}},
+{"@type":"Question","name":"Is Schedule H and H1 selling tracked?","acceptedAnswer":{"@type":"Answer","text":"Yes. Billing asks for the doctor and patient details for scheduled drugs, and the drug register exports to Excel."}},
+{"@type":"Question","name":"Can I move my existing stock into MedSync?","acceptedAnswer":{"@type":"Answer","text":"Yes. Products, stock and purchases can be imported from Excel or CSV. You see a preview and any problems before anything is saved."}},
+{"@type":"Question","name":"What happens to expired medicines?","acceptedAnswer":{"@type":"Answer","text":"Expired batches are never billed. They are listed on the expiry page, and you can return them to the supplier or write them off, and stock and accounts adjust automatically."}},
+{"@type":"Question","name":"Can several staff use it at once?","acceptedAnswer":{"@type":"Answer","text":"Yes. Each person has a login with a role, so billing staff, purchase staff and the owner each see only what they need."}},
+{"@type":"Question","name":"How do I know the numbers are right?","acceptedAnswer":{"@type":"Answer","text":"The owner's health score compares stock with batches, opens the latest backup to check it, times the pages on your own server and lists every problem with its reason."}}]}]}
 </script>
 <style>
-:root{--bg:#f8fafb;--card:#fff;--ink:#0f1f26;--mut:#4b5f69;--line:#dbe5e9;--teal:#0f766e;--teal2:#115e59;--tint:#e6f4f2;--amber:#b45309;--r:14px}
-@media(prefers-color-scheme:dark){:root{--bg:#0b1519;--card:#122028;--ink:#e8f0f3;--mut:#9db2bb;--line:#223540;--teal:#2dd4bf;--teal2:#5eead4;--tint:#0f2a2c;--amber:#fbbf24}}
+:root{--bg:#f2f7f4;--paper:#fff;--ink:#0a2f2a;--mut:#3f5a54;--line:#cfdcd6;--deep:#0a2f2a;--on-deep:#e9f5f1;--amber:#d98324;--amber-d:#9a5a0f;--red:#b42318;--green:#13795b;--foil:#e6ecea}
+@media(prefers-color-scheme:dark){:root{--bg:#0a1a18;--paper:#112825;--ink:#e9f5f1;--mut:#a3bdb6;--line:#244741;--deep:#06100f;--on-deep:#e9f5f1;--amber:#f0a04b;--amber-d:#f0a04b;--red:#ff8a7a;--green:#4fd1a5;--foil:#1a3631}}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",Arial,sans-serif}
-a{color:var(--teal2)}
-.w{max-width:1080px;margin:0 auto;padding:0 20px}
-header{border-bottom:1px solid var(--line);background:var(--card)}
-header .w{display:flex;align-items:center;justify-content:space-between;height:60px;gap:12px}
-.logo{font-weight:800;font-size:20px;color:var(--teal);text-decoration:none;letter-spacing:-.3px}
-nav{display:flex;gap:18px;align-items:center;font-size:15px}
-nav a{color:var(--mut);text-decoration:none}
-nav a:hover{color:var(--ink)}
-.btn{display:inline-block;background:var(--teal);color:#fff;padding:12px 22px;border-radius:10px;font-weight:700;text-decoration:none;border:0}
-@media(prefers-color-scheme:dark){.btn{color:#042f2e}}
-.btn:hover{filter:brightness(1.08)}
-.btn.o{background:transparent;color:var(--teal2);border:1.5px solid var(--teal)}
-.hero{padding:56px 0 40px}
-.hero .w{display:grid;grid-template-columns:1.05fr .95fr;gap:36px;align-items:center}
-h1{font-size:clamp(30px,5vw,46px);line-height:1.15;margin:0 0 16px;letter-spacing:-.8px}
-h2{font-size:clamp(24px,3.4vw,32px);margin:0 0 10px;letter-spacing:-.4px;line-height:1.2}
-h3{font-size:17px;margin:0 0 6px}
-.lead{font-size:18px;color:var(--mut);margin:0 0 24px;max-width:34em}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",Arial,sans-serif;-webkit-text-size-adjust:100%}
+a{color:inherit}
+.w{max-width:1120px;margin:0 auto;padding:0 22px}
+.serif,h1,h2{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif}
+h1{font-size:clamp(34px,5.4vw,58px);line-height:1.08;margin:0 0 20px;letter-spacing:-1px;font-weight:700}
+h2{font-size:clamp(26px,3.6vw,38px);line-height:1.15;margin:0 0 14px;letter-spacing:-.5px;font-weight:700}
+h3{font-size:19px;line-height:1.3;margin:0 0 8px}
+p{margin:0 0 14px}
+.mut{color:var(--mut)}
+header{position:sticky;top:0;z-index:5;background:var(--deep);color:var(--on-deep)}
+header .w{display:flex;align-items:center;justify-content:space-between;height:62px;gap:14px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;text-decoration:none;letter-spacing:-.3px}
+.logo i{width:28px;height:28px;border-radius:7px;background:var(--amber);display:grid;place-items:center}
+.logo svg{width:18px;height:18px}
+nav{display:flex;gap:20px;align-items:center;font-size:15px}
+nav a{text-decoration:none;opacity:.85}
+nav a:hover{opacity:1}
+.btn{display:inline-block;background:var(--amber);color:#1b1305;padding:13px 24px;border-radius:8px;font-weight:700;text-decoration:none;opacity:1;border:2px solid var(--amber)}
+.btn:hover{filter:brightness(1.07);opacity:1}
+.btn.o{background:transparent;color:inherit;border-color:currentColor}
+header .btn{padding:8px 16px;font-size:15px}
+.hero{background:var(--deep);color:var(--on-deep);padding:64px 0 72px;position:relative;overflow:hidden}
+.hero .w{display:grid;grid-template-columns:1.1fr .9fr;gap:44px;align-items:center}
+.hero .lead{font-size:19px;color:#bfd8d1;max-width:31em;margin-bottom:26px}
 .cta{display:flex;gap:12px;flex-wrap:wrap}
-.pill{display:inline-block;background:var(--tint);color:var(--teal2);padding:4px 12px;border-radius:99px;font-size:13px;font-weight:700;margin-bottom:14px}
-section{padding:48px 0}
-section.alt{background:var(--card);border-block:1px solid var(--line)}
-.sub{color:var(--mut);max-width:40em;margin:0 0 28px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px}
-.alt .card{background:var(--bg)}
-.card p{margin:0;color:var(--mut);font-size:15px}
-.ic{font-size:24px;display:block;margin-bottom:8px}
-.mock{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:0 12px 32px rgb(15 118 110/.12);overflow:hidden;font-size:13px}
-.mock .bar{background:var(--teal);color:#fff;padding:9px 14px;font-weight:700;display:flex;justify-content:space-between}
-@media(prefers-color-scheme:dark){.mock .bar{color:#042f2e}}
-.mock table{width:100%;border-collapse:collapse}
-.mock th,.mock td{padding:7px 12px;text-align:left;border-bottom:1px solid var(--line)}
-.mock th{color:var(--mut);font-weight:600;font-size:12px}
-.mock td.r,.mock th.r{text-align:right}
-.mock .tot{display:flex;justify-content:space-between;padding:12px 14px;font-weight:800;font-size:15px}
-.tag{background:#fef3c7;color:#92400e;border-radius:6px;padding:1px 7px;font-size:11px;font-weight:700}
-.note{font-size:12px;color:var(--mut);margin:8px 2px 0;text-align:center}
-.split{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:center}
-.ring{width:130px;height:130px;border-radius:50%;background:conic-gradient(var(--teal) 0 94%,var(--line) 0);display:grid;place-items:center;margin:0 auto}
-.ring b{width:96px;height:96px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-size:32px}
-.ring b small{display:block;font-size:11px;color:var(--mut);font-weight:600;margin-top:-18px}
-.sc{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:14px;text-align:center}
-.sc span{display:block;font-size:11px;color:var(--mut)}
-.sc b{font-size:18px}
-ol.steps{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;counter-reset:s}
-ol.steps li{counter-increment:s;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px 20px 20px 62px;position:relative;color:var(--mut);font-size:15px}
-ol.steps li::before{content:counter(s);position:absolute;left:18px;top:18px;width:30px;height:30px;border-radius:50%;background:var(--teal);color:#fff;display:grid;place-items:center;font-weight:800}
-ol.steps b{display:block;color:var(--ink);font-size:16px}
-details{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-bottom:10px}
-summary{cursor:pointer;font-weight:700}
-details p{margin:10px 0 0;color:var(--mut)}
-.final{text-align:center;padding:56px 0;background:var(--teal);color:#fff}
-@media(prefers-color-scheme:dark){.final{color:#042f2e}}
-.final .btn{background:#fff;color:var(--teal2)}
-.final p{max-width:32em;margin:0 auto 22px;opacity:.92}
-footer{padding:26px 0;color:var(--mut);font-size:14px;text-align:center}
-@media(max-width:820px){.hero .w,.split{grid-template-columns:1fr}.hero{padding-top:32px}nav a.h{display:none}}
-:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+.keys{margin-top:26px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;color:#bfd8d1;font-size:14px}
+kbd{font:600 13px ui-monospace,Consolas,monospace;background:#16443d;border:1px solid #2c6b60;border-bottom-width:3px;border-radius:6px;padding:2px 8px;color:#e9f5f1}
+.slip{position:relative;background:#fffef9;color:#15211f;font:13px/1.5 ui-monospace,"SFMono-Regular",Consolas,"Liberation Mono",monospace;padding:20px 20px 26px;max-width:380px;margin-left:auto;transform:rotate(1.6deg);box-shadow:0 24px 50px rgb(0 0 0/.35);
+-webkit-mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) bottom/16px 100% repeat-x;mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) bottom/16px 100% repeat-x}
+.slip h4{margin:0;text-align:center;font-size:15px;letter-spacing:.5px}
+.slip .c{text-align:center;color:#5a6b67}
+.slip hr{border:0;border-top:1px dashed #9aa9a5;margin:9px 0}
+.slip .r{display:flex;justify-content:space-between;gap:8px}
+.slip .t{font-weight:800;font-size:16px}
+.stamp{display:block;width:max-content;margin:12px auto 0;border:2.5px solid var(--red);color:var(--red);padding:2px 8px;border-radius:4px;font:800 12px/1.3 ui-monospace,Consolas,monospace;transform:rotate(-5deg);text-align:center}
+.chip{position:absolute;left:0;bottom:-34px;background:var(--amber);color:#1b1305;font:700 12.5px/1.3 system-ui,sans-serif;padding:9px 12px;border-radius:8px;box-shadow:0 10px 24px rgb(0 0 0/.3);max-width:210px;transform:rotate(-2deg)}
+.slipwrap{position:relative;max-width:420px;margin-left:auto;padding:0 0 44px}
+.facts{background:var(--paper);border-bottom:1px solid var(--line)}
+.facts .w{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;padding-top:22px;padding-bottom:22px}
+.facts b{display:block;font-size:15px}
+.facts span{font-size:14px;color:var(--mut);line-height:1.45;display:block}
+section{padding:68px 0}
+section.p{background:var(--paper);border-block:1px solid var(--line)}
+.head{max-width:44em;margin-bottom:34px}
+.head p{color:var(--mut);font-size:18px}
+.day{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,1fr);gap:0;counter-reset:d}
+.day li{counter-increment:d;position:relative;padding:44px 16px 0 0;font-size:15px;color:var(--mut)}
+.day li::before{content:"";position:absolute;left:0;right:0;top:15px;border-top:2px solid var(--line)}
+.day li::after{content:counter(d);position:absolute;left:0;top:0;width:32px;height:32px;border-radius:50%;background:var(--amber);color:#1b1305;font-weight:800;display:grid;place-items:center}
+.day b{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;padding:34px 0}
+.row>*{min-width:0}
+.row.rev .txt{order:2}
+.row ul{margin:0 0 6px;padding-left:20px;color:var(--mut)}
+.row li{margin-bottom:6px}
+.row li b{color:var(--ink)}
+.tag{display:inline-block;font-weight:700;font-size:14px;color:var(--amber-d);margin-bottom:8px}
+.win{background:var(--paper);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13.5px;box-shadow:0 14px 34px rgb(10 47 42/.12)}
+.win .bar{background:var(--foil);padding:8px 14px;font-weight:700;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px}
+.win table{width:100%;border-collapse:collapse}
+.win th,.win td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+.win th{font-size:12px;color:var(--mut);font-weight:600}
+.win .n{text-align:right}
+.win tr:last-child td{border-bottom:0}
+.sc{overflow-x:auto}
+.b{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:700}
+.b.g{background:#d6f1e6;color:#0b5d44}.b.a{background:#fde7c6;color:#7a4608}.b.r{background:#fbd9d5;color:#8d1a10}
+@media(prefers-color-scheme:dark){.b.g{background:#12493a;color:#8ef0cb}.b.a{background:#4a3410;color:#ffd08a}.b.r{background:#561e19;color:#ffb3aa}}
+.alt{padding:12px 14px;background:var(--bg);border-top:1px solid var(--line)}
+.ring{width:118px;height:118px;border-radius:50%;background:conic-gradient(var(--green) 0 94%,var(--line) 0);display:grid;place-items:center}
+.ring b{width:86px;height:86px;border-radius:50%;background:var(--paper);display:grid;place-items:center;font:700 30px Georgia,serif}
+.hs{display:flex;gap:22px;align-items:center;padding:18px}
+.hs ul{list-style:none;margin:0;padding:0;flex:1;font-size:13.5px}
+.hs li{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--line)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--paper)}
+.grid div{padding:20px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);margin:0 -1px -1px 0}
+.grid h3{font-size:16px;margin-bottom:4px}
+.grid p{margin:0;font-size:14.5px;color:var(--mut);line-height:1.5}
+.guard{columns:2;column-gap:44px;margin:0;padding:0;list-style:none}
+.guard li{break-inside:avoid;padding:0 0 16px 30px;position:relative;color:var(--mut)}
+.guard li::before{content:"";position:absolute;left:0;top:5px;width:17px;height:10px;border-left:3px solid var(--green);border-bottom:3px solid var(--green);transform:rotate(-45deg) scale(.9)}
+.guard b{color:var(--ink)}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin:0;padding:0;list-style:none;counter-reset:s}
+.steps li{counter-increment:s;border-top:3px solid var(--amber);padding-top:14px;color:var(--mut)}
+.steps li::before{content:"Step " counter(s);display:block;font-weight:700;color:var(--amber-d);font-size:14px}
+.steps b{display:block;color:var(--ink);font-size:18px;margin:2px 0 4px}
+.roles{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.roles div{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:20px}
+.roles p{margin:0;color:var(--mut);font-size:15px}
+details{border-bottom:1px solid var(--line);padding:16px 0}
+summary{cursor:pointer;font-weight:700;font-size:17px;list-style:none;display:flex;justify-content:space-between;gap:12px}
+summary::after{content:"+";font-size:22px;line-height:1;color:var(--amber-d)}
+details[open] summary::after{content:"–"}
+summary::-webkit-details-marker{display:none}
+details p{margin:10px 0 0;color:var(--mut);max-width:44em}
+.final{background:var(--deep);color:var(--on-deep);padding:72px 0}
+.final .w{display:grid;grid-template-columns:1.2fr .8fr;gap:30px;align-items:center}
+.final p{color:#bfd8d1;font-size:18px}
+footer{background:var(--deep);color:#9bb8b0;font-size:14px;padding:22px 0 30px;border-top:1px solid #16443d}
+footer .w{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+footer a{margin-right:16px;text-decoration:none}
+:focus-visible{outline:3px solid var(--amber);outline-offset:3px}
+@media(max-width:900px){.chip{left:8px}.hero .w,.row,.final .w{grid-template-columns:1fr}.row.rev .txt{order:0}.row{gap:26px}.slipwrap{margin:0 auto}.slip{margin:0 auto}.facts .w{grid-template-columns:1fr 1fr}.day{grid-template-columns:1fr 1fr}.day li{padding-bottom:20px}.steps,.roles{grid-template-columns:1fr}.guard{columns:1}nav a.h{display:none}section{padding:48px 0}.hero{padding:40px 0 52px}}
+@media(max-width:480px){.day{grid-template-columns:1fr}.facts .w{grid-template-columns:1fr}.hs{flex-direction:column;align-items:stretch}.ring{margin:0 auto}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 </style>
 </head>
 <body>
 <header>
 <div class="w">
-<a class="logo" href="/" aria-label="MedSync home">MedSync</a>
-<nav aria-label="Main"><a class="h" href="#features">Features</a><a class="h" href="#trust">Trust</a><a class="h" href="#faq">FAQ</a><a href="{% url 'login' %}">Login</a><a class="btn" href="{{ cta_url }}">{{ cta_nav }}</a></nav>
+<a class="logo" href="/" aria-label="MedSync home"><i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 2h6v7h7v6h-7v7H9v-7H2V9h7z" fill="#1b1305"/></svg></i>MedSync</a>
+<nav aria-label="Main"><a class="h" href="#features">Features</a><a class="h" href="#day">A day with MedSync</a><a class="h" href="#safe">Safety</a><a class="h" href="#faq">FAQ</a><a href="{% url 'login' %}">Login</a><a class="btn" href="{{ cta_url }}">{{ cta_nav }}</a></nav>
 </div>
 </header>
 <main>
 <div class="hero"><div class="w">
 <div>
-<span class="pill">Pharmacy software for Indian medical stores</span>
-<h1>Billing, stock and expiry in one place. Fewer mistakes, more time.</h1>
-<p class="lead">MedSync handles GST bills, batches, expiry, supplier prices and your accountant's reports. It fills in what it can by itself, so your staff type less and your numbers stay right.</p>
+<h1>The pharmacy counter, without the guesswork.</h1>
+<p class="lead">MedSync bills in seconds, sells the oldest batch first, warns you before medicines expire, and hands your accountant a ready Excel. It fills in what it can, so your staff type less and your numbers stay right.</p>
 <div class="cta"><a class="btn" href="{{ cta_url }}">{{ cta_hero }}</a><a class="btn o" href="#features">See what it does</a></div>
+<div class="keys" aria-label="Billing keys"><span>Billing in three keys:</span><kbd>F2</kbd> search <kbd>Enter</kbd> next field <kbd>F9</kbd> save</div>
 </div>
-<div>
-<div class="mock" role="img" aria-label="Illustration of a MedSync bill with items, GST and total">
-<div class="bar"><span>New bill</span><span>F9 to save</span></div>
-<table><thead><tr><th>Medicine</th><th>Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>
-<tbody><tr><td>Paracetamol 650</td><td>2 Strip</td><td class="r">28.57</td><td class="r">64.00</td></tr>
-<tr><td>Azithromycin 500 <span class="tag">Sch H</span></td><td>1 Strip</td><td class="r">98.21</td><td class="r">110.00</td></tr>
-<tr><td>ORS Powder</td><td>3 Pack</td><td class="r">17.86</td><td class="r">60.00</td></tr></tbody></table>
-<div class="tot"><span>Total (incl. GST)</span><span>₹234.00</span></div>
+<div class="slipwrap">
+<div class="slip" role="img" aria-label="Illustration of a MedSync bill with items, GST, batch expiry and an alternative medicine suggestion">
+<h4>YOUR MEDICAL STORE</h4>
+<div class="c">GSTIN 19XXXXX0000X1Z5</div>
+<hr>
+<div class="r"><span>Bill #1042</span><span>17 Oct 2026</span></div>
+<hr>
+<div class="r"><span>Paracetamol 650</span><span>64.00</span></div><div class="c" style="text-align:left">2 Strip · B2231 · EXP 08/27</div>
+<div class="r"><span>Azithromycin 500 (H)</span><span>110.00</span></div><div class="c" style="text-align:left">1 Strip · A117 · EXP 03/27</div>
+<div class="r"><span>ORS Powder</span><span>60.00</span></div><div class="c" style="text-align:left">3 Pack · C902 · EXP 11/27</div>
+<hr>
+<div class="r"><span>GST included</span><span>25.07</span></div>
+<div class="r t"><span>TOTAL</span><span>₹234.00</span></div>
+<div class="r"><span>Paid by UPI</span><span>234.00</span></div>
+<div class="stamp">OLDEST BATCH<br>SOLD FIRST</div>
 </div>
-<p class="note">Illustration of the billing screen</p>
+<div class="chip">Out of stock? Same-composition medicine in stock, cheapest first.</div>
 </div>
 </div></div>
 
-<section id="features" class="alt"><div class="w">
-<h2>Everything a medical store needs every day</h2>
-<p class="sub">Built around how a pharmacy really works: strips and tablets, batches that expire, suppliers whose prices change.</p>
-<div class="grid">
-<div class="card"><span class="ic" aria-hidden="true">🧾</span><h3>Fast GST billing</h3><p>Scan or search, Enter for the next field, F9 to save. Rate is filled from the MRP, GST is worked out for you, and credit, UPI and cash are all supported.</p></div>
-<div class="card"><span class="ic" aria-hidden="true">⏳</span><h3>Batch and expiry (FEFO)</h3><p>The oldest valid batch is sold first. Expired stock is never billed, and you see what is about to expire before it becomes a loss.</p></div>
-<div class="card"><span class="ic" aria-hidden="true">🔁</span><h3>Alternative medicines</h3><p>Out of stock? Billing suggests another medicine with the same composition that you have in stock, cheapest first.</p></div>
-<div class="card"><span class="ic" aria-hidden="true">⚖️</span><h3>Supplier price comparison</h3><p>See who charged what, who is cheapest now, and get an alert when a price jumps. Purchase orders by print, email or WhatsApp.</p></div>
-<div class="card"><span class="ic" aria-hidden="true">📈</span><h3>Smart reordering</h3><p>From your real sales it shows how many days stock will last and how much to order, in whole packs.</p></div>
-<div class="card"><span class="ic" aria-hidden="true">💊</span><h3>Schedule H, H1 and X register</h3><p>Doctor and patient details are asked at billing for scheduled drugs. The register exports to Excel for inspection.</p></div>
-<div class="card"><span class="ic" aria-hidden="true">🧮</span><h3>GST and accountant export</h3><p>GSTR-1, GSTR-3B and HSN summary, plus one Excel with sales, purchases, credit and debit notes, expenses and payments for your CA.</p></div>
-<div class="card"><span class="ic" aria-hidden="true">📥</span><h3>Import from Excel</h3><p>Bring in products, stock and purchases from Excel or CSV. You see a preview and any problems before anything is saved.</p></div>
-<div class="card"><span class="ic" aria-hidden="true">⏸️</span><h3>Hold and resume bills</h3><p>A customer is still choosing? Hold the bill, serve the next one, and pick it up again later.</p></div>
-</div></div></section>
+<div class="facts"><div class="w">
+<div><b>Runs in any browser</b><span>Computer, tablet or phone. No special hardware.</span></div>
+<div><b>Barcode ready</b><span>A scanner works like a keyboard. Scan, and the cursor stays put.</span></div>
+<div><b>Daily backup</b><span>Taken every day, and the latest one is actually opened and checked.</span></div>
+<div><b>Your data, your server</b><span>Nothing is shared with anyone.</span></div>
+</div></div>
 
-<section id="trust"><div class="w split">
-<div>
-<span class="pill">Trust you can check</span>
-<h2>A health score that is measured, not guessed</h2>
-<p class="sub">The owner sees a score out of 100 for data accuracy, backups, speed and the shop itself. Every lost point comes with its reason, and a check that cannot run is never counted as good.</p>
-<ul style="color:var(--mut);padding-left:20px;margin:0">
-<li>Stock is compared with its batches</li>
-<li>The latest backup is actually opened and checked</li>
-<li>Page speed is timed on your own server</li>
-<li>Expired stock, missing MRP and HSN are listed</li>
-</ul>
-</div>
-<div>
-<div class="mock" role="img" aria-label="Illustration of the MedSync health score screen">
-<div class="bar"><span>Health Score</span><span>Measured now</span></div>
-<div style="padding:18px"><div class="ring"><b>94<small>Excellent</small></b></div></div>
-<div class="sc"><div><span>Data</span><b>100</b></div><div><span>Safety</span><b>100</b></div><div><span>Speed</span><b>95</b></div><div><span>Shop</span><b>80</b></div></div>
-</div>
-<p class="note">Illustration with sample numbers</p>
-</div>
-</div></section>
-
-<section class="alt"><div class="w">
-<h2>Safe by design</h2>
-<p class="sub">Your shop data is your business. MedSync is built so you stay in control of it.</p>
-<div class="grid">
-<div class="card"><span class="ic" aria-hidden="true">💾</span><h3>Daily automatic backup</h3><p>A compressed backup is taken every day, and the app warns the owner if one is missed.</p></div>
-<div class="card"><span class="ic" aria-hidden="true">🔐</span><h3>Roles and access</h3><p>Staff see only what they need. Owner-only pages, login throttling and an audit log of important changes.</p></div>
-<div class="card"><span class="ic" aria-hidden="true">🏠</span><h3>Your data stays yours</h3><p>It lives in your own database on your own server and is not shared with anyone.</p></div>
-</div></div></section>
-
-<section><div class="w">
-<h2>Start in three steps</h2>
-<p class="sub">No special hardware. It runs in any web browser on a computer, tablet or phone.</p>
-<ol class="steps">
-<li><b>Tell us about your shop</b>We set up your units, GST rates and staff logins.</li>
-<li><b>Import your stock</b>Upload your Excel sheet, check the preview, and save.</li>
-<li><b>Start billing</b>Your first bill takes a minute. We stay with you while you learn.</li>
+<section id="day"><div class="w">
+<div class="head"><h2>A day in your shop, with MedSync</h2><p>It follows the way a chemist's day really goes, from the first look at the shelves to the last backup.</p></div>
+<ol class="day">
+<li><b>Open the shop</b>The dashboard shows low stock, what expires this month and any supplier price that jumped.</li>
+<li><b>Serve customers</b>Scan or search, bill, print. Credit, cash, UPI or card, with scheduled drugs handled as the law asks.</li>
+<li><b>Receive stock</b>Enter the supplier bill. Warnings catch duplicate invoices and odd prices before they reach your books.</li>
+<li><b>Close the day</b>A summary of sales by payment mode, credit given and collected, and top sellers, ready to share on WhatsApp.</li>
+<li><b>While you sleep</b>The daily backup runs, and the health score is measured again.</li>
 </ol>
 </div></section>
 
-<section id="faq" class="alt"><div class="w">
-<h2>Questions shop owners ask</h2>
-<p class="sub">Short answers. Ask us anything else.</p>
+<section id="features" class="p"><div class="w">
+<div class="head"><h2>What it does, in detail</h2><p>Every item here is already in the application. Nothing on this page is a promise for later.</p></div>
+
+<div class="row">
+<div class="txt"><span class="tag">Billing</span><h2>Fast, correct bills at the counter</h2>
+<ul>
+<li><b>Scan or type.</b> Search by name or barcode, <kbd>Enter</kbd> moves on, <kbd>F9</kbd> saves.</li>
+<li><b>The rate fills itself.</b> From the MRP, for the unit you pick (strip or tablet), with GST worked out. A rate you type is never overwritten.</li>
+<li><b>Oldest batch first (FEFO).</b> Expired stock cannot be billed.</li>
+<li><b>Out of stock?</b> It suggests medicines with the same composition that you have, cheapest first, and replaces the row in one tap.</li>
+<li><b>Hold and resume.</b> Put a bill aside while the customer decides, and finish it later.</li>
+<li><b>Customers and credit.</b> Type a phone number to pick the customer and see the credit due against the limit. Partial payments and a ledger per customer.</li>
+</ul></div>
+<div><div class="win" role="img" aria-label="Illustration of the billing screen with an alternative suggestion">
+<div class="bar"><span>New bill</span><span>Hold · F9 Save</span></div>
+<div class="sc"><table><thead><tr><th>Medicine</th><th>Qty</th><th>Unit</th><th class="n">Rate</th><th class="n">Amount</th></tr></thead>
+<tbody><tr><td>Dolo 650</td><td>2</td><td>Strip</td><td class="n">28.57</td><td class="n">64.00</td></tr>
+<tr><td>Cetrizine 10 <span class="b r">OUT OF STOCK</span></td><td>1</td><td>Strip</td><td class="n">—</td><td class="n">—</td></tr></tbody></table></div>
+<div class="alt"><b>Same composition in stock:</b> Okacet 10 · ₹18 &nbsp; <span class="b g">Use this</span></div>
+</div></div>
+</div>
+
+<div class="row rev">
+<div class="txt"><span class="tag">Stock and expiry</span><h2>Know what will expire before it costs you</h2>
+<ul>
+<li><b>Every purchase makes a batch</b> with its expiry, so stock is tracked batch by batch.</li>
+<li><b>Expiry page</b> lists what expires soon, so a return to the supplier is one click away.</li>
+<li><b>Returns and write-offs.</b> Sales return, purchase return and expired or damaged write-off. Stock, accounts and profit adjust by themselves.</li>
+<li><b>Product preview.</b> See a product's batches, prices and history without opening the edit form.</li>
+<li><b>Stock count.</b> Compare shelf counts with the system and correct the difference.</li>
+</ul></div>
+<div><div class="win" role="img" aria-label="Illustration of batches and expiry for one product">
+<div class="bar"><span>Dolo 650 · batches</span><span>Stock: 88 tablets</span></div>
+<div class="sc"><table><thead><tr><th>Batch</th><th>Expiry</th><th class="n">Qty</th><th>Status</th></tr></thead>
+<tbody><tr><td>A117</td><td>03/27</td><td class="n">28</td><td><span class="b a">Expires in 60 days</span></td></tr>
+<tr><td>B2231</td><td>08/27</td><td class="n">50</td><td><span class="b g">Good</span></td></tr>
+<tr><td>Z009</td><td>09/26</td><td class="n">10</td><td><span class="b r">Expired</span></td></tr></tbody></table></div>
+</div></div>
+</div>
+
+<div class="row">
+<div class="txt"><span class="tag">Purchasing</span><h2>Buy smarter, enter less</h2>
+<ul>
+<li><b>Supplier price comparison.</b> Who charged what, who is cheapest now, and the price trend, per base unit and per pack, GST included.</li>
+<li><b>Price alert.</b> A rise of 10% or more in 60 days shows on the dashboard, with a cheaper supplier if there is one.</li>
+<li><b>Reorder suggestions.</b> From your real sales: how many days the stock will last and how much to order, in whole packs.</li>
+<li><b>Purchase orders</b> by print, email or WhatsApp, made per supplier.</li>
+<li><b>Repeat order.</b> Copy the items of a supplier's last invoice.</li>
+</ul></div>
+<div><div class="win" role="img" aria-label="Illustration of supplier price comparison">
+<div class="bar"><span>Supplier prices · Dolo 650 (per strip)</span><span>incl. GST</span></div>
+<div class="sc"><table><thead><tr><th>Supplier</th><th class="n">Last price</th><th class="n">Trend</th><th></th></tr></thead>
+<tbody><tr><td>ABC Pharma</td><td class="n">₹56.00</td><td class="n">+12%</td><td><span class="b a">Rising</span></td></tr>
+<tr><td>Sai Distributors</td><td class="n">₹50.50</td><td class="n">0%</td><td><span class="b g">Cheapest</span></td></tr>
+<tr><td>Kolkata Meds</td><td class="n">₹54.00</td><td class="n">−2%</td><td></td></tr></tbody></table></div>
+</div></div>
+</div>
+
+<div class="row rev">
+<div class="txt"><span class="tag">Accounts and compliance</span><h2>Your CA gets one file. The inspector gets a clean register.</h2>
+<ul>
+<li><b>One Excel for the accountant:</b> sales and purchase registers, GST by rate, credit and debit notes, expenses, supplier payments and customer receipts, with totals as live formulas.</li>
+<li><b>GST page:</b> GSTR-1 (B2B, B2C, credit notes), GSTR-3B summary, HSN summary and input credit, with Excel export.</li>
+<li><b>Schedule H, H1 and X register.</b> Billing asks for doctor and patient details, and the register exports to Excel.</li>
+<li><b>Profit and loss</b> from real purchase and sale costs, plus expenses and salary.</li>
+</ul></div>
+<div><div class="win" role="img" aria-label="Illustration of the accountant Excel export contents">
+<div class="bar"><span>CA export · Apr 2026 – Oct 2026</span><span>.xlsx</span></div>
+<div class="sc"><table><tbody>
+<tr><td>Summary</td><td class="n">Sales, purchases, GST payable</td></tr>
+<tr><td>Sales Register</td><td class="n">Bill by bill, with GSTIN</td></tr>
+<tr><td>Sales by GST rate</td><td class="n">5% · 12% · 18%</td></tr>
+<tr><td>Purchase Register</td><td class="n">With input credit</td></tr>
+<tr><td>Credit and Debit Notes</td><td class="n">Returns, both ways</td></tr>
+<tr><td>Expenses · Payments · Receipts</td><td class="n">All in one workbook</td></tr></tbody></table></div>
+</div></div>
+</div>
+
+<div class="row">
+<div class="txt"><span class="tag">Trust</span><h2>A health score that is measured, not guessed</h2>
+<p class="mut">The owner sees a score out of 100 on the admin home. Each part comes from a real measurement, every lost point has a reason, and a check that cannot run is never counted as good.</p>
+<ul>
+<li><b>Data (40):</b> stock against batches, negative batches.</li>
+<li><b>Safety (25):</b> backup age, whether the latest backup really opens, database integrity, secure settings.</li>
+<li><b>Speed (20):</b> pages timed on your own server.</li>
+<li><b>Shop (15):</b> expired stock, low stock, missing MRP and HSN.</li>
+</ul></div>
+<div><div class="win" role="img" aria-label="Illustration of the health score with sample numbers">
+<div class="bar"><span>Health Score</span><span>Measured now</span></div>
+<div class="hs"><div class="ring"><b>94</b></div>
+<ul><li><span>Data</span><b>100</b></li><li><span>Safety</span><b>100</b></li><li><span>Speed</span><b>95</b></li><li><span>Shop</span><b>80</b></li></ul></div>
+<div class="alt">−5 Expired stock on the shelf (2 batches). −10 Medicines without an MRP.</div>
+</div></div>
+</div>
+</div></section>
+
+<section><div class="w">
+<div class="head"><h2>Built so mistakes get caught early</h2><p>A pharmacy loses money in small errors. These checks run on their own.</p></div>
+<ul class="guard">
+<li><b>Duplicate supplier invoice</b> is refused, in any letter case.</li>
+<li><b>Odd purchase entries</b> are flagged: price 40% above or below the usual, a quantity ten times the usual, a price of zero, a selling price below cost, a missing or short expiry.</li>
+<li><b>Expired batches</b> can never be billed.</li>
+<li><b>Scheduled drugs</b> cannot be billed without the doctor and patient details.</li>
+<li><b>Stock and batches</b> are compared every time the health score is measured.</li>
+<li><b>Imports show a preview</b> and mark which columns are needed before anything is saved.</li>
+<li><b>Warnings never block you.</b> A deliberate unusual entry is saved with one click.</li>
+<li><b>An audit log</b> records important changes and who made them.</li>
+</ul>
+</div></section>
+
+<section class="p"><div class="w">
+<div class="head"><h2>And the rest of the shop</h2><p>The smaller things that save a few minutes every day.</p></div>
+<div class="grid">
+<div><h3>Import from Excel</h3><p>Products, stock and purchases, with a preview and clear error messages.</p></div>
+<div><h3>Units and packs</h3><p>Sell by tablet or strip, buy by carton. Stock shows as "3 strips 4 tablets".</p></div>
+<div><h3>Rack and location</h3><p>Rack, row and composition are remembered per product.</p></div>
+<div><h3>Customer ledger</h3><p>Credit limit, partial payments and statements per customer.</p></div>
+<div><h3>Daily summary</h3><p>By email or WhatsApp: sales, credit, purchases, expenses and alerts.</p></div>
+<div><h3>Invoices and notes</h3><p>Printable invoices, credit notes and debit notes.</p></div>
+<div><h3>Expenses and salary</h3><p>Record running costs so profit and loss is the true figure.</p></div>
+<div><h3>Roles</h3><p>Owner, billing and purchase staff each see their own pages.</p></div>
+</div></div></section>
+
+<section id="safe"><div class="w">
+<div class="head"><h2>Safe by design</h2><p>Your shop data is your business. MedSync is built so you stay in control of it.</p></div>
+<div class="roles">
+<div><h3>Backups you can trust</h3><p>A compressed backup every day, kept for you to restore, and the owner is warned if one is missed.</p></div>
+<div><h3>Access you control</h3><p>Role-based logins, owner-only pages, login throttling after repeated wrong passwords and an audit log.</p></div>
+<div><h3>Data that stays yours</h3><p>It lives in your own database on your own server. Debug details are switched off, and logins are forced onto a secure connection.</p></div>
+</div></div></section>
+
+<section class="p"><div class="w">
+<div class="head"><h2>Start without stopping the shop</h2><p>You do not need to stop selling to switch.</p></div>
+<ol class="steps">
+<li><b>Tell us about your shop</b>We set up your units, GST rates and staff logins.</li>
+<li><b>Bring your stock</b>Upload your Excel sheet, check the preview and save. Old data stays in your file.</li>
+<li><b>Start billing</b>Your first bill takes a minute. We stay with you while your staff learn.</li>
+</ol>
+</div></section>
+
+<section id="faq"><div class="w">
+<div class="head"><h2>Questions shop owners ask</h2></div>
 <details><summary>Where is my data stored?</summary><p>In your own database on your own server. Nothing is shared with anyone, and a compressed backup is taken every day.</p></details>
-<details><summary>Do I need special hardware?</summary><p>No. MedSync runs in a web browser on any computer, tablet or phone. A barcode scanner works as a keyboard.</p></details>
-<details><summary>Can my accountant use it?</summary><p>Yes. The accountant export gives sales and purchase registers, credit and debit notes, GST by rate, expenses and payments in one Excel file.</p></details>
-<details><summary>Is Schedule H and H1 selling tracked?</summary><p>Yes. Billing asks for doctor and patient details for scheduled drugs and the drug register can be exported to Excel.</p></details>
-<details><summary>Can I move my existing stock into MedSync?</summary><p>Yes. Products, stock and purchases can be imported from Excel or CSV with a preview before anything is saved.</p></details>
+<details><summary>Do I need special hardware?</summary><p>No. MedSync runs in a web browser on any computer, tablet or phone. A barcode scanner works like a keyboard.</p></details>
+<details><summary>Can my accountant use it?</summary><p>Yes. One Excel export has the sales and purchase registers, credit and debit notes, GST by rate, expenses and payments. The GST page also gives GSTR-1, GSTR-3B and HSN summaries.</p></details>
+<details><summary>Is Schedule H and H1 selling tracked?</summary><p>Yes. Billing asks for the doctor and patient details for scheduled drugs, and the drug register exports to Excel.</p></details>
+<details><summary>Can I move my existing stock into MedSync?</summary><p>Yes. Products, stock and purchases can be imported from Excel or CSV. You see a preview and any problems before anything is saved.</p></details>
+<details><summary>What happens to expired medicines?</summary><p>Expired batches are never billed. They are listed on the expiry page, and you can return them to the supplier or write them off. Stock and accounts adjust automatically.</p></details>
+<details><summary>Can several staff use it at once?</summary><p>Yes. Each person has a login with a role, so billing staff, purchase staff and the owner each see only what they need.</p></details>
+<details><summary>How do I know the numbers are right?</summary><p>The owner's health score compares stock with batches, opens the latest backup to check it, times the pages on your own server and lists every problem with its reason.</p></details>
 </div></section>
 
 <div class="final"><div class="w">
-<h2>See MedSync on your own medicines</h2>
-<p>Send us a message and we will show you a demo with your kind of stock and bills.</p>
-<a class="btn" href="{{ cta_url }}">{{ cta_final }}</a>
+<div><h2>See it with your own medicines</h2><p>Send us a message. We will show you a demo with your kind of stock and bills, and answer your questions.</p></div>
+<div><a class="btn" href="{{ cta_url }}">{{ cta_final }}</a></div>
 </div></div>
 </main>
-<footer><div class="w">© MedSync · Pharmacy inventory &amp; billing software · <a href="{% url 'login' %}">Login</a></div></footer>
+<footer><div class="w"><div><a href="#features">Features</a><a href="#day">A day with MedSync</a><a href="#safe">Safety</a><a href="#faq">FAQ</a><a href="{% url 'login' %}">Login</a></div><div>© MedSync. Pharmacy inventory and billing software. Pictures use sample data.</div></div></footer>
 </body>
 </html>
