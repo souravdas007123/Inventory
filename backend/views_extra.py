@@ -351,6 +351,17 @@ def _unit_factors(p):
     return factors
 
 
+def _unit_list(p):
+    """The units this product can be sold in, base unit first, then its packs (smallest pack first):
+    [{id, name, factor}]. The billing screen shows only these, with the base unit pre-selected."""
+    if not p.unit_id:
+        return []
+    out = [dict(id=p.unit_id, name=p.unit.name, factor=1)]
+    packs = sorted((c for c in p.unit_conversions.all() if c.unit_id != p.unit_id and c.factor and c.factor > 1), key=lambda c: c.factor)
+    out += [dict(id=c.unit_id, name=c.unit.name, factor=c.factor) for c in packs]
+    return out
+
+
 @access.perm_required(('add', 'bill'), ('change', 'bill'))
 def customer_lookup(request):
     """Billing helper: find a customer by phone number (last 10 digits) or id; returns name and credit due."""
@@ -578,6 +589,7 @@ def product_lookup(request):
     batch_info = _batch_info([p.pk for p in products]) if pid.isdecimal() else {}     # only when one product is picked
     results = [dict(id=p.pk, name=p.name or str(p), composition=p.composition or '', barcode=p.barcode or '',
                     mrp=str(p.mrp) if p.mrp is not None else '', rate1=_bill_rate(p), factors=_unit_factors(p),
+                    unit_id=p.unit_id, units=_unit_list(p),
                     stock=p.stock_display(), stock_qty=p.stock_qty, available_qty=p.available_qty(), schedule=p.schedule,
                     unit_name=p.unit.name if p.unit_id else '', **batch_info.get(p.pk, {})) for p in products]
     if pid.isdecimal() and results:       # a picked product: the same-salt medicines that can be sold instead (shown when it is out / short)

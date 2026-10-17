@@ -149,6 +149,23 @@ async function getInfo(id) {
   }
   return infoCache[id];
 }
+// ---- Units: the unit list of a row shows only this medicine's units, and the base unit is chosen when the medicine is picked ----
+let RESUMING = false;                       // true while a held bill is being put back: the units saved with it must stay
+function ensureUnits(tr, p, reset) {
+  const sel = rowField(tr, 'unit'); if (!sel || !p || !p.units || !p.units.length) return;
+  const ids = p.units.map(u => String(u.id));
+  let cur = sel.value;
+  if (reset || !ids.includes(cur)) cur = String(p.unit_id);
+  if ([...sel.options].map(o => o.value).join(',') !== ids.join(',')) {
+    sel.textContent = '';
+    p.units.forEach((u, i) => {
+      const o = document.createElement('option'); o.value = String(u.id);
+      o.textContent = i === 0 ? u.name + ' (base unit)' : u.name + ' (1 = ' + u.factor + ' ' + p.units[0].name + ')';
+      sel.appendChild(o);
+    });
+  }
+  sel.value = cur;
+}
 function applyRate(tr, p) {
   const rate = rowField(tr, 'rate'); if (!rate || !p || !p.rate1) return;
   if (rate.value && rate.dataset.auto !== '1') return;           // the user typed their own rate: keep it
@@ -162,10 +179,11 @@ rowsBody.addEventListener('change', async e => {
   const n = e.target.name || '', tr = e.target.closest('tr');
   if (!tr || !(n.endsWith('-product') || n.endsWith('-unit'))) return;
   const sel = rowField(tr, 'product'); if (!sel) return;
+  const newProduct = n.endsWith('-product') && !RESUMING;      // a medicine was picked: start with its base unit
   showBatches(tr);
   if (!sel.value) return;
   const p = await getInfo(sel.value);
-  if (p && rowField(tr, 'product').value === sel.value) applyRate(tr, p);
+  if (p && rowField(tr, 'product').value === sel.value) { ensureUnits(tr, p, newProduct); applyRate(tr, p); }
 });
 // ---- Batch hint under each row: which batch is sold first (earliest EXP), its expiry and where it is kept (rack / row) ----
 const NEW_BILL = {% if form.instance.pk %}false{% else %}true{% endif %};
@@ -188,9 +206,29 @@ function bchip(box, text, cls) {
 const fmtExp = iso => new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'});
 const batchTxt = (b, unit) => b.no + ' · ' + (b.exp ? 'EXP ' + fmtExp(b.exp) : 'no EXP date') + ' · ' + (b.where || 'rack not set') + ' · ' + b.qty + ' ' + unit + ' left';
 const expCls = b => b.days === null ? 'grey' : b.days <= 30 ? 'red' : b.days <= 90 ? 'amber' : 'green';
+// ---- Under the row: base unit, pack sizes, stock and the price of each unit, plus one click to switch the unit ----
+function drawUnits(tr, p, box) {
+  const units = p.units || []; if (!units.length) return;
+  const base = units[0], uSel = rowField(tr, 'unit'), cur = uSel && uSel.value ? uSel.value : String(p.unit_id);
+  const curU = units.find(u => String(u.id) === cur) || base;
+  const packs = units.slice(1).map(u => '1 ' + u.name + ' = ' + u.factor + ' ' + base.name);
+  bchip(box, 'Base unit: ' + base.name + (packs.length ? ' · ' + packs.join(' · ') : '') + ' · Stock: ' + p.stock, 'grey');
+  if (p.mrp) bchip(box, units.map(u => 'MRP ₹' + (parseFloat(p.mrp) * u.factor).toFixed(2) + ' per ' + u.name).join(' · '), 'grey');
+  units.forEach(u => {
+    if (String(u.id) === String(curU.id)) return;
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost sm';
+    b.textContent = 'Sell in ' + u.name + (u === base ? ' (base)' : ''); b.title = 'Change the unit of this row to ' + u.name;
+    b.onclick = () => { if (uSel) { uSel.value = String(u.id); uSel.dispatchEvent(new Event('change', {bubbles: true})); } };
+    box.appendChild(b);
+  });
+  const q = rowField(tr, 'qty');
+  if (q) { q.placeholder = 'Qty in ' + curU.name; const td = q.closest('td'); if (td) td.setAttribute('data-label', 'Qty (' + curU.name + ')'); }
+}
 function drawBatches(tr, p) {
+  ensureUnits(tr, p, false);
   const hr = batchRow(tr, true), box = hr.querySelector('.bh'); box.textContent = '';
   const unit = p.unit_name || '', list = p.batches || [];
+  drawUnits(tr, p, box);
   if (!list.length) {
     bchip(box, +p.stock_qty > 0 && !p.expired_qty ? 'This stock has no batch record' : 'No sellable batch in stock', 'amber');
   } else {
@@ -233,7 +271,7 @@ async function useAlt(tr, a, replace) {
   if (!info) { alert('Could not load this medicine. Please try again.'); return; }
   if (!replace) { addProduct(info, true); return; }
   rowField(tr, 'product').value = String(a.id);
-  const uSel = rowField(tr, 'unit'); if (uSel && uSel.value && !info.factors[uSel.value]) uSel.value = '';     // this medicine has no such pack: use its base unit
+  ensureUnits(tr, info, true);                                  // the other medicine starts with its own base unit
   const rate = rowField(tr, 'rate'); if (rate) { rate.value = ''; rate.dataset.auto = '1'; }
   applyRate(tr, info); showBatches(tr);
   const q = rowField(tr, 'qty'); if (q) { q.focus(); q.select(); }
@@ -270,6 +308,7 @@ function addProduct(p, jump) {
   }
   rowField(target, 'product').value = String(p.id);
   rowField(target, 'qty').value = 1;
+  ensureUnits(target, p, true);
   applyRate(target, p);
   showBatches(target);
   toQty(target);
@@ -355,7 +394,8 @@ if (holdBtn) holdBtn.addEventListener('click', async () => {
     else f.value = value;
     if (f.tagName === 'SELECT') later.push(f);
   }
-  later.forEach(f => fire(f, 'change'));                      // show / hide parts of the form, load the customer, batches and stock hints
+  RESUMING = true;
+  try { later.forEach(f => fire(f, 'change')); } finally { RESUMING = false; }     // show / hide parts of the form, load the customer, batches and stock hints
 })();
 {% if not form.instance.pk %}if (scan && !document.getElementById('held-resume')) scan.focus();{% endif %}
 
