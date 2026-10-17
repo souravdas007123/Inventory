@@ -52,6 +52,7 @@ urlpatterns = [
 
     # Billing screen helper (barcode / quick search)
     path('api/products/lookup/', views_extra.product_lookup, name='product_lookup'),
+    path('api/gst_rates/', views_extra.gst_rates, name='gst_rates'),
 
     # Alerts + Purchase Order share
     path('alerts/send/', views_extra.alerts_send, name='alerts_send'),

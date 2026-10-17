@@ -875,6 +875,8 @@ def edit(request, key, pk=None):
     if key == 'purchases' and po:      # banner: what this invoice is receiving
         quick['po'] = dict(number=po.po_number, supplier=po.supplier.company,
                            lines=', '.join(f"{i.product.name or i.product} x {i.order_qty}" for i in po_items))
+    if key == 'purchases' and obj:      # a saved row keeps the GST rate it was saved with; the amount preview needs it
+        quick['saved_gst'] = {str(i.pk): {'p': i.product_id, 'g': i.gst_rate} for i in obj.items.all()}
     if key == 'purchases':
         quick['no_products'] = not Product.objects.exists()       # shows a hint: no import needed, create products right here
     if key == 'bills' and not obj and access.can(request.user, 'add', 'bill'):     # bills on hold + the one being resumed

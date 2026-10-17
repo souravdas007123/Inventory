@@ -54,6 +54,29 @@
   </table></div>
   <button type="button" class="btn ghost" id="add" style="margin-top:10px">+ Add row</button>
   {% if key == 'purchases' %}<button type="button" class="btn ghost" id="toggle-extra" style="margin-top:10px">▸ More details (rack, row, location, composition)</button>{% endif %}
+  {% if key == 'bills' or key == 'purchases' %}
+  <style>
+    .live{margin-top:16px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--soft)}
+    .live h3{margin:0 0 6px}
+    .live th.r,.live td.r{text-align:right;white-space:nowrap}
+    .live td.nm{font-weight:600;white-space:normal}.live td.b{font-weight:700}
+    .live .lsum{margin-top:10px;max-width:380px;margin-left:auto}
+    .live .lsum div{display:flex;justify-content:space-between;gap:16px;padding:3px 0;border-bottom:1px dashed var(--line)}
+    .live .lsum div.big{font-size:20px;border-bottom:0;padding-top:8px;color:var(--pri)}
+    .live .lwarn div{margin-top:6px;padding:6px 10px;border-radius:8px;background:#fde7c6;color:#7a4608;font-size:13px}
+    @media(prefers-color-scheme:dark){.live .lwarn div{background:#4a3410;color:#f7d9a3}}
+  </style>
+  <div id="live" class="live" data-kind="{{ key }}" aria-live="polite">
+    <h3>{% if key == 'bills' %}Bill preview{% else %}Invoice preview{% endif %}</h3>
+    <p id="live-empty" style="color:var(--mute);margin:6px 0">Add medicines to see the amounts here.</p>
+    <div class="tw" id="live-tw" style="display:none"><table class="t stack">
+      <thead>{% if key == 'bills' %}<tr><th>Medicine</th><th class="r">Qty × Rate</th><th class="r">Discount</th><th class="r">Taxable</th><th class="r">GST</th><th class="r">Amount</th></tr>
+      {% else %}<tr><th>Medicine</th><th class="r">Qty</th><th class="r">Price (incl. GST)</th><th class="r">Taxable</th><th class="r">GST</th></tr>{% endif %}</thead>
+      <tbody id="live-lines"></tbody></table></div>
+    <div id="live-sum" class="lsum"></div>
+    <div id="live-warn" class="lwarn"></div>
+  </div>
+  {% endif %}
   <template id="tpl"><tr>{% for h in fs.empty_form.hidden_fields %}{{ h }}{% endfor %}
     {% for f in fs.empty_form.visible_fields %}<td data-label="{{ f.label }}">{{ f }}</td>{% endfor %}</tr></template>
   </div>
@@ -62,6 +85,7 @@
   <div class="bar">{% if warnings %}<button class="btn" name="confirm_warnings" value="1">✔ Save anyway</button>{% else %}<button class="btn">💾 Save</button>{% endif %}{% if key == 'bills' and not form.instance.pk %}<button type="button" class="btn ghost" id="hold-btn" title="Park this bill and open it again later (no stock is used)">⏸ Hold bill</button>{% endif %}<a class="btn ghost" href="{{ back_url }}">Cancel</a></div>
 </form>
 {% if key == 'bills' and held_resume %}{{ held_resume|json_script:"held-resume" }}{% endif %}
+{% if saved_gst %}{{ saved_gst|json_script:"saved-gst" }}{% endif %}
 {% if key == 'purchases' and can_add_product %}
 <dialog id="np-dialog" class="dlg">
   <div class="np-head"><h3>➕ New product</h3><button type="button" class="btn ghost sm" id="np-close" aria-label="Close">✕</button></div>
@@ -86,7 +110,7 @@
 {% endif %}
 {% endblock %}
 
-{% block scripts %}{% if warnings %}
+{% block scripts %}{% if key == 'bills' or key == 'purchases' %}<script>{% include "app/live_calc.js" %}</script>{% endif %}{% if warnings %}
 <script>
 // Once the entry is changed, the warnings no longer apply: the button goes back to a normal Save (which checks again).
 (function () {

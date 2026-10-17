@@ -588,6 +588,14 @@ def product_lookup(request):
     return JsonResponse({'results': results, 'exact': exact})
 
 
+@access.perm_required(('add', 'bill'), ('change', 'bill'), ('add', 'purchase'), ('change', 'purchase'))
+def gst_rates(request):
+    """GST % of the given products, for the live amount preview on the bill / purchase screens. One light query."""
+    ids = [int(x) for x in request.GET.get('ids', '').split(',') if x.strip().isdecimal()][:200]
+    rows = Product.objects.filter(pk__in=ids).values_list('pk', 'gst_rate')
+    return JsonResponse({'rates': {str(pk): int(rate or 0) for pk, rate in rows}})      # int(): the same rule the saved bill uses
+
+
 # ======================================================
 # REORDER SUGGESTIONS (from sales speed)
 # ======================================================

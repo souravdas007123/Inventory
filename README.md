@@ -246,3 +246,10 @@ Owner only (in the **Money** section, with a breakdown below it): expenses today
 ## Deleting records safely
 
 A purchase that was already sold from, or that has a return or write-off linked, cannot be deleted. The site and the admin now say why in a message (for example "5 (base unit) of this purchase has already been sold/used/returned, so it cannot be deleted. If there is a mistake, create a Purchase Return.") instead of showing a Server Error (500). `Purchase.delete_problem()` answers the question without changing anything. In the admin, "delete selected" skips a record that cannot go and deletes the others. Any business-rule error (`ValidationError`) raised while saving or deleting in the admin becomes a message, and the database work is rolled back. Tests: `backend/tests/test_purchase_delete.py`.
+
+## Live amount preview (bill and purchase screens)
+- While a bill is typed, a **Bill preview** under the items shows, for each medicine, the discount, taxable value, GST and amount, and below it the sub total, discount, CGST/SGST (or IGST), round-off and **grand total**. For a credit bill it also shows "Paid now" and "Credit due". The **Invoice preview** on the purchase screen shows taxable value, GST and the invoice total.
+- It only shows numbers; it never changes a field and never saves anything. A note appears under it when a row is incomplete (no quantity, no rate, both Discount % and Flat, discount above 100%).
+- The maths runs in the browser (`templates/app/live_calc.js`), so typing is instant and no request is sent per key. Only the GST % of the chosen medicines is fetched, once (`/api/gst_rates/`). Amounts are calculated in whole paise and rounded exactly as the server does (half-even per line, total rounded half-up to the rupee), so the preview equals the saved bill. A saved purchase keeps the GST rate it was saved with.
+- `backend/tests/test_live_preview.py` checks this against the real models when Node.js is installed (skipped otherwise).
+
