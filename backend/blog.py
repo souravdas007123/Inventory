@@ -14,7 +14,7 @@ from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_GET
 
 from . import access
-from .blog_art import cover_svg
+from .blog_art import post_image
 from .landing import _site_url, cta_context
 from .models import BlogPost
 
@@ -95,15 +95,6 @@ def reading_minutes(text):
 def _jsonld(data):
     """JSON for a <script type="application/ld+json"> tag. '<' is escaped so the text can never close the tag."""
     return mark_safe(json.dumps(data, ensure_ascii=False).replace('<', '\\u003c'))
-
-
-def post_image(post, decorative=False, lazy=True):
-    """The picture at the top of an article: its own picture if one is set, else the chosen illustration, else nothing."""
-    url = (post.image_url or '').strip()
-    if url and (url.startswith('https://') or (url.startswith('/') and not url.startswith('//'))):
-        return format_html('<img src="{}" alt="{}" {} decoding="async">', url, '' if decorative else (post.image_alt or post.title),
-                           mark_safe('loading="lazy"') if lazy else '')
-    return cover_svg(post.cover, decorative=decorative)
 
 
 def _absolute(site, url):

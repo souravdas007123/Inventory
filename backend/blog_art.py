@@ -3,6 +3,7 @@
 The drawings are fixed constants written here, never built from user text, so they are safe to put in a page.
 An article can still use a real picture instead: see BlogPost.image_url.
 """
+from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
 INK, PANEL, AMBER, CREAM, GREEN, RED, MIST = '#0a2f2a', '#12453d', '#d98324', '#fffef9', '#4fd1a5', '#e05a47', '#9ec7bd'
@@ -92,3 +93,12 @@ def cover_svg(key, label='', decorative=False):
     return mark_safe(f'<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" {access} preserveAspectRatio="xMidYMid slice">'
                      f'<rect width="800" height="420" fill="{INK}"/><circle cx="700" cy="40" r="170" fill="{PANEL}"/><circle cx="60" cy="400" r="120" fill="{PANEL}"/>'
                      f'{item[1]()}</svg>')
+
+
+def post_image(post, decorative=False, lazy=True):
+    """The picture at the top of an article: its own picture if one is set, else the chosen illustration, else nothing."""
+    url = (post.image_url or '').strip()
+    if url and (url.startswith('https://') or (url.startswith('/') and not url.startswith('//'))):
+        return format_html('<img src="{}" alt="{}" {} decoding="async">', url, '' if decorative else (post.image_alt or post.title),
+                           mark_safe('loading="lazy"') if lazy else '')
+    return cover_svg(post.cover, decorative=decorative)

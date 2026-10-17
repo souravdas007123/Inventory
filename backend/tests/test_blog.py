@@ -156,6 +156,15 @@ class BlogPagesTests(TestCase):
         self.assertIn('Home teaser article', html)
         self.assertIn('href="/blog/one/"', html)
 
+    def test_the_home_page_teaser_shows_a_picture_for_each_article(self):
+        BlogPost.objects.all().delete()
+        BlogPost.objects.create(title='With art', slug='with-art', summary='S.', body='B', published=True, cover='fefo')
+        BlogPost.objects.create(title='Own pic', slug='own-pic', summary='S.', body='B', published=True, image_url='https://example.com/p.png')
+        html = self.client.get('/').content.decode()
+        self.assertEqual(html.count('class="bt"'), 2)
+        self.assertIn('<svg', html.split('From the blog')[1])
+        self.assertIn('src="https://example.com/p.png"', html)
+
     def test_the_home_page_still_opens_without_articles(self):
         BlogPost.objects.all().delete()
         resp = self.client.get('/')

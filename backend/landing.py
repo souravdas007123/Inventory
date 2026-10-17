@@ -15,6 +15,7 @@ from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET
 
 from . import views
+from .blog_art import post_image
 from .models import BlogPost
 
 ASSETS = Path(__file__).parent / 'landing_assets'
@@ -37,7 +38,8 @@ def home(request):
     if request.user.is_authenticated:
         return views.dashboard(request)
     try:                                            # the blog teaser must never be able to break the home page
-        latest = [dict(title=p.title, summary=p.summary, url=p.get_absolute_url(), date=p.published_at)
+        latest = [dict(title=p.title, summary=p.summary, url=p.get_absolute_url(), date=p.published_at,
+                       image=post_image(p, decorative=True))
                   for p in BlogPost.live()[:3]]
     except Exception:
         latest = []
