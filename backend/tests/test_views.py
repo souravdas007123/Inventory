@@ -158,11 +158,18 @@ class OwnerPagesTests(StockMixin, TestCase):
 @override_settings(SECURE_SSL_REDIRECT=False, SESSION_COOKIE_SECURE=False, CSRF_COOKIE_SECURE=False)  # the live site forces https; tests talk plain http
 class AccessTests(StockMixin, TestCase):
     def test_anonymous_users_are_sent_to_the_login_page(self):
-        for url in ('/', '/bills/', '/purchases/', '/import/', '/backup/', '/api/bill_preview/1/'):
+        for url in ('/bills/', '/purchases/', '/import/', '/backup/', '/api/bill_preview/1/'):
             with self.subTest(url=url):
                 resp = self.client.get(url)
                 self.assertEqual(resp.status_code, 302)
                 self.assertIn('/login/', resp['Location'])
+
+    def test_the_home_page_is_public_but_shows_no_shop_data(self):
+        self.buy()
+        resp = self.client.get('/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'href="/login/"')
+        self.assertNotContains(resp, 'Dolo 650')
 
     def test_a_user_without_rights_cannot_see_the_shop_data(self):
         user = get_user_model().objects.create_user('clerk', password='pw-12345')
