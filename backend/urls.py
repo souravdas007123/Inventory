@@ -1,11 +1,15 @@
 from django.contrib.auth import views as auth_views
 from django.urls import path
 
-from . import security, views, views_extra, views_import
+from . import landing, security, views, views_extra, views_import
 
 # NOTE: specific paths must always come BEFORE the generic '<str:key>/...' patterns below.
 urlpatterns = [
-    path('', views.dashboard, name='dashboard'),
+    path('', landing.home, name='dashboard'),
+    path('robots.txt', landing.robots_txt, name='robots'),
+    path('sitemap.xml', landing.sitemap_xml, name='sitemap'),
+    path('og.png', landing.asset, {'name': 'og.png'}, name='landing_og'),
+    path('favicon.svg', landing.asset, {'name': 'favicon.svg'}, name='landing_favicon'),
     path('login/', security.ThrottledLoginView.as_view(), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('report/', views.report, name='report'),

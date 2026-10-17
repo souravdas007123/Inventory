@@ -218,12 +218,12 @@ Owner only. Shown on the admin home (a ring with the score) and in full on **Hea
 * `daily_tasks` refreshes it after the backup; the page re-measures when older than an hour, or with **Measure again**. The last 120 measurements are kept (migration `0014`).
 * Tests: `backend/tests/test_health.py`.
 
-## Landing page (`landing/`)
+## Public home page (landing page)
 
-A separate, static one-page site (no JavaScript, no external fonts or requests, about 5 KB gzipped) with SEO tags: title, description, canonical, Open Graph and Twitter card, JSON-LD (SoftwareApplication + FAQ), `robots.txt` and `sitemap.xml`. It is independent of the Django app, so it cannot affect it.
+Visitors who are **not logged in** see a fast, SEO-ready page at `/` (title, description, canonical, Open Graph, JSON-LD, `robots.txt`, `sitemap.xml`; no JavaScript, no external fonts or requests, about 5 KB gzipped). Logged-in users still land on the dashboard at `/`, and the login is at `/login/`. The page does not touch the database.
 
-1. Put your real address and WhatsApp number in `landing/site.json` (`"site_url": "https://your-domain.in"`, `"whatsapp": "919876543210"`).
-2. `python landing/build.py` (it refuses to build with missing values) creates `landing/dist/`.
-3. Upload everything inside `landing/dist/` to a static host (GitHub Pages, Netlify or Cloudflare Pages) and add the domain to Google Search Console.
-
-The billing and health-score pictures on the page are labelled illustrations with sample data. Replace them with real screenshots when you have them.
+* Set `DJANGO_WHATSAPP=919876543210` (country code + number) in `.env` or the PythonAnywhere environment to turn the "Get a demo" buttons into WhatsApp links. Without it the buttons simply lead to the login.
+* The canonical address, share image and sitemap use the domain the visitor came on, so there is nothing else to configure. After deploying, add the site to Google Search Console and submit `/sitemap.xml`.
+* `robots.txt` lets search engines index only the home page; the app itself stays out of search results.
+* The pictures on the page are labelled illustrations with sample data. Replace them with real screenshots when you have them.
+* Files: `backend/landing.py`, `templates/app/landing.html`, `backend/landing_assets/`.

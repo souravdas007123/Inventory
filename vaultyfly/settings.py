@@ -219,4 +219,7 @@ CACHES = {
 }
 
 # Database backups are stored here (can be changed with DJANGO_BACKUP_DIR)
+# Public home page: WhatsApp number (country code + digits, e.g. 919876543210) for the "Get a demo" buttons.
+LANDING_WHATSAPP = os.environ.get('DJANGO_WHATSAPP', '')
+
 BACKUP_DIR = Path(os.environ.get('DJANGO_BACKUP_DIR') or (BASE_DIR / 'backups'))

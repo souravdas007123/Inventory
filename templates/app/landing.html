@@ -5,22 +5,22 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MedSync – Pharmacy Billing, GST &amp; Expiry Software for Medical Stores</title>
 <meta name="description" content="MedSync is pharmacy software for Indian medical stores: fast GST billing, batch and expiry tracking, supplier price comparison, Schedule H register, CA export and daily auto-backup.">
-<link rel="canonical" href="__SITE_URL__/">
+<link rel="canonical" href="{{ site_url }}/">
 <meta name="robots" content="index,follow,max-image-preview:large">
 <meta name="theme-color" content="#0f766e">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MedSync">
 <meta property="og:title" content="MedSync – Pharmacy Billing, GST &amp; Expiry Software">
 <meta property="og:description" content="Fast GST billing, batch and expiry tracking, supplier price comparison and CA-ready Excel export for medical stores.">
-<meta property="og:url" content="__SITE_URL__/">
-<meta property="og:image" content="__SITE_URL__/og.png">
+<meta property="og:url" content="{{ site_url }}/">
+<meta property="og:image" content="{{ site_url }}/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
-{"@type":"SoftwareApplication","name":"MedSync","applicationCategory":"BusinessApplication","operatingSystem":"Web browser","url":"__SITE_URL__/","description":"Pharmacy inventory, GST billing, batch and expiry management software for medical stores in India.","featureList":["GST billing","Batch and expiry (FEFO) tracking","Supplier price comparison","Schedule H/H1/X drug register","GSTR-1 and GSTR-3B reports","Accountant Excel export","Daily automatic backup","Health score"],"offers":{"@type":"Offer","description":"Free demo on request","price":"0","priceCurrency":"INR"}},
+{"@type":"SoftwareApplication","name":"MedSync","applicationCategory":"BusinessApplication","operatingSystem":"Web browser","url":"{{ site_url }}/","description":"Pharmacy inventory, GST billing, batch and expiry management software for medical stores in India.","featureList":["GST billing","Batch and expiry (FEFO) tracking","Supplier price comparison","Schedule H/H1/X drug register","GSTR-1 and GSTR-3B reports","Accountant Excel export","Daily automatic backup","Health score"],"offers":{"@type":"Offer","description":"Free demo on request","price":"0","priceCurrency":"INR"}},
 {"@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"Where is my data stored?","acceptedAnswer":{"@type":"Answer","text":"In your own database on your own server. Nothing is shared with anyone, and a compressed backup is taken every day."}},
 {"@type":"Question","name":"Do I need special hardware?","acceptedAnswer":{"@type":"Answer","text":"No. MedSync runs in a web browser on any computer, tablet or phone. A barcode scanner works as a keyboard."}},
@@ -100,7 +100,7 @@ footer{padding:26px 0;color:var(--mut);font-size:14px;text-align:center}
 <header>
 <div class="w">
 <a class="logo" href="/" aria-label="MedSync home">MedSync</a>
-<nav aria-label="Main"><a class="h" href="#features">Features</a><a class="h" href="#trust">Trust</a><a class="h" href="#faq">FAQ</a><a class="btn" href="https://wa.me/__WHATSAPP__?text=Hi%2C%20I%20want%20a%20MedSync%20demo">Get a demo</a></nav>
+<nav aria-label="Main"><a class="h" href="#features">Features</a><a class="h" href="#trust">Trust</a><a class="h" href="#faq">FAQ</a><a href="{% url 'login' %}">Login</a><a class="btn" href="{{ cta_url }}">{{ cta_nav }}</a></nav>
 </div>
 </header>
 <main>
@@ -109,7 +109,7 @@ footer{padding:26px 0;color:var(--mut);font-size:14px;text-align:center}
 <span class="pill">Pharmacy software for Indian medical stores</span>
 <h1>Billing, stock and expiry in one place. Fewer mistakes, more time.</h1>
 <p class="lead">MedSync handles GST bills, batches, expiry, supplier prices and your accountant's reports. It fills in what it can by itself, so your staff type less and your numbers stay right.</p>
-<div class="cta"><a class="btn" href="https://wa.me/__WHATSAPP__?text=Hi%2C%20I%20want%20a%20MedSync%20demo">Ask for a free demo</a><a class="btn o" href="#features">See what it does</a></div>
+<div class="cta"><a class="btn" href="{{ cta_url }}">{{ cta_hero }}</a><a class="btn o" href="#features">See what it does</a></div>
 </div>
 <div>
 <div class="mock" role="img" aria-label="Illustration of a MedSync bill with items, GST and total">
@@ -193,9 +193,9 @@ footer{padding:26px 0;color:var(--mut);font-size:14px;text-align:center}
 <div class="final"><div class="w">
 <h2>See MedSync on your own medicines</h2>
 <p>Send us a message and we will show you a demo with your kind of stock and bills.</p>
-<a class="btn" href="https://wa.me/__WHATSAPP__?text=Hi%2C%20I%20want%20a%20MedSync%20demo">Message us on WhatsApp</a>
+<a class="btn" href="{{ cta_url }}">{{ cta_final }}</a>
 </div></div>
 </main>
-<footer><div class="w">© MedSync · Pharmacy inventory &amp; billing software</div></footer>
+<footer><div class="w">© MedSync · Pharmacy inventory &amp; billing software · <a href="{% url 'login' %}">Login</a></div></footer>
 </body>
 </html>
