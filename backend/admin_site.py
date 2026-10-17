@@ -111,3 +111,36 @@ def index(request, extra_context=None):
 
 
 admin.site.index = index
+
+
+# ---- A delete or save that the business rules refuse must show a message, never a "Server Error (500)" ----
+# (for example: deleting a purchase whose medicine was already sold, or that has a return or write-off linked)
+from django.contrib import messages as _messages            # noqa: E402
+from django.core.exceptions import ValidationError as _ValidationError   # noqa: E402
+from django.db.models import ProtectedError as _ProtectedError           # noqa: E402
+from django.http import HttpResponseRedirect as _Redirect                # noqa: E402
+
+
+def friendly_error(exc):
+    if isinstance(exc, _ProtectedError):
+        return 'This record is linked to another record, so it cannot be deleted.'
+    return ' '.join(getattr(exc, 'messages', None) or [str(exc)])
+
+
+def _wrap_admin_view(name):
+    original = getattr(admin.ModelAdmin, name)
+
+    def view(self, request, *args, **kwargs):
+        try:
+            return original(self, request, *args, **kwargs)
+        except (_ValidationError, _ProtectedError) as exc:       # the database work was rolled back by Django
+            _messages.error(request, friendly_error(exc))
+            opts = self.model._meta
+            return _Redirect(reverse(f'admin:{opts.app_label}_{opts.model_name}_changelist'))
+    view.__name__ = name
+    view.__doc__ = original.__doc__
+    setattr(admin.ModelAdmin, name, view)
+
+
+_wrap_admin_view('delete_view')
+_wrap_admin_view('changeform_view')

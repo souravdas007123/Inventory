@@ -1,8 +1,8 @@
 import calendar
 
 from django.contrib import admin, messages
-from django.core.exceptions import PermissionDenied
-from django.db.models import Q
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import ProtectedError, Q
 from django.template.response import TemplateResponse
 from django.utils import timezone
 from django.utils.html import format_html
@@ -24,8 +24,12 @@ class SafeDeleteMixin:
     """Bulk delete also runs each object's own delete() (so stock/balances stay correct)."""
 
     def delete_queryset(self, request, queryset):
+        from .admin_site import friendly_error
         for obj in queryset:
-            obj.delete()
+            try:
+                obj.delete()
+            except (ValidationError, ProtectedError) as exc:     # one that cannot be deleted must not stop (or crash) the rest
+                self.message_user(request, f"{obj}: {friendly_error(exc)}", messages.ERROR)
 
 
 class ReadOnlyLedgerMixin:

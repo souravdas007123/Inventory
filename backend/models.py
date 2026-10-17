@@ -406,8 +406,21 @@ class Purchase(models.Model):
                     supplier=self.supplier.company,
                 )
 
+    def delete_problem(self):
+        """Why this purchase cannot be deleted ('' when it can). Nothing is changed by asking."""
+        if self.pk and self.returns.exists():
+            return "A purchase return was made for this invoice, so it cannot be deleted. Delete that return first."
+        for item in self.items.all():
+            problem = item.delete_problem()
+            if problem:
+                return f"{item.product.name}: {problem}"
+        return ''
+
     def delete(self, *args, **kwargs):
         with transaction.atomic():
+            problem = self.delete_problem()
+            if problem:
+                raise ValidationError(problem)
             for item in self.items.all():
                 item.delete()  # stock, batch and balance all reversed
             super().delete(*args, **kwargs)
@@ -603,13 +616,23 @@ class PurchaseItem(models.Model):
             old_price = Decimal(old.purchase_price or 0) if old else Decimal('0')
             adjust_supplier_balance(header.supplier_id, new_price - old_price)
 
+    def delete_problem(self):
+        """Why this item cannot be deleted, in plain words ('' when it can). Checked before anything is changed."""
+        batch = Batch.objects.filter(purchase_item=self).first()
+        if batch and batch.qty < (self.base_qty or 0):
+            return (f"{(self.base_qty or 0) - batch.qty} (base unit) of this purchase has already been sold/used/returned, "
+                    f"so it cannot be deleted. If there is a mistake, create a Purchase Return.")
+        if self.pk and self.return_items.exists():
+            return "A purchase return was made for this purchase, so it cannot be deleted. Delete that return first."
+        if batch and batch.writeoffs.exists():
+            return "Part of this purchase was written off, so it cannot be deleted. Delete that write-off first."
+        return ''
+
     def delete(self, *args, **kwargs):
         with transaction.atomic():
-            batch = Batch.objects.filter(purchase_item=self).first()
-            if batch and batch.qty < (self.base_qty or 0):
-                raise ValidationError(
-                    f"{(self.base_qty or 0) - batch.qty} (base unit) of this purchase has already been sold/used/returned, "
-                    f"so it cannot be deleted. If there is a mistake, create a Purchase Return.")
+            problem = self.delete_problem()
+            if problem:
+                raise ValidationError(problem)
             product = Product.objects.get(pk=self.product_id)
             product.stock_qty = max(0, product.stock_qty - (self.base_qty or 0))
             product.save(update_fields=['stock_qty'])

@@ -242,3 +242,7 @@ Public articles for SEO, written in the admin under **Website → Blog Articles*
 ## Dashboard: expenses and net profit
 
 Owner only (in the **Money** section, with a breakdown below it): expenses today and this month, **net profit this month** and expenses by type. Net profit = gross profit - expenses - stock write-offs, worked out exactly as on the Profit & Loss page (a test checks that both pages agree). If this part ever fails, the rest of the dashboard still opens. Migration `0018` only changes the wording of one write-off reason ("Damaged / broken"); the database is not touched.
+
+## Deleting records safely
+
+A purchase that was already sold from, or that has a return or write-off linked, cannot be deleted. The site and the admin now say why in a message (for example "5 (base unit) of this purchase has already been sold/used/returned, so it cannot be deleted. If there is a mistake, create a Purchase Return.") instead of showing a Server Error (500). `Purchase.delete_problem()` answers the question without changing anything. In the admin, "delete selected" skips a record that cannot go and deletes the others. Any business-rule error (`ValidationError`) raised while saving or deleting in the admin becomes a message, and the database work is rolled back. Tests: `backend/tests/test_purchase_delete.py`.
