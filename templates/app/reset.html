@@ -24,6 +24,13 @@
   <div class="bar" style="margin-top:14px"><button class="btn" style="background:#b91c1c;border-color:#b91c1c" id="go">♻️ Remove the ticked data</button><a class="btn ghost" href="/">Cancel</a></div>
   <p style="color:var(--mute);margin:12px 0 0">Invoice numbers start again from 0001 after a reset. If you already filed GST returns with those numbers, do not reset in the same financial year.</p>
 </form>
+<dialog id="rs-dialog" class="dlg" style="max-width:480px">
+  <h3 style="margin:0 0 8px;color:#b91c1c">♻️ Remove this data?</h3>
+  <p style="margin:0 0 8px">These will be removed for good:</p>
+  <ul id="rs-list" style="margin:0 0 10px;padding-left:20px;line-height:1.7"></ul>
+  <p style="color:var(--mute);margin:0 0 14px;font-size:.92em">A backup of the current data is made first, so it can be restored from the Backup page.</p>
+  <div class="bar"><button type="button" class="btn" id="rs-yes" style="background:#b91c1c;border-color:#b91c1c">Yes, remove</button><button type="button" class="btn ghost" id="rs-no">Cancel</button></div>
+</dialog>
 {% endblock %}
 {% block scripts %}<script>
 (function () {
@@ -35,9 +42,23 @@
   }
   boxes.forEach(function (b) { b.addEventListener('change', sync); });
   document.getElementById('pick-all').addEventListener('click', function () { boxes.forEach(function (b) { b.checked = true; }); sync(); });
-  document.getElementById('reset-form').addEventListener('submit', function (e) {
-    boxes[0].disabled = false;                       // a disabled box is not sent: enable it before submitting
-    if (!window.confirm('This removes the ticked data. A backup is made first. Continue?')) { e.preventDefault(); sync(); }
+  var form = document.getElementById('reset-form'), dlg = document.getElementById('rs-dialog'), confirmed = false;
+  function send() { confirmed = true; boxes[0].disabled = false; form.submit(); }          // a disabled box is not sent: enable it first
+  form.addEventListener('submit', function (e) {
+    if (confirmed) return;
+    var list = document.getElementById('rs-list'); list.innerHTML = '';
+    boxes.forEach(function (b) {
+      if (!b.checked) return;
+      var li = document.createElement('li');
+      li.textContent = b.closest('label').querySelector('b').textContent;
+      list.appendChild(li);
+    });
+    if (!list.children.length) return;                       // nothing ticked: the server shows its own message
+    e.preventDefault();
+    if (typeof dlg.showModal === 'function') dlg.showModal();
+    else if (window.confirm('This removes the ticked data. A backup is made first. Continue?')) send();
   });
+  document.getElementById('rs-yes').addEventListener('click', function () { dlg.close(); send(); });
+  document.getElementById('rs-no').addEventListener('click', function () { dlg.close(); });
 })();
 </script>{% endblock %}
