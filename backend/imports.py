@@ -270,7 +270,7 @@ def export_products():
 CUSTOMER_COLS = [
     _col('name', True, 'Customer name', 'Ramesh Kumar', 'Sharma Medical'),
     _col('phone', False, 'Mobile number', '9876543210', '9123456789'),
-    _col('address', False, 'Pata', 'Salt Lake, Kolkata', ''),
+    _col('address', False, 'Address', 'Salt Lake, Kolkata', ''),
     _col('gstin', False, '15-character GSTIN (for B2B)', '', '19ABCDE1234F1Z5'),
     _col('credit_limit', False, 'Credit limit (0 / blank = no limit)', '5000', '0'),
     _col('is_active', False, 'yes / no (blank = yes)', 'yes', 'yes'),
@@ -360,8 +360,8 @@ SUPPLIER_COLS = [
     _col('person', False, 'Contact person', 'Rakesh', ''),
     _col('phone', False, 'Phone', '9876500000', ''),
     _col('email', False, 'Email', 'abc@example.com', ''),
-    _col('address', False, 'Pata', 'Burrabazar', ''),
-    _col('city', False, 'Sheher', 'Kolkata', 'Howrah'),
+    _col('address', False, 'Address', 'Burrabazar', ''),
+    _col('city', False, 'City', 'Kolkata', 'Howrah'),
     _col('gstin', False, '15-character GSTIN (state / PAN are filled in automatically)', '19ABCDE1234F1Z5', ''),
     _col('is_active', False, 'yes / no (blank = yes)', 'yes', 'yes'),
 ]
