@@ -217,3 +217,13 @@ Owner only. Shown on the admin home (a ring with the score) and in full on **Hea
 * Every lost point is listed with its reason. A check that cannot run is left out of the score, never counted as good.
 * `daily_tasks` refreshes it after the backup; the page re-measures when older than an hour, or with **Measure again**. The last 120 measurements are kept (migration `0014`).
 * Tests: `backend/tests/test_health.py`.
+
+## Landing page (`landing/`)
+
+A separate, static one-page site (no JavaScript, no external fonts or requests, about 5 KB gzipped) with SEO tags: title, description, canonical, Open Graph and Twitter card, JSON-LD (SoftwareApplication + FAQ), `robots.txt` and `sitemap.xml`. It is independent of the Django app, so it cannot affect it.
+
+1. Put your real address and WhatsApp number in `landing/site.json` (`"site_url": "https://your-domain.in"`, `"whatsapp": "919876543210"`).
+2. `python landing/build.py` (it refuses to build with missing values) creates `landing/dist/`.
+3. Upload everything inside `landing/dist/` to a static host (GitHub Pages, Netlify or Cloudflare Pages) and add the domain to Google Search Console.
+
+The billing and health-score pictures on the page are labelled illustrations with sample data. Replace them with real screenshots when you have them.
