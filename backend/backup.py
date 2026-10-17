@@ -86,7 +86,7 @@ def email_backup(path, max_mb=None):
     to = list(getattr(settings, 'BACKUP_EMAIL_TO', []) or [])
     if not to:
         return 'Off-server backup email is not set (DJANGO_BACKUP_EMAIL_TO).'
-    limit = (getattr(settings, 'BACKUP_EMAIL_MAX_MB', 15) if max_mb is None else max_mb) * 1024 * 1024
+    limit = (max_mb or getattr(settings, 'BACKUP_EMAIL_MAX_MB', 15)) * 1024 * 1024
     try:
         path = Path(path)
         if path.stat().st_size > limit:
