@@ -48,8 +48,7 @@ p{margin:0 0 14px}
 header{position:sticky;top:0;z-index:5;background:var(--deep);color:var(--on-deep)}
 header .w{display:flex;align-items:center;justify-content:space-between;height:62px;gap:14px}
 .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;text-decoration:none;letter-spacing:-.3px}
-.logo i{width:28px;height:28px;border-radius:7px;background:var(--amber);display:grid;place-items:center}
-.logo svg{width:18px;height:18px}
+.logo svg{width:32px;height:32px;flex:0 0 auto}
 nav{display:flex;gap:20px;align-items:center;font-size:15px}
 nav a{text-decoration:none;opacity:.85}
 nav a:hover{opacity:1}
@@ -148,7 +147,7 @@ footer a{margin-right:16px;text-decoration:none}
 <body>
 <header>
 <div class="w">
-<a class="logo" href="/" aria-label="MedSync home"><i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 2h6v7h7v6h-7v7H9v-7H2V9h7z" fill="#1b1305"/></svg></i>MedSync</a>
+<a class="logo" href="/" aria-label="MedSync home"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="lgL" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14b8a6"/><stop offset="1" stop-color="#0b7d6e"/></linearGradient></defs><rect width="64" height="64" rx="15" fill="url(#lgL)"/><path d="M9.4 23.8A24 24 0 0 1 50.4 16.6" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/><path d="M54.6 21.6L53.6 13.9L47.2 19.3Z" fill="#fff"/><path d="M54.6 40.2A24 24 0 0 1 13.6 47.4" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/><path d="M9.4 42.4L10.4 50.1L16.8 44.7Z" fill="#fff"/><g transform="rotate(-45 32 32)"><path d="M32 26.0H24.5A6.0 6.0 0 0 0 24.5 38.0H32Z" fill="#fff"/><path d="M32 26.0H39.5A6.0 6.0 0 0 1 39.5 38.0H32Z" fill="#f5a524"/></g></svg>MedSync</a>
 <nav aria-label="Main"><a class="h" href="#features">Features</a><a class="h" href="#day">A day with MedSync</a><a class="h" href="#safe">Safety</a><a class="h" href="#faq">FAQ</a><a class="h" href="/blog/">Blog</a><a href="{% url 'login' %}">Login</a><a class="btn" href="{{ cta_url }}">{{ cta_nav }}</a></nav>
 </div>
 </header>
