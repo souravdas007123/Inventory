@@ -3,6 +3,7 @@
 POSTS = [
     dict(
         slug='how-to-track-medicine-expiry-in-a-medical-store',
+        cover='expiry',
         title='How to track medicine expiry in a medical store (and stop losing money on it)',
         summary='A simple routine to catch expiring medicines early: batch-wise stock, a monthly expiry list and returns to the supplier before it is too late.',
         body='''
@@ -47,6 +48,7 @@ Ten minutes a month is enough. The money you save is usually far more than the c
     ),
     dict(
         slug='pharmacy-gst-billing-gstr-1-and-gstr-3b-explained',
+        cover='gst',
         title='Pharmacy GST billing: GSTR-1, GSTR-3B and HSN explained in plain language',
         summary='What a medical store needs to record for GST, what GSTR-1 and GSTR-3B contain, and how clean bills make your monthly filing easier.',
         body='''
@@ -94,6 +96,7 @@ MedSync has a GST page with GSTR-1 sections (B2B, B2C and credit notes), a GSTR-
     ),
     dict(
         slug='schedule-h-h1-x-drug-register-what-medical-stores-must-record',
+        cover='register',
         title='Schedule H, H1 and X: what a medical store needs to record',
         summary='A plain explanation of the drug register for scheduled medicines: what details to note, why billing should ask for them, and how to stay inspection-ready.',
         body='''
@@ -140,6 +143,7 @@ A register that fills itself at the counter is far less work than one that has t
     ),
     dict(
         slug='what-is-fefo-and-why-every-pharmacy-needs-it',
+        cover='fefo',
         title='What is FEFO, and why every pharmacy needs it',
         summary='FEFO means first expiry, first out. Learn how it differs from FIFO, why it matters for medicines and how to make it happen without relying on memory.',
         body='''
@@ -186,6 +190,7 @@ It is a small rule with a large effect, and it costs nothing once the software d
     ),
     dict(
         slug='compare-supplier-prices-and-save-on-every-purchase',
+        cover='prices',
         title='How to compare supplier prices and save on every purchase',
         summary='Supplier prices drift quietly. Here is how to compare the real price per strip, spot a sudden increase and choose who to order from.',
         body='''
@@ -225,6 +230,7 @@ For one month, check the comparison before each large order. Note every time a d
     ),
     dict(
         slug='moving-your-medical-store-from-excel-to-pharmacy-software',
+        cover='import',
         title='Moving your medical store from Excel to pharmacy software: a safe checklist',
         summary='A step-by-step plan to switch from Excel or paper to pharmacy software without stopping sales, losing stock data or confusing your staff.',
         body='''

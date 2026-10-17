@@ -9,17 +9,19 @@ import re
 from django.http import Http404
 from django.shortcuts import render
 from django.utils import timezone
-from django.utils.html import escape
+from django.utils.html import escape, format_html
 from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_GET
 
 from . import access
+from .blog_art import cover_svg
 from .landing import _site_url, cta_context
 from .models import BlogPost
 
 _BOLD = re.compile(r'\*\*(.+?)\*\*')
 _LINK = re.compile(r'\[([^\]\n]+)\]\((https?://[^\s)]+|/[^\s)]*)\)')
 _OL = re.compile(r'^\d+[.)]\s+(.*)$')
+_IMG = re.compile(r'^!\[([^\]\n]*)\]\((https://[^\s)]+|/(?!/)[^\s)]*)\)$')
 
 
 def _inline(text):
@@ -53,9 +55,13 @@ def render_body(text):
     for raw in (text or '').replace('\r\n', '\n').split('\n'):
         line = raw.strip()
         ol = _OL.match(line)
+        img = _IMG.match(line)
         if not line:
             flush_para()
             flush_list()
+        elif img:
+            flush_para(); flush_list()
+            html.append(format_html('<figure><img src="{}" alt="{}" loading="lazy" decoding="async"></figure>', img.group(2), img.group(1)))
         elif line.startswith('### '):
             flush_para(); flush_list()
             html.append('<h3>' + _inline(line[4:]) + '</h3>')
@@ -91,8 +97,27 @@ def _jsonld(data):
     return mark_safe(json.dumps(data, ensure_ascii=False).replace('<', '\\u003c'))
 
 
+def post_image(post, decorative=False, lazy=True):
+    """The picture at the top of an article: its own picture if one is set, else the chosen illustration, else nothing."""
+    url = (post.image_url or '').strip()
+    if url and (url.startswith('https://') or (url.startswith('/') and not url.startswith('//'))):
+        return format_html('<img src="{}" alt="{}" {} decoding="async">', url, '' if decorative else (post.image_alt or post.title),
+                           mark_safe('loading="lazy"') if lazy else '')
+    return cover_svg(post.cover, decorative=decorative)
+
+
+def _absolute(site, url):
+    return url if url.startswith('http') else site + url
+
+
+def _og_image(site, post):
+    url = (post.image_url or '').strip()
+    return _absolute(site, url) if url and (url.startswith('https://') or (url.startswith('/') and not url.startswith('//'))) else f'{site}/og.png'
+
+
 def _card(p):
-    return dict(title=p.title, summary=p.summary, url=p.get_absolute_url(), date=p.published_at, minutes=reading_minutes(p.body))
+    return dict(title=p.title, summary=p.summary, url=p.get_absolute_url(), date=p.published_at, minutes=reading_minutes(p.body),
+                image=post_image(p, decorative=True))
 
 
 @require_GET
@@ -120,9 +145,9 @@ def blog_post(request, slug):
     more = [_card(p) for p in BlogPost.live().exclude(pk=post.pk)[:3]]
     ld = {'@context': 'https://schema.org', '@type': 'BlogPosting', 'headline': post.title, 'description': post.summary,
           'datePublished': post.published_at.isoformat(), 'dateModified': post.updated_at.isoformat(),
-          'mainEntityOfPage': f'{site}{post.get_absolute_url()}', 'image': f'{site}/og.png',
+          'mainEntityOfPage': f'{site}{post.get_absolute_url()}', 'image': _og_image(site, post),
           'author': {'@type': 'Organization', 'name': 'MedSync'}, 'publisher': {'@type': 'Organization', 'name': 'MedSync'},
           'inLanguage': 'en'}
     return render(request, 'app/blog_post.html', dict(
-        site_url=site, post=post, body=render_body(post.body), minutes=reading_minutes(post.body), more=more,
+        site_url=site, post=post, body=render_body(post.body), cover=post_image(post, lazy=False), og_image=_og_image(site, post), minutes=reading_minutes(post.body), more=more,
         preview=preview, jsonld=_jsonld(ld), **cta_context(request)))

@@ -7,7 +7,10 @@ from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 
-from backend.blog import reading_minutes, render_body
+from django.core.exceptions import ValidationError
+
+from backend.blog import post_image, reading_minutes, render_body
+from backend.blog_art import CHOICES, COVERS, cover_svg
 from backend.blog_seed import POSTS
 from backend.models import BlogPost
 
@@ -42,6 +45,19 @@ class RenderBodyTests(SimpleTestCase):
     def test_empty_text_is_fine(self):
         self.assertEqual(render_body(''), '')
         self.assertEqual(render_body(None), '')
+
+    def test_a_picture_line_becomes_a_figure(self):
+        html = render_body('![Billing screen](https://example.com/a.png)\n\n![Local](/static/x.png)')
+        self.assertIn('<figure><img src="https://example.com/a.png" alt="Billing screen" loading="lazy" decoding="async"></figure>', html)
+        self.assertIn('src="/static/x.png"', html)
+
+    def test_unsafe_picture_addresses_are_not_used(self):
+        for bad in ('![x](javascript:alert(1))', '![x](http://example.com/a.png)', '![x](//evil.com/a.png)', '![x](data:image/png;base64,AAAA)'):
+            self.assertNotIn('<img', render_body(bad), bad)
+
+    def test_a_quote_in_the_picture_text_cannot_break_out(self):
+        html = render_body('![a" onerror="alert(1)](https://example.com/a.png)')
+        self.assertNotIn('onerror="alert', html)
 
     def test_reading_time(self):
         self.assertEqual(reading_minutes('word ' * 450), 2)
@@ -151,3 +167,74 @@ class BlogPagesTests(TestCase):
         self.assertEqual(self.client.get('/admin/backend/blogpost/').status_code, 200)
         self.assertEqual(self.client.get('/admin/backend/blogpost/add/').status_code, 200)
         self.assertContains(self.client.get('/admin/'), 'Blog Articles')
+
+
+class ArtTests(SimpleTestCase):
+    def test_every_illustration_is_a_complete_svg(self):
+        for key in COVERS:
+            svg = cover_svg(key)
+            self.assertTrue(svg.startswith('<svg') and svg.endswith('</svg>'), key)
+            self.assertIn('role="img"', svg)
+            self.assertIn('aria-hidden="true"', cover_svg(key, decorative=True))
+
+    def test_unknown_illustration_gives_nothing(self):
+        self.assertEqual(cover_svg('nope'), '')
+        self.assertEqual(cover_svg(''), '')
+
+    def test_the_model_choices_match_the_available_illustrations(self):
+        self.assertEqual(list(BlogPost._meta.get_field('cover').choices), CHOICES)
+
+
+@override_settings(**SAFE)
+class BlogImageTests(TestCase):
+    def make(self, slug='pic', **kw):
+        return BlogPost.objects.create(title='Pic post', slug=slug, summary='S.', body='Text.', published=True, **kw)
+
+    def test_the_first_articles_have_an_illustration(self):
+        for p in POSTS:
+            self.assertEqual(BlogPost.objects.get(slug=p['slug']).cover, p['cover'])
+            self.assertIn(p['cover'], COVERS)
+
+    def test_an_article_shows_its_illustration_at_the_top(self):
+        self.make(cover='expiry')
+        html = self.client.get('/blog/pic/').content.decode()
+        self.assertIn('class="hero-img"', html)
+        self.assertIn('Illustration: Expiry', html)
+
+    def test_an_own_picture_replaces_the_illustration_and_is_used_for_sharing(self):
+        self.make(cover='expiry', image_url='https://example.com/shot.png', image_alt='The billing screen')
+        html = self.client.get('/blog/pic/').content.decode()
+        self.assertIn('<img src="https://example.com/shot.png" alt="The billing screen"', html)
+        self.assertNotIn('Illustration: Expiry', html)
+        self.assertIn('<meta property="og:image" content="https://example.com/shot.png">', html)
+
+    def test_a_local_picture_becomes_a_full_address_for_sharing(self):
+        self.make(image_url='/static/shot.png')
+        self.assertIn('content="http://testserver/static/shot.png"', self.client.get('/blog/pic/').content.decode())
+
+    def test_an_article_without_a_picture_still_works(self):
+        self.make()
+        resp = self.client.get('/blog/pic/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, 'class="hero-img"')
+        self.assertContains(resp, 'content="http://testserver/og.png"')
+
+    def test_the_list_shows_a_small_picture_for_each_article(self):
+        BlogPost.objects.all().delete()
+        self.make('a', cover='gst')
+        self.make('b')
+        html = self.client.get('/blog/').content.decode()
+        self.assertEqual(html.count('class="thumb"'), 1)
+        self.assertIn('class="noimg"', html)
+
+    def test_a_bad_picture_address_is_refused_by_the_admin_form(self):
+        for bad in ('javascript:alert(1)', 'http://example.com/a.png', '//evil.com/a.png', 'a.png'):
+            post = BlogPost(title='T', slug='t', summary='S', body='B', image_url=bad)
+            with self.assertRaises(ValidationError, msg=bad):
+                post.full_clean()
+        BlogPost(title='T', slug='t', summary='S', body='B', image_url='https://example.com/a.png').full_clean()
+
+    def test_a_bad_address_that_got_into_the_database_is_not_shown(self):
+        post = self.make(image_url='javascript:alert(1)')
+        self.assertNotIn('javascript', post_image(post))
+        self.assertNotContains(self.client.get('/blog/pic/'), 'javascript:alert')

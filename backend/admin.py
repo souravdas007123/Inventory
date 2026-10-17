@@ -545,7 +545,7 @@ class BlogPostAdmin(admin.ModelAdmin):
     search_fields = ('title', 'summary', 'body')
     prepopulated_fields = {'slug': ('title',)}
     date_hierarchy = 'published_at'
-    fields = ('title', 'slug', 'summary', 'body', 'published', 'published_at')
+    fields = ('title', 'slug', 'summary', 'body', 'cover', 'image_url', 'image_alt', 'published', 'published_at')
 
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)

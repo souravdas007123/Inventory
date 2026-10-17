@@ -9,7 +9,7 @@
 <p class="lede">Practical articles for medical store owners: expiry, GST, drug registers, suppliers and stock.</p>
 {% if posts %}
 <div class="cards" style="margin-top:28px">
-{% for p in posts %}<a href="{{ p.url }}"><span class="meta">{{ p.date|date:"j F Y" }} · {{ p.minutes }} min read</span><h2>{{ p.title }}</h2><p>{{ p.summary }}</p></a>{% endfor %}
+{% for p in posts %}<a href="{{ p.url }}"{% if not p.image %} class="noimg"{% endif %}>{% if p.image %}<div class="thumb">{{ p.image }}</div>{% endif %}<div><span class="meta">{{ p.date|date:"j F Y" }} · {{ p.minutes }} min read</span><h2>{{ p.title }}</h2><p>{{ p.summary }}</p></div></a>{% endfor %}
 </div>
 {% else %}
 <p class="mut" style="margin-top:28px">No articles yet. Please check back soon.</p>

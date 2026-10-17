@@ -749,6 +749,10 @@ class BlogPost(models.Model):
     summary = models.CharField(max_length=300, help_text="One or two sentences. Shown in the article list and used as the description on Google.")
     body = models.TextField(help_text="Plain text. Blank line = new paragraph. '## Heading', '### Smaller heading', '- ' for a bullet list, "
                                        "'1. ' for a numbered list, **bold**, [link text](https://...).")
+    cover = models.CharField(max_length=20, blank=True, default='', choices=[('', 'None'), ('expiry', 'Expiry'), ('gst', 'GST'), ('register', 'Drug register'), ('fefo', 'FEFO'), ('prices', 'Supplier prices'), ('import', 'Excel import')],
+                             help_text="A ready-made illustration shown at the top of the article. Ignored when you give a picture address below.")
+    image_url = models.CharField(max_length=300, blank=True, default='', help_text="Optional real picture for the top of the article: an address starting with https:// or / (for example a screenshot). It replaces the illustration.")
+    image_alt = models.CharField(max_length=200, blank=True, default='', help_text="Describe the picture in a few words (for visitors who cannot see it and for Google).")
     published = models.BooleanField(default=False, help_text="Tick to show the article on the website. Untick to keep it as a draft.")
     published_at = models.DateTimeField(default=timezone.now, help_text="Shown as the article date. A future date keeps it hidden until then.")
     updated_at = models.DateTimeField(auto_now=True)
@@ -760,6 +764,13 @@ class BlogPost(models.Model):
 
     def __str__(self):
         return self.title
+
+    def clean(self):
+        super().clean()
+        url = (self.image_url or '').strip()
+        if url and not (url.startswith('https://') or (url.startswith('/') and not url.startswith('//'))):
+            raise ValidationError({'image_url': 'The picture address must start with https:// or with a single /.'})
+        self.image_url = url
 
     def get_absolute_url(self):
         return f'/blog/{self.slug}/'
