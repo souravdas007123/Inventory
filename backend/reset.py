@@ -13,7 +13,7 @@ from decimal import Decimal
 from django.db import transaction
 
 from .models import (Batch, Bill, Brand, Category, Customer, CustomerPayment, DocCounter, Employee, Expense,
-                     FinancialReport, HealthSnapshot, HeldBill, InvoiceCounter, Order, Payment, Product, Purchase,
+                     HealthSnapshot, HeldBill, InvoiceCounter, Order, Payment, Product, Purchase,
                      PurchaseOrder, PurchaseReturn, RecurringExpense, Sale, SalesReturn, StockAudit, StockWriteOff,
                      Supplier, Transaction, Unit)
 
@@ -62,7 +62,7 @@ def counts():
 def _transactions():
     # leaf records first: several links to them are protected, so the order below matters
     for model in (SalesReturn, PurchaseReturn, StockWriteOff, StockAudit, Payment, CustomerPayment, PurchaseOrder,
-                  HeldBill, Bill, Purchase, Order, Expense, Sale, Transaction, Batch, FinancialReport, HealthSnapshot,
+                  HeldBill, Bill, Purchase, Order, Expense, Sale, Transaction, Batch, HealthSnapshot,
                   InvoiceCounter, DocCounter):
         model.objects.all().delete()
     Product.objects.update(stock_qty=0, batch=None)
