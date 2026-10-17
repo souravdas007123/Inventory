@@ -5,7 +5,7 @@
 <div class="msg warning"><b>Use this to start again with fresh data.</b> What you tick below is removed for good. A backup of the current data is saved automatically just before, so a mistake can be undone from the <a href="{% url 'backup' %}">Backup</a> page. Shop Settings, user logins and permissions, and the Audit Log are never removed.</div>
 <form method="post" class="card" id="reset-form" style="margin-bottom:14px">{% csrf_token %}
   <h3 style="margin-top:0">1. What should be removed?</h3>
-  {% for g in groups %}
+  {% for g in sections %}
   <label style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer">
     <input type="checkbox" name="groups" value="{{ g.key }}" class="rg" data-first="{{ g.needs_first|yesno:'1,0' }}" style="margin-top:4px;width:18px;height:18px">
     <span><b>{{ g.title }}</b>

@@ -85,7 +85,11 @@ class ResetViewTests(StockMixin, TestCase):
         return self.client.post(reverse('reset_data'), data)
 
     def test_page_opens_for_the_owner(self):
-        self.assertContains(self.client.get(reverse('reset_data')), 'Reset Data')
+        resp = self.client.get(reverse('reset_data'))
+        self.assertContains(resp, 'Reset Data')
+        for _key, title, _text, _first in reset.GROUPS:          # every choice shows its name (the menu also uses a `groups` variable)
+            self.assertContains(resp, title)
+        self.assertContains(resp, 'Now in the system')
 
     def test_staff_without_owner_rights_cannot_open_or_post(self):
         clerk = get_user_model().objects.create_user('clerk', password='pw-12345', is_staff=True)

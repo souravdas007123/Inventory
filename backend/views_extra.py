@@ -1094,7 +1094,7 @@ def reset_data(request):
     cnt = reset.counts()
     groups = [dict(key=k, title=t, text=d, needs_first=f, rows=cnt[k], total=sum(n for _l, n in cnt[k]))
               for k, t, d, f in reset.GROUPS]
-    return page(request, 'app/reset.html', active='reset', groups=groups, word=RESET_WORD)
+    return page(request, 'app/reset.html', active='reset', sections=groups, word=RESET_WORD)
 
 
 # ======================================================
