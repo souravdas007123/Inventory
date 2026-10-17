@@ -220,10 +220,20 @@ Owner only. Shown on the admin home (a ring with the score) and in full on **Hea
 
 ## Public home page (landing page)
 
-Visitors who are **not logged in** see a fast, SEO-ready page at `/` (title, description, canonical, Open Graph, JSON-LD, `robots.txt`, `sitemap.xml`; no JavaScript, no external fonts or requests, about 5 KB gzipped). Logged-in users still land on the dashboard at `/`, and the login is at `/login/`. The page does not touch the database.
+Visitors who are **not logged in** see a fast, SEO-ready page at `/` (title, description, canonical, Open Graph, JSON-LD, `robots.txt`, `sitemap.xml`; no JavaScript, no external fonts or requests, about 5 KB gzipped). Logged-in users still land on the dashboard at `/`, and the login is at `/login/`. The only database use is a small "From the blog" teaser, wrapped so that it can never break the page.
 
 * Set `DJANGO_WHATSAPP=919876543210` (country code + number) in `.env` or the PythonAnywhere environment to turn the "Get a demo" buttons into WhatsApp links. Without it the buttons simply lead to the login.
 * The canonical address, share image and sitemap use the domain the visitor came on, so there is nothing else to configure. After deploying, add the site to Google Search Console and submit `/sitemap.xml`.
 * `robots.txt` lets search engines index only the home page; the app itself stays out of search results.
 * The pictures on the page are labelled illustrations with sample data. Replace them with real screenshots when you have them.
 * Files: `backend/landing.py`, `templates/app/landing.html`, `backend/landing_assets/`.
+
+## Blog (`/blog/`)
+
+Public articles for SEO, written in the admin under **Website → Blog Articles**.
+
+* Fields: title, address (slug), summary (also the Google description), body, *Published* tick and date. A draft or future-dated article is hidden from visitors; the owner can open it at its address to preview it (marked noindex).
+* Body is plain text: blank line = new paragraph, `## Heading`, `### Smaller heading`, `- ` bullets, `1. ` numbers, `**bold**`, `[text](https://...)`. Everything is escaped, so an article cannot inject HTML or scripts.
+* Each article page has its own title, description, canonical, Open Graph and BlogPosting data; `/sitemap.xml` lists the blog and every published article, and `robots.txt` allows `/blog/`.
+* The home page links to the blog and shows the latest 3 articles.
+* Migration `0015` creates the table; `0016` adds 6 first articles once (an article that already exists is never overwritten, so your edits are safe). Files: `backend/blog.py`, `backend/blog_seed.py`, `templates/app/blog_*.html`, tests in `backend/tests/test_blog.py`.

@@ -12,6 +12,7 @@ from import_export.widgets import ForeignKeyWidget
 
 from .reports import profit_and_loss
 from .models import (
+    BlogPost,
     Batch, Bill, Brand, Category, Customer, CustomerPayment, Employee, Expense, RecurringExpense, ShopProfile, FinancialReport,
     InvoiceItem, Order, Payment, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
     PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, Sale, SalesReturn, SalesReturnItem,
@@ -534,3 +535,20 @@ class ImportLayoutAdmin(admin.ModelAdmin):
 
 # Look and feel of the admin panel (names, sections, summary cards)
 from . import admin_site  # noqa: E402,F401
+
+
+@admin.register(BlogPost)
+class BlogPostAdmin(admin.ModelAdmin):
+    """Articles of the public blog (/blog/). Tick 'Published' to show one; a draft can be previewed by the owner at its address."""
+    list_display = ('title', 'published', 'published_at', 'slug')
+    list_filter = ('published',)
+    search_fields = ('title', 'summary', 'body')
+    prepopulated_fields = {'slug': ('title',)}
+    date_hierarchy = 'published_at'
+    fields = ('title', 'slug', 'summary', 'body', 'published', 'published_at')
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.base_fields['body'].widget.attrs.update(rows=28, style='width:100%;font-family:system-ui,sans-serif;font-size:15px')
+        form.base_fields['summary'].widget.attrs.update(style='width:100%')
+        return form

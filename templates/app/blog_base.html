@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}Blog{% endblock %} | MedSync</title>
+<meta name="description" content="{% block desc %}{% endblock %}">
+<link rel="canonical" href="{{ site_url }}{% block path %}/blog/{% endblock %}">
+{% block robots %}<meta name="robots" content="index,follow,max-image-preview:large">{% endblock %}
+<meta name="theme-color" content="#0a2f2a">
+<meta property="og:type" content="{% block ogtype %}website{% endblock %}">
+<meta property="og:site_name" content="MedSync">
+<meta property="og:title" content="{% block ogtitle %}MedSync Blog{% endblock %}">
+<meta property="og:description" content="{% block ogdesc %}{% endblock %}">
+<meta property="og:url" content="{{ site_url }}{% block ogpath %}/blog/{% endblock %}">
+<meta property="og:image" content="{{ site_url }}/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script type="application/ld+json">{{ jsonld }}</script>
+<style>
+:root{--bg:#f2f7f4;--paper:#fff;--ink:#0a2f2a;--mut:#3f5a54;--line:#cfdcd6;--deep:#0a2f2a;--on-deep:#e9f5f1;--amber:#d98324;--amber-d:#9a5a0f}
+@media(prefers-color-scheme:dark){:root{--bg:#0a1a18;--paper:#112825;--ink:#e9f5f1;--mut:#a3bdb6;--line:#244741;--deep:#06100f;--amber:#f0a04b;--amber-d:#f0a04b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",Arial,sans-serif;-webkit-text-size-adjust:100%}
+a{color:inherit}
+.w{max-width:1120px;margin:0 auto;padding:0 22px}
+.n{max-width:720px;margin:0 auto;padding:0 22px}
+h1,h2,h3{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;line-height:1.2;letter-spacing:-.4px}
+h1{font-size:clamp(30px,4.6vw,46px);margin:0 0 14px;line-height:1.12}
+header{background:var(--deep);color:var(--on-deep)}
+header .w{display:flex;align-items:center;justify-content:space-between;height:62px;gap:14px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;text-decoration:none}
+.logo i{width:28px;height:28px;border-radius:7px;background:var(--amber);display:grid;place-items:center}
+.logo svg{width:18px;height:18px}
+nav{display:flex;gap:20px;align-items:center;font-size:15px}
+nav a{text-decoration:none;opacity:.85}
+nav a:hover{opacity:1}
+.btn{display:inline-block;background:var(--amber);color:#1b1305;padding:13px 24px;border-radius:8px;font-weight:700;text-decoration:none;opacity:1}
+header .btn{padding:8px 16px}
+.btn:hover{filter:brightness(1.07);opacity:1}
+main{padding:44px 0 64px}
+.mut{color:var(--mut)}
+.meta{font-size:14px;color:var(--mut)}
+.crumb{font-size:14px;margin-bottom:18px}
+.crumb a{color:var(--amber-d)}
+.cards{display:grid;gap:0;border-top:1px solid var(--line)}
+.cards a{display:block;padding:24px 0;border-bottom:1px solid var(--line);text-decoration:none}
+.cards h2{font-size:24px;margin:4px 0 6px}
+.cards a:hover h2{color:var(--amber-d)}
+.cards p{margin:0 0 6px;color:var(--mut)}
+.art{font-size:18px;line-height:1.75}
+.art h2{font-size:27px;margin:38px 0 10px}
+.art h3{font-size:21px;margin:28px 0 8px}
+.art p{margin:0 0 18px}
+.art ul,.art ol{margin:0 0 20px;padding-left:24px}
+.art li{margin-bottom:8px}
+.art a{color:var(--amber-d)}
+.lede{font-size:20px;color:var(--mut);margin:0 0 8px}
+.draft{background:#fde7c6;color:#7a4608;padding:10px 14px;border-radius:8px;margin-bottom:20px;font-weight:700}
+.cta{margin-top:44px;background:var(--deep);color:var(--on-deep);border-radius:12px;padding:28px}
+.cta h2{margin:0 0 8px;font-size:26px}
+.cta p{margin:0 0 16px;color:#bfd8d1}
+.more{margin-top:48px}
+.more h2{font-size:22px}
+footer{background:var(--deep);color:#9bb8b0;font-size:14px;padding:22px 0 30px}
+footer .w{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+footer a{margin-right:16px;text-decoration:none}
+:focus-visible{outline:3px solid var(--amber);outline-offset:3px}
+@media(max-width:600px){nav a.h{display:none}main{padding-top:30px}.art{font-size:17px}}
+</style>
+</head>
+<body>
+<header><div class="w">
+<a class="logo" href="/" aria-label="MedSync home"><i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 2h6v7h7v6h-7v7H9v-7H2V9h7z" fill="#1b1305"/></svg></i>MedSync</a>
+<nav aria-label="Main"><a class="h" href="/">Home</a><a href="/blog/">Blog</a><a href="{% url 'login' %}">Login</a><a class="btn" href="{{ cta_url }}">{{ cta_nav }}</a></nav>
+</div></header>
+<main>{% block content %}{% endblock %}</main>
+<footer><div class="w"><div><a href="/">Home</a><a href="/blog/">Blog</a><a href="{% url 'login' %}">Login</a></div><div>© MedSync. Pharmacy inventory and billing software.</div></div></footer>
+</body>
+</html>

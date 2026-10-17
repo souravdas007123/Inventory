@@ -1,0 +1,18 @@
+{% extends "app/blog_base.html" %}
+{% block title %}Pharmacy Blog: Expiry, GST, Drug Register and Stock Tips{% endblock %}
+{% block desc %}Practical articles for medical store owners: tracking expiry, GST returns, Schedule H registers, supplier prices and moving from Excel to pharmacy software.{% endblock %}
+{% block ogtitle %}MedSync Blog: practical tips for medical stores{% endblock %}
+{% block ogdesc %}Expiry, GST, drug registers, supplier prices and stock, explained for medical store owners.{% endblock %}
+{% block content %}
+<div class="n">
+<h1>MedSync blog</h1>
+<p class="lede">Practical articles for medical store owners: expiry, GST, drug registers, suppliers and stock.</p>
+{% if posts %}
+<div class="cards" style="margin-top:28px">
+{% for p in posts %}<a href="{{ p.url }}"><span class="meta">{{ p.date|date:"j F Y" }} · {{ p.minutes }} min read</span><h2>{{ p.title }}</h2><p>{{ p.summary }}</p></a>{% endfor %}
+</div>
+{% else %}
+<p class="mut" style="margin-top:28px">No articles yet. Please check back soon.</p>
+{% endif %}
+</div>
+{% endblock %}

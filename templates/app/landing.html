@@ -147,7 +147,7 @@ footer a{margin-right:16px;text-decoration:none}
 <header>
 <div class="w">
 <a class="logo" href="/" aria-label="MedSync home"><i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 2h6v7h7v6h-7v7H9v-7H2V9h7z" fill="#1b1305"/></svg></i>MedSync</a>
-<nav aria-label="Main"><a class="h" href="#features">Features</a><a class="h" href="#day">A day with MedSync</a><a class="h" href="#safe">Safety</a><a class="h" href="#faq">FAQ</a><a href="{% url 'login' %}">Login</a><a class="btn" href="{{ cta_url }}">{{ cta_nav }}</a></nav>
+<nav aria-label="Main"><a class="h" href="#features">Features</a><a class="h" href="#day">A day with MedSync</a><a class="h" href="#safe">Safety</a><a class="h" href="#faq">FAQ</a><a class="h" href="/blog/">Blog</a><a href="{% url 'login' %}">Login</a><a class="btn" href="{{ cta_url }}">{{ cta_nav }}</a></nav>
 </div>
 </header>
 <main>
@@ -348,11 +348,17 @@ footer a{margin-right:16px;text-decoration:none}
 <details><summary>How do I know the numbers are right?</summary><p>The owner's health score compares stock with batches, opens the latest backup to check it, times the pages on your own server and lists every problem with its reason.</p></details>
 </div></section>
 
+{% if latest_posts %}<section class="p"><div class="w">
+<div class="head"><h2>From the blog</h2><p>Practical reading for medical store owners.</p></div>
+<div class="grid">{% for p in latest_posts %}<div><h3><a href="{{ p.url }}" style="text-decoration:none">{{ p.title }}</a></h3><p>{{ p.summary }}</p></div>{% endfor %}</div>
+<p style="margin-top:18px"><a href="/blog/"><b>All articles</b></a></p>
+</div></section>{% endif %}
+
 <div class="final"><div class="w">
 <div><h2>See it with your own medicines</h2><p>Send us a message. We will show you a demo with your kind of stock and bills, and answer your questions.</p></div>
 <div><a class="btn" href="{{ cta_url }}">{{ cta_final }}</a></div>
 </div></div>
 </main>
-<footer><div class="w"><div><a href="#features">Features</a><a href="#day">A day with MedSync</a><a href="#safe">Safety</a><a href="#faq">FAQ</a><a href="{% url 'login' %}">Login</a></div><div>© MedSync. Pharmacy inventory and billing software. Pictures use sample data.</div></div></footer>
+<footer><div class="w"><div><a href="#features">Features</a><a href="#day">A day with MedSync</a><a href="#safe">Safety</a><a href="#faq">FAQ</a><a href="/blog/">Blog</a><a href="{% url 'login' %}">Login</a></div><div>© MedSync. Pharmacy inventory and billing software. Pictures use sample data.</div></div></footer>
 </body>
 </html>
