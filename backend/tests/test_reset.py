@@ -2,6 +2,7 @@ from pathlib import Path
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.contrib.messages import get_messages
 from django.test import TestCase
 from django.urls import reverse
 
@@ -105,7 +106,8 @@ class ResetViewTests(StockMixin, TestCase):
         self.buy()
         resp = self.post()
         self.assertEqual(resp.status_code, 302)
-        self.assertEqual(Purchase.objects.count(), 0)
+        shown = [str(m) for m in get_messages(resp.wsgi_request)]          # the reason is shown here if the reset did not run
+        self.assertEqual(Purchase.objects.count(), 0, shown)
         self.assertEqual(Product.objects.count(), 1)
         self.assertTrue(AuditLog.objects.filter(action='RESET').exists())
         self.assertTrue(get_user_model().objects.filter(username='owner').exists())
