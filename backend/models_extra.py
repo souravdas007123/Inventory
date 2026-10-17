@@ -779,3 +779,113 @@ class BlogPost(models.Model):
     def live(cls):
         """Articles visitors may see: ticked as published and already dated."""
         return cls.objects.filter(published=True, published_at__lte=timezone.now())
+
+
+# ======================================================
+# WEBSITE: PRICING PLANS, LEGAL PAGES, SUBSCRIBER REGISTER (all edited in the admin)
+# ======================================================
+
+class Plan(models.Model):
+    """A subscription plan shown on the public /pricing/ page. Leave the prices empty to show 'Price on request'."""
+    name = models.CharField(max_length=60)
+    tagline = models.CharField(max_length=160, blank=True, default='', help_text="One short line under the name, e.g. 'For a single counter'.")
+    monthly_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)],
+                                        help_text="Rupees per month. Empty = not shown.")
+    yearly_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)],
+                                       help_text="Rupees per year. Empty = not shown.")
+    setup_fee = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)],
+                                    help_text="One-time setup fee in rupees. Empty = not shown.")
+    price_note = models.CharField(max_length=160, blank=True, default='', help_text="Shown under the price, e.g. 'GST extra'.")
+    features = models.TextField(blank=True, default='', help_text="One feature per line.")
+    highlight = models.BooleanField(default=False, help_text="Mark as the plan most shops choose.")
+    is_active = models.BooleanField(default=True, help_text="Untick to hide the plan from the website.")
+    sort_order = models.PositiveIntegerField(default=10, help_text="Smaller numbers come first.")
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        verbose_name = 'Subscription Plan'
+        verbose_name_plural = 'Subscription Plans'
+
+    def __str__(self):
+        return self.name
+
+    def feature_list(self):
+        return [line.strip() for line in (self.features or '').splitlines() if line.strip()]
+
+    def yearly_saving_percent(self):
+        """How much cheaper the yearly price is than 12 months, in whole percent (0 when there is no saving)."""
+        if self.monthly_price and self.yearly_price and self.monthly_price > 0:
+            pct = round((1 - self.yearly_price / (self.monthly_price * 12)) * 100)
+            return pct if pct > 0 else 0
+        return 0
+
+
+class SitePage(models.Model):
+    """Text pages of the website (terms, privacy, refunds, what every plan includes). Same simple text format as the blog."""
+    SLUGS = (
+        ('terms', 'Terms of Service'),
+        ('privacy', 'Privacy Policy'),
+        ('refund', 'Refund and Cancellation'),
+        ('pricing-included', 'Pricing page: included in every plan'),
+    )
+    slug = models.CharField(max_length=30, unique=True, choices=SLUGS)
+    title = models.CharField(max_length=120)
+    body = models.TextField(help_text="Plain text. Blank line = new paragraph. '## Heading', '- ' for a bullet list, '1. ' for numbers, **bold**, [text](https://...). "
+                                       "Have a lawyer or your CA read the legal pages before you rely on them.")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['slug']
+        verbose_name = 'Website Text Page'
+        verbose_name_plural = 'Website Text Pages'
+
+    def __str__(self):
+        return self.title
+
+
+class Subscriber(models.Model):
+    """One shop that uses MedSync (your customer): contact, plan, renewal date and its server address."""
+    STATUS = (('TRIAL', 'Trial / demo'), ('ACTIVE', 'Active'), ('PAUSED', 'Paused'), ('CLOSED', 'Closed'))
+    BILLING = (('MONTHLY', 'Monthly'), ('YEARLY', 'Yearly'))
+    shop_name = models.CharField(max_length=150)
+    contact_person = models.CharField(max_length=100, blank=True, default='')
+    phone = models.CharField(max_length=20, blank=True, default='')
+    email = models.EmailField(blank=True, default='')
+    city = models.CharField(max_length=80, blank=True, default='')
+    plan = models.ForeignKey(Plan, on_delete=models.SET_NULL, null=True, blank=True, related_name='subscribers')
+    billing = models.CharField(max_length=10, choices=BILLING, default='MONTHLY')
+    amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)],
+                                 help_text="What this shop pays each period, in rupees.")
+    status = models.CharField(max_length=10, choices=STATUS, default='TRIAL')
+    started_on = models.DateField(default=timezone.localdate)
+    renews_on = models.DateField(null=True, blank=True, help_text="The next payment is due on this date.")
+    server_url = models.CharField(max_length=200, blank=True, default='', help_text="Where this shop's MedSync runs, e.g. https://shopname.pythonanywhere.com")
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['shop_name']
+        verbose_name = 'Subscriber (Customer Shop)'
+        verbose_name_plural = 'Subscribers (Customer Shops)'
+
+    def __str__(self):
+        return self.shop_name
+
+    def clean(self):
+        if self.renews_on and self.started_on and self.renews_on < self.started_on:
+            raise ValidationError({'renews_on': 'The renewal date cannot be before the start date.'})
+
+    def days_to_renewal(self, today=None):
+        if not self.renews_on:
+            return None
+        return (self.renews_on - (today or timezone.localdate())).days
+
+    def extended_renewal(self):
+        """The renewal date after one more paid period: 1 month or 1 year after the current date (or after today if it is already past)."""
+        import calendar
+        base = max(self.renews_on, timezone.localdate()) if self.renews_on else timezone.localdate()
+        months = 12 if self.billing == 'YEARLY' else 1
+        total = base.year * 12 + (base.month - 1) + months
+        year, month = divmod(total, 12)
+        month += 1
+        return base.replace(year=year, month=month, day=min(base.day, calendar.monthrange(year, month)[1]))

@@ -20,7 +20,8 @@ GROUPS = [
     ('Sales', 'ms_sales', ['Order', 'Bill', 'Sale', 'Customer', 'CustomerPayment', 'SalesReturn']),
     ('Stock', 'ms_stock', ['Batch', 'StockWriteOff', 'StockAudit']),
     ('Accounts', 'ms_accounts', ['Payment', 'Transaction', 'Expense', 'RecurringExpense', 'FinancialReport']),
-    ('Website', 'ms_website', ['BlogPost']),
+    ('Business', 'ms_business', ['Subscriber', 'Plan']),
+    ('Website', 'ms_website', ['BlogPost', 'SitePage']),
     ('Settings', 'ms_settings', ['ShopProfile', 'Employee', 'ImportLayout']),
 ]
 
@@ -87,6 +88,11 @@ def summary_cards(user):
     if access.can(user, 'view', 'supplier'):
         due = Supplier.objects.aggregate(s=Sum('opening_balance'))['s']
         add('To pay to suppliers', _money(due), 'Total balance', 'admin:backend_supplier_changelist', 'warn' if (due or 0) > 0 else 'ok')
+    if access.is_owner(user):
+        from .models import Subscriber
+        soon = Subscriber.objects.filter(status='ACTIVE', renews_on__isnull=False, renews_on__lte=today + timedelta(days=15)).count()
+        if Subscriber.objects.exists():
+            add('Renewals due in 15 days', soon, 'Customer shops to collect payment from', 'admin:backend_subscriber_changelist', 'warn' if soon else 'ok')
     return cards
 
 
