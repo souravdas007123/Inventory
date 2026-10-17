@@ -49,5 +49,5 @@ class BillUnitTests(StockMixin, TestCase):
 
     def test_the_bill_screen_has_the_unit_helpers(self):
         html = self.client.get(reverse('new', kwargs={'key': 'bills'})).content.decode()
-        for marker in ('function ensureUnits', 'function drawUnits', 'RESUMING'):
+        for marker in ('function ensureUnits', 'function drawUnits', 'function drawPills', 'RESUMING'):
             self.assertIn(marker, html)

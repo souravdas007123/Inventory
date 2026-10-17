@@ -255,7 +255,8 @@ A purchase that was already sold from, or that has a return or write-off linked,
 
 ## Billing: units of a medicine
 - When a medicine is picked on the bill (by search, barcode or the list), its **Unit** is set to the **base unit** (for example Tablet) and the unit list of that row shows only the units of that medicine, e.g. "Tablet (base unit)" and "Strip (1 = 10 Tablet)".
-- A line under the row shows the base unit, the pack sizes, the stock in packs, the MRP of each unit, and a button such as **Sell in Strip** (or back to the base unit). The quantity box says "Qty in Tablet" / "Qty in Strip".
+- Right under the Unit box there are round buttons for the units of that medicine (for example **Tablet** and **Strip ×10**). The chosen unit is filled; tap another to switch (the rate follows). The Unit box stays and always shows the same choice. A medicine with only one unit shows no buttons.
+- A line under the row shows the base unit, the pack sizes, the stock in packs and the MRP of each unit. The quantity box says "Qty in Tablet" / "Qty in Strip".
 - A held bill that is resumed keeps the units it was saved with. Picking another medicine in a row starts again with that medicine's base unit.
 - The old rule is unchanged: a bill row with no unit would use the base unit; now it is simply shown and chosen.
 
