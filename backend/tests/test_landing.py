@@ -37,6 +37,19 @@ class LandingTests(TestCase):
         self.assertNotIn('wa.me', html)
         self.assertIn('Login to MedSync', html)
 
+    @override_settings(LANDING_WHATSAPP='')
+    def test_the_top_menu_has_only_one_login(self):
+        for url in ('/', '/blog/'):
+            html = self.client.get(url).content.decode()
+            nav = re.search(r'<nav aria-label="Main">(.*?)</nav>', html, re.S).group(1)
+            self.assertEqual(nav.count('>Login<'), 1, url)
+
+    @override_settings(LANDING_WHATSAPP='+91 98765-43210')
+    def test_with_a_demo_button_the_menu_still_has_a_login_link(self):
+        nav = re.search(r'<nav aria-label="Main">(.*?)</nav>', self.client.get('/').content.decode(), re.S).group(1)
+        self.assertEqual(nav.count('>Login<'), 1)
+        self.assertIn('Get a demo', nav)
+
     @override_settings(LANDING_WHATSAPP='abc')
     def test_a_bad_number_is_ignored(self):
         self.assertNotIn('wa.me', self.client.get('/').content.decode())
