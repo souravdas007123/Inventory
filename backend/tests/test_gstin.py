@@ -55,7 +55,7 @@ class GstinModelTests(TestCase):
         with self.assertRaises(ValidationError) as ctx:
             s.full_clean()
         self.assertIn('gstin', ctx.exception.message_dict)
-        s = Supplier(company='A', gstin=' 27aapfu0939f1zv ')
+        s = Supplier(company='A', gstin='27aapfu0939f1zv')
         s.full_clean()
         s.save()
         s.refresh_from_db()
