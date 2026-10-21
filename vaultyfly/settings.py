@@ -115,6 +115,14 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
         # Wait up to 20 s for a busy database instead of failing with "database is locked"
         'OPTIONS': {'timeout': 20},
+    },
+    'postgres_db': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'inventory_db',
+        'USER': 'inventory_user',
+        'PASSWORD': 'Sqlpass007123@',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 # Django 5.1+: start write transactions up front (IMMEDIATE) so two users saving at once queue up politely
