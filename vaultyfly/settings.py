@@ -115,14 +115,6 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
         # Wait up to 20 s for a busy database instead of failing with "database is locked"
         'OPTIONS': {'timeout': 20},
-    },
-    'postgres_db': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'inventory_db',
-        'USER': 'inventory_user',
-        'PASSWORD': 'Sqlpass007123@',
-        'HOST': 'localhost',
-        'PORT': '5432',
     }
 }
 # Django 5.1+: start write transactions up front (IMMEDIATE) so two users saving at once queue up politely
@@ -133,6 +125,19 @@ if django.VERSION >= (5, 1):
 # It is OFF by default (a network file system, as on some hosts, can break it): set DJANGO_SQLITE_WAL=1 to try it.
 if os.environ.get('DJANGO_SQLITE_WAL') == '1' and django.VERSION >= (5, 1):
     DATABASES['default']['OPTIONS']['init_command'] = 'PRAGMA journal_mode=WAL;'
+
+# PostgreSQL: used only when DB_NAME is set (in the environment or in .env). Otherwise SQLite is used as before.
+# Keep the password in .env (it is not committed to git), never in this file.
+if os.environ.get('DB_NAME'):
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ['DB_NAME'],
+        'USER': os.environ.get('DB_USER', ''),
+        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
+        'CONN_MAX_AGE': int(os.environ.get('DB_CONN_MAX_AGE', '60') or 0),
+    }
 
 
 # Password validation

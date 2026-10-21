@@ -1045,7 +1045,7 @@ def backup_page(request):
         messages.success(request, f"Backup created: {path.name}")
         return redirect('backup')
     return page(request, 'app/backup.html', active='backup', backups=backup.list_backups(),
-                folder=str(backup.backup_dir()))
+                folder=str(backup.backup_dir()), postgres=backup.is_postgres())
 
 
 @staff_required

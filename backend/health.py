@@ -95,6 +95,13 @@ def data_checks():
 # ---------------------------------------------------------------- safety
 def _verify_backup(path):
     """Opens a backup file and runs the database's own check on it. Returns '' when fine, else the problem."""
+    if str(path).endswith('.pgdump'):                   # PostgreSQL custom format: a non-empty file that starts with PGDMP
+        try:
+            with open(path, 'rb') as f:
+                head = f.read(5)
+        except OSError as exc:
+            return str(exc)[:120]
+        return '' if head == b'PGDMP' else 'the file is empty or is not a PostgreSQL backup'
     with tempfile.TemporaryDirectory() as tmp:
         snap = Path(tmp) / 'check.sqlite3'
         try:
@@ -138,8 +145,13 @@ def safety_checks():
         return res
 
     def integrity():
+        if connection.vendor == 'postgresql':
+            with connection.cursor() as cur:
+                cur.execute('SELECT 1')
+                cur.fetchone()
+            return [chk('ok', 'Database is healthy', 'PostgreSQL is running and answering.')]
         if connection.vendor != 'sqlite':
-            return [chk('info', 'Database check', 'The built-in integrity check is for SQLite only.')]
+            return [chk('info', 'Database check', 'The built-in integrity check is for SQLite and PostgreSQL only.')]
         with connection.cursor() as cur:
             cur.execute('PRAGMA quick_check')
             row = cur.fetchone()
@@ -287,6 +299,10 @@ def compute():
         if connection.vendor == 'sqlite':
             name = Path(settings.DATABASES['default']['NAME'])
             stats['db_mb'] = round(name.stat().st_size / 1048576, 1) if name.exists() else 0
+        elif connection.vendor == 'postgresql':
+            with connection.cursor() as cur:
+                cur.execute('SELECT pg_database_size(current_database())')
+                stats['db_mb'] = round(cur.fetchone()[0] / 1048576, 1)
     except Exception:
         stats = {}
     return dict(score=score, label=label, tone=tone, sections=sections, stats=stats,

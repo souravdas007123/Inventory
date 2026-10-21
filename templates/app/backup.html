@@ -2,7 +2,7 @@
 {% block title %}Backup{% endblock %}
 {% block content %}
 <div class="head"><h1>💾 Database Backup</h1></div>
-<div class="msg info">All of your data is stored in a single database file, so a daily backup is essential. Backups are compressed and saved on the server in <code>{{ folder }}</code>; only the latest 14 are kept.</div>
+<div class="msg info">{% if postgres %}All of your data is stored in the PostgreSQL database, so a daily backup is essential. Backups are made with <code>pg_dump</code> and saved on the server in{% else %}All of your data is stored in a single database file, so a daily backup is essential. Backups are compressed and saved on the server in{% endif %} <code>{{ folder }}</code>; only the latest 14 are kept.</div>
 <div class="card" style="margin-bottom:14px">
   <h3 style="margin-top:0">Back up now</h3>
   <form method="post" style="display:flex;gap:8px;flex-wrap:wrap">{% csrf_token %}
@@ -27,6 +27,7 @@
       <td><a class="btn ghost sm" href="{% url 'backup_download' b.name %}">⬇ Download</a></td></tr>
     {% empty %}<tr><td class="empty" colspan="4">No backups have been created yet.</td></tr>{% endfor %}
   </table></div>
-  <p style="color:var(--mute);margin:12px 0 0">To restore: unzip the backup file (.gz), place it in the location of <code>db.sqlite3</code>, then reload the site. Make a separate copy of the current file first.</p>
+  {% if postgres %}<p style="color:var(--mute);margin:12px 0 0">To restore: create an empty database, then run <code>pg_restore -U &lt;user&gt; -h localhost -d &lt;database&gt; --no-owner &lt;backup file&gt;</code>. Make a separate backup of the current data first.</p>
+  {% else %}<p style="color:var(--mute);margin:12px 0 0">To restore: unzip the backup file (.gz), place it in the location of <code>db.sqlite3</code>, then reload the site. Make a separate copy of the current file first.</p>{% endif %}
 </div>
 {% endblock %}

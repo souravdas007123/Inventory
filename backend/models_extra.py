@@ -210,7 +210,7 @@ class SalesReturnItem(models.Model):
             raise ValidationError('Return qty must be greater than 0.')
 
         with transaction.atomic():
-            item = InvoiceItem.objects.select_for_update().select_related('product', 'unit').get(pk=self.invoice_item_id)
+            item = InvoiceItem.objects.select_for_update(of=('self',)).select_related('product', 'unit').get(pk=self.invoice_item_id)
             bill = self.sales_return.bill
             if item.bill_id != bill.pk:
                 raise ValidationError('This item does not belong to this bill.')
@@ -382,7 +382,7 @@ class PurchaseReturnItem(models.Model):
             raise ValidationError('Return qty must be greater than 0.')
 
         with transaction.atomic():
-            pi = PurchaseItem.objects.select_for_update().select_related('product', 'unit').get(pk=self.purchase_item_id)
+            pi = PurchaseItem.objects.select_for_update(of=('self',)).select_related('product', 'unit').get(pk=self.purchase_item_id)
             header = self.purchase_return.purchase
             if pi.purchase_id != header.pk:
                 raise ValidationError('This item does not belong to this purchase.')
@@ -474,7 +474,7 @@ class StockWriteOff(models.Model):
         if self.pk:
             raise ValidationError('A write-off cannot be edited. If there is a mistake, delete it and create a new one.')
         with transaction.atomic():
-            batch = Batch.objects.select_for_update().select_related('purchase_item').get(pk=self.batch_id)
+            batch = Batch.objects.select_for_update(of=('self',)).select_related('purchase_item').get(pk=self.batch_id)
             if not self.qty or self.qty <= 0 or self.qty > batch.qty:
                 raise ValidationError(f'Qty must be between 1 and {batch.qty}.')
             product = Product.objects.select_for_update().get(pk=batch.product_id)
