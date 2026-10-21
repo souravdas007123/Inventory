@@ -13,8 +13,9 @@ from django.db import models, transaction
 from django.db.models import F, Max, Sum
 from django.utils import timezone
 
+from . import gstin as gstin_check
 from .models import (
-    TWO, Batch, Expense, InvoiceItem, Product, PurchaseItem, Sale, Transaction,
+    GST_STATE_CODES, TWO, Batch, Expense, InvoiceItem, Product, PurchaseItem, Sale, Transaction,
     adjust_supplier_balance, fiscal_year,
 )
 
@@ -64,15 +65,16 @@ class Customer(models.Model):
     created_at = models.DateField(auto_now_add=True, null=True)
 
     def clean(self):
-        if self.gstin:
-            self.gstin = self.gstin.strip().upper()
-            if len(self.gstin) != 15:
-                raise ValidationError({'gstin': 'GSTIN must be 15 characters.'})
+        self.gstin = gstin_check.normalise(self.gstin) or None
+        if self.gstin and gstin_check.changed(self, self.gstin):
+            msg = gstin_check.problem(self.gstin, GST_STATE_CODES)
+            if msg:
+                raise ValidationError({'gstin': msg})
         if self.credit_limit is not None and self.credit_limit < 0:
             raise ValidationError({'credit_limit': 'Limit cannot be negative.'})
 
     def save(self, *args, **kwargs):
-        self.gstin = (self.gstin or '').strip().upper() or None
+        self.gstin = gstin_check.normalise(self.gstin) or None
         super().save(*args, **kwargs)
 
     def balance(self, exclude_payment=None):

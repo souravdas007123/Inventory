@@ -10,6 +10,7 @@ from django.db import models, transaction
 from django.db.models import F, Q, Sum
 from django.utils import timezone
 
+from . import gstin as gstin_check
 from . import supplier_prices
 
 TWO = Decimal('0.01')
@@ -24,8 +25,10 @@ GST_STATE_CODES = {
     '16': 'Tripura', '17': 'Meghalaya', '18': 'Assam',
     '19': 'West Bengal', '20': 'Jharkhand', '21': 'Odisha',
     '22': 'Chhattisgarh', '23': 'Madhya Pradesh', '24': 'Gujarat',
-    '27': 'Maharashtra', '29': 'Karnataka', '32': 'Kerala',
-    '33': 'Tamil Nadu', '36': 'Telangana', '37': 'Andhra Pradesh'
+    '25': 'Daman & Diu', '26': 'Dadra & Nagar Haveli and Daman & Diu', '27': 'Maharashtra',
+    '28': 'Andhra Pradesh (old)', '29': 'Karnataka', '30': 'Goa', '31': 'Lakshadweep', '32': 'Kerala',
+    '33': 'Tamil Nadu', '34': 'Puducherry', '35': 'Andaman & Nicobar Islands', '36': 'Telangana',
+    '37': 'Andhra Pradesh', '38': 'Ladakh', '97': 'Other Territory', '99': 'Centre Jurisdiction',
 }
 
 
@@ -132,10 +135,11 @@ class Supplier(models.Model):
     is_active = models.BooleanField(default=True, verbose_name="Active Status")
 
     def clean(self):
-        if self.gstin == "":
-            self.gstin = None
-        if self.gstin and len(self.gstin) != 15:
-            raise ValidationError({'gstin': 'GSTIN must be 15 characters.'})
+        self.gstin = gstin_check.normalise(self.gstin) or None
+        if self.gstin and gstin_check.changed(self, self.gstin):
+            msg = gstin_check.problem(self.gstin, GST_STATE_CODES)
+            if msg:
+                raise ValidationError({'gstin': msg})
 
     def save(self, *args, **kwargs):
         if self.gstin == "":
@@ -747,8 +751,15 @@ class ShopProfile(models.Model):
     def state(self):
         return GST_STATE_CODES.get(self.gstin[:2], "") if self.gstin else ""
 
+    def clean(self):
+        self.gstin = gstin_check.normalise(self.gstin)
+        if self.gstin and gstin_check.changed(self, self.gstin):
+            msg = gstin_check.problem(self.gstin, GST_STATE_CODES)
+            if msg:
+                raise ValidationError({'gstin': msg})
+
     def save(self, *args, **kwargs):
-        self.gstin = (self.gstin or "").strip().upper()
+        self.gstin = gstin_check.normalise(self.gstin)
         super().save(*args, **kwargs)
 
     def __str__(self):

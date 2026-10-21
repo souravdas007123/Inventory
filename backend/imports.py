@@ -24,8 +24,9 @@ from django.db import IntegrityError, transaction
 from django.http import HttpResponse
 from django.utils import timezone
 
+from . import gstin as gstin_check
 from .models import (
-    Brand, Category, Customer, Expense, Product, ProductUnit, Purchase, PurchaseItem, Supplier, Unit,
+    GST_STATE_CODES, Brand, Category, Customer, Expense, Product, ProductUnit, Purchase, PurchaseItem, Supplier, Unit,
 )
 from .tabular import build_csv, build_xlsx, plain, to_bool, to_date, to_dec, to_int, txt
 
@@ -271,7 +272,7 @@ CUSTOMER_COLS = [
     _col('name', True, 'Customer name', 'Ramesh Kumar', 'Sharma Medical'),
     _col('phone', False, 'Mobile number', '9876543210', '9123456789'),
     _col('address', False, 'Address', 'Salt Lake, Kolkata', ''),
-    _col('gstin', False, '15-character GSTIN (for B2B)', '', '19ABCDE1234F1Z5'),
+    _col('gstin', False, '15-character GSTIN (for B2B)', '', '19ABCDE1234F1ZX'),
     _col('credit_limit', False, 'Credit limit (0 / blank = no limit)', '5000', '0'),
     _col('is_active', False, 'yes / no (blank = yes)', 'yes', 'yes'),
 ]
@@ -280,11 +281,14 @@ CUSTOMER_ALIASES = {'customer': 'name', 'customer_name': 'name', 'mobile': 'phon
                     'gst_no': 'gstin', 'gstin_no': 'gstin'}
 
 
-def _gstin(raw, errors):
-    g = txt(raw).upper().replace(' ', '')
-    if g and len(g) != 15:
-        errors.append(f"GSTIN '{g}' must be 15 characters")
-        return ''
+def _gstin(raw, errors, current=''):
+    """A clean GSTIN, or '' with a message in `errors`. The number already saved on the record is not checked again."""
+    g = gstin_check.normalise(txt(raw))
+    if g and g != gstin_check.normalise(current):
+        msg = gstin_check.problem(g, GST_STATE_CODES)
+        if msg:
+            errors.append(f"{msg.rstrip('.')} (you entered '{g}')")
+            return ''
     return g
 
 
@@ -312,7 +316,7 @@ def validate_customers(rows, opts):
         existing = (by_phone.get(_digits(phone)) if _digits(phone) else None) or by_name.get(name.lower())
         limit = to_dec(raw.get('credit_limit'), 'credit_limit', errors, minimum=Decimal('0'))
         data = dict(existing_id=existing.pk if existing else None, name=name, phone=phone,
-                    address=txt(raw.get('address')), gstin=_gstin(raw.get('gstin'), errors),
+                    address=txt(raw.get('address')), gstin=_gstin(raw.get('gstin'), errors, existing.gstin if existing else ''),
                     credit_limit=str(limit) if limit is not None else None,
                     is_active=to_bool(raw.get('is_active'), 'is_active', errors))
         if errors:
@@ -362,7 +366,7 @@ SUPPLIER_COLS = [
     _col('email', False, 'Email', 'abc@example.com', ''),
     _col('address', False, 'Address', 'Burrabazar', ''),
     _col('city', False, 'City', 'Kolkata', 'Howrah'),
-    _col('gstin', False, '15-character GSTIN (state / PAN are filled in automatically)', '19ABCDE1234F1Z5', ''),
+    _col('gstin', False, '15-character GSTIN (state / PAN are filled in automatically)', '19ABCDE1234F1ZX', ''),
     _col('is_active', False, 'yes / no (blank = yes)', 'yes', 'yes'),
 ]
 SUPPLIER_ALIASES = {'supplier': 'company', 'supplier_name': 'company', 'name': 'company', 'company_name': 'company',
@@ -384,7 +388,7 @@ def validate_suppliers(rows, opts):
         if company:
             seen.setdefault(company.lower(), n)
         existing = by_name.get(company.lower()) if company else None
-        gstin = _gstin(raw.get('gstin'), errors)
+        gstin = _gstin(raw.get('gstin'), errors, existing.gstin if existing else '')
         if gstin:
             other = by_gstin.get(gstin)
             if (other and (not existing or other.pk != existing.pk)) or (gstin in seen_g and seen_g[gstin] != n):
