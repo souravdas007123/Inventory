@@ -44,6 +44,21 @@ class LandingTests(TestCase):
         for word in set(re.findall(r'[a-z]{3,}', (title + ' ' + h1).lower())) - {'and', 'for', 'the'}:
             self.assertRegex(body, r'\b' + word + r'\b', word)
 
+    def test_bold_tags_are_few_and_not_repeated(self):
+        page = self.client.get('/').content.decode()
+        body = re.sub(r'<(script|style)[\s\S]*?</\1>', '', page)
+        bold = re.findall(r'<(?:b|strong)>(.*?)</(?:b|strong)>', body, re.S)
+        self.assertLessEqual(len(bold), 33)             # SEO tools warn above about 33 bold tags
+        self.assertEqual(len(bold), len(set(bold)), 'the same bold text is used twice')
+
+    def test_apple_touch_icon_is_declared_and_served(self):
+        page = self.client.get('/').content.decode()
+        self.assertIn('<link rel="apple-touch-icon" href="/apple-touch-icon.png">', page)
+        r = self.client.get('/apple-touch-icon.png')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Content-Type'], 'image/png')
+        self.assertTrue(r.content.startswith(b'\x89PNG'))
+
     @override_settings(LANDING_WHATSAPP='+91 98765-43210')
     def test_whatsapp_number_makes_the_demo_buttons(self):
         html = self.client.get('/').content.decode()

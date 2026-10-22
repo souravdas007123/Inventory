@@ -289,3 +289,4 @@ A purchase that was already sold from, or that has a return or write-off linked,
 
 ## Search result text (SEO)
 - The home page title is about 60 characters and its meta description about 147 characters, so Google shows them whole (a description over about 155 characters / 1000 pixels is cut off). A blog article's description is its summary, cut at 155 characters on the page (the summary itself can stay longer). `backend/tests/test_landing.py` and `test_blog.py` check these lengths.
+- The home page has an Apple touch icon (`/apple-touch-icon.png`, 180x180, linked on the home page and blog pages). It uses at most 33 bold tags and no bold text is repeated, because SEO tools warn about many or repeated bold tags. Use the plain `w7` class for heavier text instead of adding more bold tags; the tests check both.

@@ -18,6 +18,7 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
 {"@type":"SoftwareApplication","name":"MedSync","applicationCategory":"BusinessApplication","operatingSystem":"Web browser","url":"{{ site_url }}/","description":"Pharmacy inventory, GST billing, batch and expiry management software for medical stores in India.","featureList":["GST billing with barcode scan","Batch and expiry (FEFO) tracking","Alternative medicine suggestion","Supplier price comparison","Reorder suggestions","Schedule H/H1/X drug register","GSTR-1, GSTR-3B and HSN reports","Accountant Excel export","Customer credit ledger","Sales and purchase returns","Import from Excel","Daily automatic backup","Measured health score"],"offers":{"@type":"Offer","description":"Free demo on request","price":"0","priceCurrency":"INR"}},
@@ -74,7 +75,7 @@ kbd{font:600 13px ui-monospace,Consolas,monospace;background:#16443d;border:1px 
 .slipwrap{position:relative;max-width:420px;margin-left:auto;padding:0 0 44px}
 .facts{background:var(--paper);border-bottom:1px solid var(--line)}
 .facts .w{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;padding-top:22px;padding-bottom:22px}
-.facts b{display:block;font-size:15px}
+.facts b,.facts .w7{display:block;font-size:15px;color:var(--ink)}
 .facts span{font-size:14px;color:var(--mut);line-height:1.45;display:block}
 section{padding:68px 0}
 section.p{background:var(--paper);border-block:1px solid var(--line)}
@@ -84,13 +85,13 @@ section.p{background:var(--paper);border-block:1px solid var(--line)}
 .day li{counter-increment:d;position:relative;padding:44px 16px 0 0;font-size:15px;color:var(--mut)}
 .day li::before{content:"";position:absolute;left:0;right:0;top:15px;border-top:2px solid var(--line)}
 .day li::after{content:counter(d);position:absolute;left:0;top:0;width:32px;height:32px;border-radius:50%;background:var(--amber);color:#1b1305;font-weight:800;display:grid;place-items:center}
-.day b{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
+.day b,.day .w7{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;padding:34px 0}
 .row>*{min-width:0}
 .row.rev .txt{order:2}
 .row ul{margin:0 0 6px;padding-left:20px;color:var(--mut)}
 .row li{margin-bottom:6px}
-.row li b{color:var(--ink)}
+.row li b,.row li .w7{color:var(--ink)}
 .tag{display:inline-block;font-weight:700;font-size:14px;color:var(--amber-d);margin-bottom:8px}
 .win{background:var(--paper);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13.5px;box-shadow:0 14px 34px rgb(10 47 42/.12)}
 .win .bar{background:var(--foil);padding:8px 14px;font-weight:700;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px}
@@ -100,12 +101,13 @@ section.p{background:var(--paper);border-block:1px solid var(--line)}
 .win .n{text-align:right}
 .win tr:last-child td{border-bottom:0}
 .sc{overflow-x:auto}
+.w7{font-weight:700}
 .b{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:700}
 .b.g{background:#d6f1e6;color:#0b5d44}.b.a{background:#fde7c6;color:#7a4608}.b.r{background:#fbd9d5;color:#8d1a10}
 @media(prefers-color-scheme:dark){.b.g{background:#12493a;color:#8ef0cb}.b.a{background:#4a3410;color:#ffd08a}.b.r{background:#561e19;color:#ffb3aa}}
 .alt{padding:12px 14px;background:var(--bg);border-top:1px solid var(--line)}
 .ring{width:118px;height:118px;border-radius:50%;background:conic-gradient(var(--green) 0 94%,var(--line) 0);display:grid;place-items:center}
-.ring b{width:86px;height:86px;border-radius:50%;background:var(--paper);display:grid;place-items:center;font:700 30px Georgia,serif}
+.ring b,.ring .w7{width:86px;height:86px;border-radius:50%;background:var(--paper);display:grid;place-items:center;font:700 30px Georgia,serif}
 .hs{display:flex;gap:22px;align-items:center;padding:18px}
 .hs ul{list-style:none;margin:0;padding:0;flex:1;font-size:13.5px}
 .hs li{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--line)}
@@ -122,7 +124,7 @@ section.p{background:var(--paper);border-block:1px solid var(--line)}
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin:0;padding:0;list-style:none;counter-reset:s}
 .steps li{counter-increment:s;border-top:3px solid var(--amber);padding-top:14px;color:var(--mut)}
 .steps li::before{content:"Step " counter(s);display:block;font-weight:700;color:var(--amber-d);font-size:14px}
-.steps b{display:block;color:var(--ink);font-size:18px;margin:2px 0 4px}
+.steps b,.steps .w7{display:block;color:var(--ink);font-size:18px;margin:2px 0 4px}
 .roles{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
 .roles div{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:20px}
 .roles p{margin:0;color:var(--mut);font-size:15px}
@@ -180,20 +182,20 @@ footer a{margin-right:16px;text-decoration:none}
 </div></div>
 
 <div class="facts"><div class="w">
-<div><b>Runs in any browser</b><span>Computer, tablet or phone. No special hardware.</span></div>
-<div><b>Barcode ready</b><span>A scanner works like a keyboard. Scan, and the cursor stays put.</span></div>
-<div><b>Daily backup</b><span>Taken every day, and the latest one is actually opened and checked.</span></div>
-<div><b>Your data, your server</b><span>Nothing is shared with anyone.</span></div>
+<div><span class="w7">Runs in any browser</span><span>Computer, tablet or phone. No special hardware.</span></div>
+<div><span class="w7">Barcode ready</span><span>A scanner works like a keyboard. Scan, and the cursor stays put.</span></div>
+<div><span class="w7">Daily backup</span><span>Taken every day, and the latest one is actually opened and checked.</span></div>
+<div><span class="w7">Your data, your server</span><span>Nothing is shared with anyone.</span></div>
 </div></div>
 
 <section id="day"><div class="w">
 <div class="head"><h2>A day in your shop, with MedSync</h2><p>It follows the way a chemist's day really goes, from the first look at the shelves to the last backup.</p></div>
 <ol class="day">
-<li><b>Open the shop</b>The dashboard shows low stock, what expires this month and any supplier price that jumped.</li>
-<li><b>Serve customers</b>Scan or search, bill, print. Credit, cash, UPI or card, with scheduled drugs handled as the law asks.</li>
-<li><b>Receive stock</b>Enter the supplier bill. Warnings catch duplicate invoices and odd prices before they reach your books.</li>
-<li><b>Close the day</b>A summary of sales by payment mode, credit given and collected, and top sellers, ready to share on WhatsApp.</li>
-<li><b>While you sleep</b>The daily backup runs, and the health score is measured again.</li>
+<li><span class="w7">Open the shop</span>The dashboard shows low stock, what expires this month and any supplier price that jumped.</li>
+<li><span class="w7">Serve customers</span>Scan or search, bill, print. Credit, cash, UPI or card, with scheduled drugs handled as the law asks.</li>
+<li><span class="w7">Receive stock</span>Enter the supplier bill. Warnings catch duplicate invoices and odd prices before they reach your books.</li>
+<li><span class="w7">Close the day</span>A summary of sales by payment mode, credit given and collected, and top sellers, ready to share on WhatsApp.</li>
+<li><span class="w7">While you sleep</span>The daily backup runs, and the health score is measured again.</li>
 </ol>
 </div></section>
 
@@ -279,15 +281,15 @@ footer a{margin-right:16px;text-decoration:none}
 <div class="txt"><span class="tag">Trust</span><h2>A health score that is measured, not guessed</h2>
 <p class="mut">The owner sees a score out of 100 on the admin home. Each part comes from a real measurement, every lost point has a reason, and a check that cannot run is never counted as good.</p>
 <ul>
-<li><b>Data (40):</b> stock against batches, negative batches.</li>
-<li><b>Safety (25):</b> backup age, whether the latest backup really opens, database integrity, secure settings.</li>
-<li><b>Speed (20):</b> pages timed on your own server.</li>
-<li><b>Shop (15):</b> expired stock, low stock, missing MRP and HSN.</li>
+<li><span class="w7">Data (40):</span> stock against batches, negative batches.</li>
+<li><span class="w7">Safety (25):</span> backup age, whether the latest backup really opens, database integrity, secure settings.</li>
+<li><span class="w7">Speed (20):</span> pages timed on your own server.</li>
+<li><span class="w7">Shop (15):</span> expired stock, low stock, missing MRP and HSN.</li>
 </ul></div>
 <div><div class="win" role="img" aria-label="Illustration of the health score with sample numbers">
 <div class="bar"><span>Health Score</span><span>Measured now</span></div>
-<div class="hs"><div class="ring"><b>94</b></div>
-<ul><li><span>Data</span><b>100</b></li><li><span>Safety</span><b>100</b></li><li><span>Speed</span><b>95</b></li><li><span>Shop</span><b>80</b></li></ul></div>
+<div class="hs"><div class="ring"><span class="w7">94</span></div>
+<ul><li><span>Data</span><span class="w7">100</span></li><li><span>Safety</span><span class="w7">100</span></li><li><span>Speed</span><span class="w7">95</span></li><li><span>Shop</span><span class="w7">80</span></li></ul></div>
 <div class="alt">−5 Expired stock on the shelf (2 batches). −10 Medicines without an MRP.</div>
 </div></div>
 </div>
@@ -331,9 +333,9 @@ footer a{margin-right:16px;text-decoration:none}
 <section class="p"><div class="w">
 <div class="head"><h2>Start without stopping the shop</h2><p>You do not need to stop selling to switch.</p></div>
 <ol class="steps">
-<li><b>Tell us about your shop</b>We set up your units, GST rates and staff logins.</li>
-<li><b>Bring your stock</b>Upload your Excel sheet, check the preview and save. Old data stays in your file.</li>
-<li><b>Start billing</b>Your first bill takes a minute. We stay with you while your staff learn.</li>
+<li><span class="w7">Tell us about your shop</span>We set up your units, GST rates and staff logins.</li>
+<li><span class="w7">Bring your stock</span>Upload your Excel sheet, check the preview and save. Old data stays in your file.</li>
+<li><span class="w7">Start billing</span>Your first bill takes a minute. We stay with you while your staff learn.</li>
 </ol>
 </div></section>
 
