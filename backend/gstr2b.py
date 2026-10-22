@@ -86,6 +86,14 @@ def _amounts(node):
 
 # ------------------------------------------------------------------ JSON from the portal
 def parse_json(raw):
+    try:
+        return _parse_json(raw)
+    except (AttributeError, TypeError):
+        raise FileProblem('The file could not be read: its invoice section is not in the usual GSTR-2B layout. '
+                          'Please upload the original JSON from the GST portal.')
+
+
+def _parse_json(raw):
     """Returns dict(docs, period, gstin, skipped). Raises FileProblem for a file that is not a GSTR-2B."""
     try:
         data = json.loads(raw.decode('utf-8-sig') if isinstance(raw, bytes) else raw)
