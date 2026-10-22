@@ -28,7 +28,9 @@ class LandingTests(TestCase):
     def test_title_and_description_are_short_enough_for_search_results(self):
         html = self.client.get('/').content.decode()
         desc = re.search(r'<meta name="description" content="([^"]*)">', html).group(1)
-        title = re.search(r'<title>(.*?)</title>', html).group(1)
+        import html as htmllib
+        title = htmllib.unescape(re.search(r'<title>(.*?)</title>', html).group(1))   # '&amp;' is one character
+        desc = htmllib.unescape(desc)
         self.assertLessEqual(len(desc), 155)            # about 1000 pixels: longer text is cut off in Google
         self.assertGreaterEqual(len(desc), 70)
         self.assertLessEqual(len(title), 62)            # about 600 pixels
