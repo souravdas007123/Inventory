@@ -70,7 +70,7 @@ def sitemap_xml(request):
 @require_GET
 @cache_control(public=True, max_age=86400)
 def asset(request, name):
-    types = {'og.png': 'image/png', 'favicon.svg': 'image/svg+xml', 'apple-touch-icon.png': 'image/png'}
+    types = {'og.png': 'image/png', 'favicon.svg': 'image/svg+xml', 'apple-touch-icon.png': 'image/png', 'favicon.ico': 'image/x-icon'}
     if name not in types or not (ASSETS / name).exists():
         raise Http404
     return FileResponse(open(ASSETS / name, 'rb'), content_type=types[name])

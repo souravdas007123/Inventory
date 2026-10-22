@@ -78,6 +78,16 @@ class LandingTests(TestCase):
                      'linkedin.com/sharing', 't.me/share'):
             self.assertIn(host, page)
 
+    def test_every_page_has_a_favicon_and_the_ico_file_is_served(self):
+        for url in ('/', '/login/', '/blog/'):
+            page = self.client.get(url).content.decode()
+            self.assertIn('rel="icon"', page, url)
+            self.assertIn('/favicon.ico', page, url)
+        r = self.client.get('/favicon.ico')
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(b''.join(r.streaming_content).startswith(b'\x00\x00\x01\x00'))   # ICO header
+        self.assertEqual(self.client.get('/favicon.svg').status_code, 200)
+
     def test_apple_touch_icon_is_declared_and_served(self):
         page = self.client.get('/').content.decode()
         self.assertIn('<link rel="apple-touch-icon" href="/apple-touch-icon.png">', page)

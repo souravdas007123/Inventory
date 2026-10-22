@@ -12,6 +12,7 @@ urlpatterns = [
     path('sitemap.xml', landing.sitemap_xml, name='sitemap'),
     path('og.png', landing.asset, {'name': 'og.png'}, name='landing_og'),
     path('favicon.svg', landing.asset, {'name': 'favicon.svg'}, name='landing_favicon'),
+    path('favicon.ico', landing.asset, {'name': 'favicon.ico'}, name='landing_favicon_ico'),
     path('apple-touch-icon.png', landing.asset, {'name': 'apple-touch-icon.png'}, name='landing_apple_icon'),
     path('login/', security.ThrottledLoginView.as_view(), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
