@@ -48,7 +48,7 @@ def home(request):
 
 @require_GET
 def robots_txt(request):
-    body = f"User-agent: *\nAllow: /$\nAllow: /blog/\nDisallow: /\n\nSitemap: {_site_url(request)}/sitemap.xml\n"
+    body = f"User-agent: *\nAllow: /$\nAllow: /blog/\nAllow: /favicon.ico\nAllow: /favicon.svg\nAllow: /apple-touch-icon.png\nAllow: /og.png\nDisallow: /\n\nSitemap: {_site_url(request)}/sitemap.xml\n"
     return HttpResponse(body, content_type='text/plain')
 
 

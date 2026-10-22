@@ -130,6 +130,8 @@ class LandingTests(TestCase):
         self.assertEqual(robots['Content-Type'], 'text/plain')
         self.assertContains(robots, 'Sitemap: http://testserver/sitemap.xml')
         self.assertContains(robots, 'Disallow: /')
+        for f in ('/favicon.ico', '/favicon.svg', '/apple-touch-icon.png'):
+            self.assertContains(robots, 'Allow: ' + f)      # search engines must be able to fetch the icon
         sitemap = self.client.get('/sitemap.xml')
         self.assertEqual(sitemap['Content-Type'], 'application/xml')
         self.assertContains(sitemap, '<loc>http://testserver/</loc>')
