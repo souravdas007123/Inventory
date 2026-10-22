@@ -169,6 +169,14 @@ class BlogPagesTests(TestCase):
         self.assertIn('<svg', html.split('From the blog')[1])
         self.assertIn('src="https://example.com/p.png"', html)
 
+    def test_every_link_on_the_home_page_has_text_even_with_pictures(self):
+        BlogPost.objects.all().delete()
+        for i in range(3):
+            BlogPost.objects.create(title=f'Article {i}', slug=f'art-{i}', summary='S.', body='B', published=True, cover='fefo')
+        html = self.client.get('/').content.decode()
+        for attrs, inner in re.findall(r'<a\b([^>]*)>(.*?)</a>', html, re.S):
+            self.assertTrue(re.sub(r'<[^>]+>', '', inner).strip() or 'aria-label' in attrs, attrs)
+
     def test_the_home_page_still_opens_without_articles(self):
         BlogPost.objects.all().delete()
         resp = self.client.get('/')

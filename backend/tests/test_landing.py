@@ -53,6 +53,31 @@ class LandingTests(TestCase):
         self.assertLessEqual(len(bold), 33)             # SEO tools warn above about 33 bold tags
         self.assertEqual(len(bold), len(set(bold)), 'the same bold text is used twice')
 
+    def test_headings_are_in_proportion_to_the_text(self):
+        page = self.client.get('/').content.decode()
+        body = re.sub(r'<(script|style)[\s\S]*?</\1>', '', page)
+        headings = len(re.findall(r'<h[1-6][ >]', body))
+        words = len(re.sub(r'<[^>]+>', ' ', body).split())
+        self.assertGreaterEqual(words / headings, 80, (headings, words))
+
+    def test_link_texts_are_not_repeated_and_no_link_is_empty(self):
+        import html as htmllib
+        page = self.client.get('/').content.decode()
+        body = re.sub(r'<(script|style)[\s\S]*?</\1>', '', page)
+        texts = []
+        for attrs, inner in re.findall(r'<a\b([^>]*)>(.*?)</a>', body, re.S):
+            text = htmllib.unescape(re.sub(r'<[^>]+>', ' ', inner)).strip()
+            self.assertTrue(text or 'aria-label' in attrs, attrs)
+            if text:
+                texts.append(text)
+        self.assertEqual(len(texts), len(set(texts)), [t for t in texts if texts.count(t) > 1])
+
+    def test_share_links_for_social_networks(self):
+        page = self.client.get('/').content.decode()
+        for host in ('wa.me/?text=http%3A%2F%2Ftestserver%2F', 'facebook.com/sharer', 'twitter.com/intent/tweet',
+                     'linkedin.com/sharing', 't.me/share'):
+            self.assertIn(host, page)
+
     def test_apple_touch_icon_is_declared_and_served(self):
         page = self.client.get('/').content.decode()
         self.assertIn('<link rel="apple-touch-icon" href="/apple-touch-icon.png">', page)

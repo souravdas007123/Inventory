@@ -31,7 +31,7 @@ def cta_context(request):
     if 10 <= len(number) <= 15:
         return dict(cta_url=f"https://wa.me/{number}?text={quote('Hi, I want a MedSync demo')}",
                     cta_nav='Get a demo', cta_hero='Ask for a free demo', cta_final='Message us on WhatsApp')
-    return dict(cta_url='/login/', cta_nav='Login', cta_hero='Login to MedSync', cta_final='Login to MedSync')
+    return dict(cta_url='/login/', cta_nav='Login', cta_hero='Login to MedSync', cta_final='Login and start billing')
 
 
 def home(request):
