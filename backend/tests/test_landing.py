@@ -59,7 +59,7 @@ class LandingTests(TestCase):
         r = self.client.get('/apple-touch-icon.png')
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r['Content-Type'], 'image/png')
-        self.assertTrue(r.content.startswith(b'\x89PNG'))
+        self.assertTrue(b''.join(r.streaming_content).startswith(b'\x89PNG'))   # FileResponse streams
 
     @override_settings(LANDING_WHATSAPP='+91 98765-43210')
     def test_whatsapp_number_makes_the_demo_buttons(self):
