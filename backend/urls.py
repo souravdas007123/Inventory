@@ -32,6 +32,8 @@ urlpatterns = [
     # Reports
     path('gst/', views_extra.gst_view, name='gst'),
     path('health/', views_extra.health_view, name='health'),
+    path('users/', views_extra.users_view, name='users'),
+    path('gstr2b/', views_extra.gstr2b_view, name='gstr2b'),
     path('ca_export/', views_extra.ca_export_view, name='ca_export'),
     path('drug_register/', views_extra.drug_register_view, name='drug_register'),
     path('api/customer_lookup/', views_extra.customer_lookup, name='customer_lookup'),

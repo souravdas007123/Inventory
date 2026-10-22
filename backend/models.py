@@ -11,6 +11,7 @@ from django.db.models import F, Q, Sum
 from django.utils import timezone
 
 from . import gstin as gstin_check
+from . import locks
 from . import validators as vcheck
 from . import supplier_prices
 
@@ -387,6 +388,8 @@ class Purchase(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def clean(self):
+        old_date = Purchase.objects.filter(pk=self.pk).values_list('invoice_date', flat=True).first() if self.pk else None
+        locks.check('This purchase', self.invoice_date, old_date)
         if self.invoice_number:
             self.invoice_number = self.invoice_number.strip()
         if self.invoice_number and self.supplier_id:
@@ -403,6 +406,7 @@ class Purchase(models.Model):
     def save(self, *args, **kwargs):
         with transaction.atomic():
             old = Purchase.objects.filter(pk=self.pk).first() if self.pk else None
+            locks.check('This purchase', self.invoice_date, old.invoice_date if old else None)
             super().save(*args, **kwargs)
 
             if old:
@@ -421,6 +425,9 @@ class Purchase(models.Model):
 
     def delete_problem(self):
         """Why this purchase cannot be deleted ('' when it can). Nothing is changed by asking."""
+        locked = locks.problem('This purchase', self.invoice_date)
+        if locked:
+            return locked
         if self.pk and self.returns.exists():
             return "A purchase return was made for this invoice, so it cannot be deleted. Delete that return first."
         for item in self.items.all():
@@ -431,6 +438,7 @@ class Purchase(models.Model):
 
     def delete(self, *args, **kwargs):
         with transaction.atomic():
+            locks.check('This purchase', self.invoice_date)
             problem = self.delete_problem()
             if problem:
                 raise ValidationError(problem)
@@ -519,6 +527,7 @@ class PurchaseItem(models.Model):
             old = PurchaseItem.objects.filter(pk=self.pk).first() if self.pk else None
             header = self.purchase
             product = self.product
+            locks.check('This purchase', header.invoice_date)
 
             # ---- Unit conversion: entered qty -> base qty ----
             if self.unit_id is None:
@@ -640,6 +649,9 @@ class PurchaseItem(models.Model):
 
     def delete_problem(self):
         """Why this item cannot be deleted, in plain words ('' when it can). Checked before anything is changed."""
+        locked = locks.problem('This purchase', self.purchase.invoice_date) if self.purchase_id else ''
+        if locked:
+            return locked
         batch = Batch.objects.filter(purchase_item=self).first()
         if batch and batch.qty < (self.base_qty or 0):
             return (f"{(self.base_qty or 0) - batch.qty} (base unit) of this purchase has already been sold/used/returned, "
@@ -755,6 +767,10 @@ class ShopProfile(models.Model):
     gstin = models.CharField(max_length=15, blank=True, verbose_name="GSTIN")
     drug_license = models.CharField(max_length=255, blank=True, verbose_name="Drug Licence No.",
                                     help_text="e.g. DL No. 20/21/12345, 21/21/12345")
+    books_closed_until = models.DateField(
+        null=True, blank=True, verbose_name="Books closed up to",
+        help_text="Bills and purchases dated on or before this day cannot be added, edited, cancelled or deleted "
+                  "(for example set it to the last day of last month after your CA has taken the figures). Clear it to reopen.")
     terms = models.TextField(
         blank=True,
         default="Goods once sold will not be taken back or exchanged.\nPlease check batch and expiry at the time of purchase.",
@@ -770,6 +786,8 @@ class ShopProfile(models.Model):
         return GST_STATE_CODES.get(self.gstin[:2], "") if self.gstin else ""
 
     def clean(self):
+        if self.books_closed_until and self.books_closed_until > timezone.localdate():
+            raise ValidationError({'books_closed_until': 'The date cannot be in the future. Close a month only after it has ended.'})
         vcheck.check_phone(self, 'phone', landline=True, blank_value='')
         vcheck.check_phone(self, 'alert_phone', blank_value='')
         self.drug_license = vcheck.normalise_licence(self.drug_license)
@@ -864,6 +882,8 @@ class Bill(models.Model):
     patient_address = models.CharField(max_length=255, blank=True, default='')
 
     def clean(self):
+        old_date = Bill.objects.filter(pk=self.pk).values_list('date', flat=True).first() if self.pk else None
+        locks.check('This bill', self.date or timezone.localdate(), old_date)
         if self.invoice_mode == 'online':
             if not self.order_id:
                 raise ValidationError({'order': 'An Order must be selected for an online invoice.'})
@@ -882,6 +902,8 @@ class Bill(models.Model):
 
     def save(self, *args, **kwargs):
         with transaction.atomic():
+            old_date = Bill.objects.filter(pk=self.pk).values_list('date', flat=True).first() if self.pk else None
+            locks.check('This bill', self.date or timezone.localdate(), old_date)
             if self.customer_id and (not self.customer_name or self.customer_name == "Cash"):
                 self.customer_name = self.customer.name
             if self.invoice_mode == 'online' and self.order:
@@ -921,6 +943,7 @@ class Bill(models.Model):
 
     def delete(self, *args, **kwargs):
         with transaction.atomic():
+            locks.check('This bill', self.date)
             for item in self.items.all():
                 item.delete()  # stock + batch restored
             super().delete(*args, **kwargs)
@@ -929,6 +952,7 @@ class Bill(models.Model):
         """Cancel bill: restore stock/batch and remove from Sales. The bill and items are kept for the record."""
         if self.status == 'CANCELLED':
             return
+        locks.check('This bill', self.date)
         if self.returns.exists():
             raise ValidationError('A Credit Note (Sales Return) already exists for this bill, so it cannot be cancelled. '
                                   'Please delete the return first.')
@@ -1088,6 +1112,8 @@ class InvoiceItem(models.Model):
             self.unit = self.product.unit
 
         with transaction.atomic():
+            if self.bill_id:
+                locks.check('This bill', self.bill.date)
             old = InvoiceItem.objects.filter(pk=self.pk).first() if self.pk else None
             if old and old.return_items.exists():
                 raise ValidationError('A Return/Credit Note already exists for this bill item, so it cannot be edited.')
@@ -1165,6 +1191,8 @@ class InvoiceItem(models.Model):
 
     def delete(self, *args, **kwargs):
         with transaction.atomic():
+            if self.bill_id:
+                locks.check('This bill', self.bill.date)
             if self.product_id and self.base_qty:
                 product = Product.objects.select_for_update().get(pk=self.product_id)
                 product.stock_qty += self.base_qty

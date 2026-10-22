@@ -1,0 +1,51 @@
+{% extends "app/base.html" %}
+{% block title %}GSTR-2B Check{% endblock %}
+{% block content %}
+<div class="head"><h1>🧾 GSTR-2B Check</h1></div>
+<div class="msg info">You can claim Input Tax Credit (ITC) only for purchase bills that show in your GSTR-2B. Upload the file from the GST portal and this page compares it with your purchases: which bills are missing, and which have a different amount. The file is read and not stored.<br>
+<b>How to get the file:</b> GST portal &rarr; Returns &rarr; GSTR-2B &rarr; choose the month &rarr; <b>Download</b> (the JSON file). A plain Excel / CSV list with the columns GSTIN, Invoice number, Invoice date, Taxable value, CGST, SGST, IGST also works.</div>
+<form method="post" enctype="multipart/form-data" class="card">
+  {% csrf_token %}
+  <div class="grid">
+    <div class="fld"><label for="gfile">GSTR-2B file (.json, .xlsx or .csv)</label><input id="gfile" type="file" name="file" accept=".json,.xlsx,.xlsm,.csv" required></div>
+    <div class="fld"><label for="gmonth">Month to check (optional)</label><input id="gmonth" type="month" name="month" value="{{ month }}"><small style="color:var(--mute)">Leave empty to use the month in the file.</small></div>
+  </div>
+  {% if error %}<div class="msg error">{{ error }}</div>{% endif %}
+  <div class="bar"><button class="btn">Check now</button><button class="btn ghost" name="export" value="1">⬇ Check and download Excel</button></div>
+</form>
+
+{% if result %}
+{% for w in warn %}<div class="msg info" style="margin-top:12px">{{ w }}</div>{% endfor %}
+<div class="card" style="margin-top:14px">
+  <h3 style="margin-top:0">{{ first|date:"F Y" }} · {{ filename }}</h3>
+  <div class="tw"><table class="t">
+    <tr><td>✅ Matched invoices</td><td style="text-align:right">{{ result.totals.counts.MATCHED }}</td><td style="text-align:right">ITC ₹{{ result.totals.itc_matched|floatformat:2 }}</td></tr>
+    <tr><td>⚠️ Amount differs</td><td style="text-align:right">{{ result.totals.counts.MISMATCH }}</td><td></td></tr>
+    <tr><td>⛔ In your books, not in GSTR-2B</td><td style="text-align:right">{{ result.totals.counts.ONLY_BOOKS }}</td><td style="text-align:right">Do not claim ₹{{ result.totals.itc_at_risk|floatformat:2 }} yet</td></tr>
+    <tr><td>📥 In GSTR-2B, not in your books</td><td style="text-align:right">{{ result.totals.counts.ONLY_2B }}</td><td style="text-align:right">Tax ₹{{ result.totals.itc_not_in_books|floatformat:2 }}</td></tr>
+    <tr><td>🔁 Invoice number or supplier GSTIN differs</td><td style="text-align:right">{{ result.totals.counts.NUMBER_DIFF|add:result.totals.counts.GSTIN_DIFF }}</td><td></td></tr>
+  </table></div>
+  <p style="color:var(--mute);font-size:13px;margin:10px 0 0">Credit notes in the file: {{ result.totals.credit_note_count }} (tax ₹{{ result.totals.credit_notes|floatformat:2 }}) · Debit notes: {{ result.totals.debit_note_count }} (tax ₹{{ result.totals.debit_notes|floatformat:2 }}) — these reduce / change your ITC and are not matched one by one.
+  {% if result.totals.no_gstin %}· {{ result.totals.no_gstin }} purchase(s) this month are from suppliers without a GSTIN (no ITC is possible on them).{% endif %}
+  {% if result.totals.itc_blocked %}· ITC marked "not available" by the portal: ₹{{ result.totals.itc_blocked|floatformat:2 }}.{% endif %}</p>
+</div>
+{% for sec in sections %}
+<div class="card" style="margin-top:14px"><h3 style="margin-top:0">{{ sec.label }} ({{ sec.rows|length }})</h3>
+  <div class="tw"><table class="t">
+    <thead><tr><th>Supplier</th><th>Invoice no.</th><th>Date</th><th style="text-align:right">GSTR-2B taxable / tax</th><th style="text-align:right">Your books taxable / tax</th><th>What to do</th></tr></thead>
+    {% for r in sec.rows %}
+    <tr>
+      <td data-label="Supplier">{{ r.supplier|default:"-" }}<br><small style="color:var(--mute)">{{ r.gstin|default:"No GSTIN" }}</small></td>
+      <td data-label="Invoice no.">{% if r.number_2b %}{{ r.number_2b }}{% else %}{{ r.number_books }}{% endif %}{% if r.number_2b and r.number_books and r.number_2b != r.number_books %}<br><small style="color:var(--mute)">books: {{ r.number_books }}</small>{% endif %}</td>
+      <td data-label="Date">{% if r.date_2b %}{{ r.date_2b|date:"d M Y" }}{% elif r.date_books %}{{ r.date_books|date:"d M Y" }}{% else %}-{% endif %}</td>
+      <td data-label="GSTR-2B" style="text-align:right">{% if r.taxable_2b is not None %}₹{{ r.taxable_2b|floatformat:2 }} / ₹{{ r.tax_2b|floatformat:2 }}{% else %}-{% endif %}</td>
+      <td data-label="Your books" style="text-align:right">{% if r.taxable_books is not None %}₹{{ r.taxable_books|floatformat:2 }} / ₹{{ r.tax_books|floatformat:2 }}{% else %}-{% endif %}</td>
+      <td data-label="What to do">{% if r.status == "MISMATCH" %}Taxable differs by ₹{{ r.diff_taxable|floatformat:2 }}, tax by ₹{{ r.diff_tax|floatformat:2 }}. {% endif %}{{ r.note }}{% if not r.itc %} <b>ITC not available.</b>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+</div>
+{% endfor %}
+{% if not sections %}<div class="msg info" style="margin-top:14px">No invoices were found to compare.</div>{% endif %}
+{% endif %}
+{% endblock %}

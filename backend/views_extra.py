@@ -19,7 +19,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import access, auditlog, backup, billview, ca_export, health, expiry_returns, levels, notify, refill, reorder, reports, reset, summary, supplier_prices
+from . import access, auditlog, backup, billview, ca_export, gstr2b, health, login_audit, expiry_returns, levels, notify, refill, reorder, reports, reset, summary, supplier_prices
 from .models import (
     Batch, Bill, Brand, Category, Customer, Employee, Expense, InvoiceItem, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
     HeldBill, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SalesReturn, Supplier, Unit, SalesReturnItem, ShopProfile, StockAudit, StockAuditItem, StockWriteOff,
@@ -289,6 +289,66 @@ def ca_export_view(request):
     info = None if error else ca_export.summary(start, end)
     return page(request, 'app/ca_export.html', active='ca_export', start=start, end=end, error=error, info=info,
                 presets=[dict(label=l, start=a, end=b) for l, a, b in presets])
+
+
+GSTR2B_MAX_BYTES = 10 * 1024 * 1024
+
+
+@staff_required
+def gstr2b_view(request):
+    """Owner only: upload the GSTR-2B file (JSON from the GST portal, or a plain Excel / CSV list) and see which
+    purchase bills are missing or different. Nothing is stored; the file is read and the result is shown."""
+    from .tabular import ImportFileError, read_table
+    today = timezone.localdate()
+    prev = (today.replace(day=1) - timedelta(days=1))
+    ctx = dict(error='', result=None, warn=[], month='', filename='')
+    if request.method == 'POST':
+        up = request.FILES.get('file')
+        ctx['month'] = (request.POST.get('month') or '')[:7]
+        try:
+            if not up:
+                raise gstr2b.FileProblem('Please choose the GSTR-2B file.')
+            if up.size > GSTR2B_MAX_BYTES:
+                raise gstr2b.FileProblem('The file is larger than 10 MB.')
+            name = (up.name or '').lower()
+            if name.endswith('.json'):
+                parsed = gstr2b.parse_json(up.read())
+            elif name.endswith(('.xlsx', '.xlsm', '.csv')):
+                headers, rows = read_table(up, max_rows=gstr2b.MAX_DOCS)
+                parsed = gstr2b.parse_rows(headers, rows)
+            else:
+                raise gstr2b.FileProblem('Please upload the GSTR-2B .json file from the GST portal (or an .xlsx / .csv list).')
+            try:
+                y, m = (int(x) for x in ctx['month'].split('-'))
+                first = date_cls(y, m, 1)
+            except ValueError:                      # no month chosen: the month printed in the file, else last month
+                first = parsed['period'] or prev.replace(day=1)
+            ctx['month'] = f"{first:%Y-%m}"
+            last = date_cls(first.year, first.month, calendar.monthrange(first.year, first.month)[1])
+            shop_gstin = gstr2b.gstin_check.normalise(ShopProfile.get().gstin)
+            if parsed['gstin'] and shop_gstin and parsed['gstin'] != shop_gstin:
+                ctx['warn'].append(f"This file is for GSTIN {parsed['gstin']}, but your Shop Settings show {shop_gstin}.")
+            if parsed['skipped']:
+                ctx['warn'].append('These sections of the file are not compared: ' + ', '.join(parsed['skipped'])
+                                   + ' (amendments, ISD and imports). Check them on the portal.')
+            result = gstr2b.reconcile(parsed['docs'], gstr2b.books_between(first, last), first, last)
+            ctx.update(result=result, first=first, last=last, filename=up.name, order=gstr2b.ORDER,
+                       sections=[dict(status=st, label=gstr2b.LABELS[st], rows=[r for r in result['rows'] if r['status'] == st])
+                                 for st in gstr2b.ORDER if any(r['status'] == st for r in result['rows'])])
+            auditlog.record(request, 'GSTR2B', 'Reconciliation', f"{first:%b %Y}: {len(parsed['docs'])} documents in the file")
+            if request.POST.get('export'):
+                return _xlsx(gstr2b.workbook(result, first, last), f"gstr2b-check-{first:%Y-%m}.xlsx")
+        except (gstr2b.FileProblem, ImportFileError) as e:
+            ctx['error'] = str(e)
+        except (AttributeError, TypeError, KeyError, ValueError):
+            ctx['error'] = 'The file could not be read. Please upload the original GSTR-2B JSON from the GST portal.'
+    return page(request, 'app/gstr2b.html', active='gstr2b', **ctx)
+
+
+@staff_required
+def users_view(request):
+    """Owner only: every user with the last login, the last action and the last 7 days' activity."""
+    return page(request, 'app/users.html', active='users', rows=login_audit.user_rows())
 
 
 @staff_required

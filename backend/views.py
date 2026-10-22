@@ -11,7 +11,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import IntegrityError, models, transaction
 from django.db.models import F, ProtectedError, Q, Sum
-from django.forms import inlineformset_factory, modelform_factory
+from django.forms import DateInput, inlineformset_factory, modelform_factory
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -57,6 +57,7 @@ NAV = [
     {'key': 'salary', 'url': '/salary/', 'label': 'Salary Sheet', 'icon': '💼', 'group': 'Accounts'},
     {'key': 'report', 'url': '/report/', 'label': 'Profit & Loss', 'icon': '📊', 'group': 'Accounts', 'staff': True},
     {'key': 'gst', 'url': '/gst/', 'label': 'GST Reports', 'icon': '🧮', 'group': 'Accounts', 'staff': True},
+    {'key': 'gstr2b', 'url': '/gstr2b/', 'label': 'GSTR-2B Check', 'icon': '🧾', 'group': 'Accounts', 'staff': True},
     {'key': 'ca_export', 'url': '/ca_export/', 'label': 'CA / Accountant Export', 'icon': '📤', 'group': 'Accounts', 'staff': True},
     {'key': 'drug_register', 'url': '/drug_register/', 'label': 'Drug Register (H/H1)', 'icon': '📒', 'group': 'Stock'},
     {'key': 'writeoffs', 'url': '/writeoffs/', 'label': 'Stock Write-off', 'icon': '🗑️', 'group': 'Stock'},
@@ -66,6 +67,7 @@ NAV = [
     {'key': 'units', 'url': '/units/', 'label': 'Units', 'icon': '📏', 'group': 'Master Data'},
     {'key': 'import', 'url': '/import/', 'label': 'Import / Export', 'icon': '📥', 'group': 'Master Data'},
     {'key': 'audit', 'url': '/audit/', 'label': 'Audit Log', 'icon': '🕵️', 'group': 'Master Data', 'staff': True},
+    {'key': 'users', 'url': '/users/', 'label': 'Users & Sign-ins', 'icon': '👤', 'group': 'Master Data', 'staff': True},
     {'key': 'health', 'url': '/health/', 'label': 'Health Score', 'icon': '🩺', 'group': 'Master Data', 'staff': True},
     {'key': 'backup', 'url': '/backup/', 'label': 'Backup', 'icon': '💾', 'group': 'Master Data', 'staff': True},
     {'key': 'shop', 'url': '/shop/', 'label': 'Shop Settings', 'icon': '🏪', 'group': 'Master Data', 'staff': True},
@@ -1016,10 +1018,16 @@ def shop(request):
     if not access.is_owner(request.user):
         raise PermissionDenied
     Form = modelform_factory(ShopProfile, fields=['name', 'address', 'phone', 'alert_phone', 'email', 'gstin',
-                                                  'drug_license', 'terms'])
-    form = Form(request.POST or None, instance=ShopProfile.get())
+                                                  'drug_license', 'books_closed_until', 'terms'],
+                            widgets={'books_closed_until': DateInput(attrs={'type': 'date'}, format='%Y-%m-%d')})
+    shop_obj = ShopProfile.get()
+    before = shop_obj.books_closed_until
+    form = Form(request.POST or None, instance=shop_obj)
     if request.method == 'POST' and form.is_valid():
         form.save()
+        if form.instance.books_closed_until != before:
+            auditlog.record(request, 'LOCK', 'Books closed up to',
+                            f"{before or 'not set'} -> {form.instance.books_closed_until or 'not set'}")
         messages.success(request, 'Shop details saved ✅')
         return redirect('shop')
     return page(request, 'app/form.html', key='shop', active='shop', title='Shop Settings',

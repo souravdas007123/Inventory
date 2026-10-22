@@ -25,6 +25,7 @@ from django.http import HttpResponse
 from django.utils import timezone
 
 from . import gstin as gstin_check
+from . import locks
 from . import validators as vcheck
 from .models import (
     GST_STATE_CODES, Brand, Category, Customer, Expense, Product, ProductUnit, Purchase, PurchaseItem, Supplier, Unit,
@@ -625,6 +626,10 @@ def validate_stock(rows, opts):
             warnings.append('this batch has already expired')
         if inv_date > today:
             errors.append('invoice_date cannot be in the future')
+        elif inv_date:
+            locked = locks.problem('this purchase', inv_date)
+            if locked:
+                errors.append(locked[0].lower() + locked[1:])
 
         unit_name = _unit_name(raw.get('unit'))
         unit = None

@@ -1,0 +1,19 @@
+{% extends "app/base.html" %}
+{% block title %}Users & Sign-ins{% endblock %}
+{% block content %}
+<div class="head"><h1>👤 Users &amp; Sign-ins</h1><a class="btn ghost sm" href="/audit/?q=LOGIN">Sign-in history</a></div>
+<div class="msg info">Every sign-in, sign-out and failed sign-in is written to the Audit Log with the IP address. Many failed sign-ins for one user can mean that someone is guessing the password.</div>
+<div class="card"><div class="tw"><table class="t">
+  <thead><tr><th>User</th><th>Role</th><th>Last sign-in</th><th>Last action</th><th style="text-align:right">Actions (7 days)</th><th style="text-align:right">Failed sign-ins (7 days)</th></tr></thead>
+  {% for r in rows %}
+  <tr>
+    <td data-label="User"><b>{{ r.username }}</b>{% if not r.active %} <span class="badge">disabled</span>{% endif %}</td>
+    <td data-label="Role">{{ r.role }}</td>
+    <td data-label="Last sign-in">{% if r.last_login %}{{ r.last_login|date:"d M Y, h:i A" }}{% else %}Never{% endif %}</td>
+    <td data-label="Last action">{% if r.last_action %}{{ r.last_action }}<br><small style="color:var(--mute)">{{ r.last_action_at|date:"d M Y, h:i A" }}</small>{% else %}-{% endif %}</td>
+    <td data-label="Actions (7 days)" style="text-align:right">{{ r.week }}</td>
+    <td data-label="Failed sign-ins (7 days)" style="text-align:right">{% if r.failed %}<b style="color:var(--red)">{{ r.failed }}</b>{% else %}0{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="6">No users.</td></tr>{% endfor %}
+</table></div></div>
+{% endblock %}
