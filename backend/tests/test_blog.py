@@ -98,6 +98,10 @@ class BlogPagesTests(TestCase):
         html = self.client.get('/blog/a-post/').content.decode()
         self.assertIn('<title>A post | MedSync</title>', html)
         self.assertIn('<meta name="description" content="Short summary.">', html)
+        long = self.make('long-one', summary='word ' * 60)
+        page = self.client.get(long.get_absolute_url()).content.decode()
+        desc = re.search(r'<meta name="description" content="([^"]*)">', page).group(1)
+        self.assertLessEqual(len(desc), 155)           # longer descriptions are cut off in search results
         self.assertIn('<link rel="canonical" href="http://testserver/blog/a-post/">', html)
         self.assertIn('<meta property="og:type" content="article">', html)
         self.assertIn('<strong>world</strong>', html)

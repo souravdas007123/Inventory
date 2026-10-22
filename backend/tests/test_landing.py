@@ -25,6 +25,14 @@ class LandingTests(TestCase):
         ld = re.search(r'<script type="application/ld\+json">(.*?)</script>', html, re.S).group(1)
         self.assertEqual(len(json.loads(ld)['@graph']), 2)
 
+    def test_title_and_description_are_short_enough_for_search_results(self):
+        html = self.client.get('/').content.decode()
+        desc = re.search(r'<meta name="description" content="([^"]*)">', html).group(1)
+        title = re.search(r'<title>(.*?)</title>', html).group(1)
+        self.assertLessEqual(len(desc), 155)            # about 1000 pixels: longer text is cut off in Google
+        self.assertGreaterEqual(len(desc), 70)
+        self.assertLessEqual(len(title), 62)            # about 600 pixels
+
     @override_settings(LANDING_WHATSAPP='+91 98765-43210')
     def test_whatsapp_number_makes_the_demo_buttons(self):
         html = self.client.get('/').content.decode()

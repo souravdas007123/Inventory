@@ -1,11 +1,11 @@
 {% extends "app/blog_base.html" %}
 {% block title %}{{ post.title }}{% endblock %}
-{% block desc %}{{ post.summary }}{% endblock %}
+{% block desc %}{{ post.summary|truncatechars:155 }}{% endblock %}
 {% block path %}{{ post.get_absolute_url }}{% endblock %}
 {% block robots %}{% if preview %}<meta name="robots" content="noindex,nofollow">{% else %}{{ block.super }}{% endif %}{% endblock %}
 {% block ogtype %}article{% endblock %}
 {% block ogtitle %}{{ post.title }}{% endblock %}
-{% block ogdesc %}{{ post.summary }}{% endblock %}
+{% block ogdesc %}{{ post.summary|truncatechars:155 }}{% endblock %}
 {% block ogimage %}{{ og_image }}{% endblock %}
 {% block ogpath %}{{ post.get_absolute_url }}{% endblock %}
 {% block content %}

@@ -286,3 +286,6 @@ A purchase that was already sold from, or that has a return or write-off linked,
 ## Popups instead of browser alert boxes
 - Every message and question inside the app (delete, cancel a bill, apply a stock audit, return expired batches, discard a held bill, the automatic-price check on a purchase, reset data, "could not load / hold") appears in a popup in the app's own style, never in the browser's plain alert / confirm box. The popup has a clear title and buttons ("Yes, delete" / "Cancel"), Esc and a click outside close it as Cancel.
 - For developers: a form or button with `data-confirm="Question?"` (and optionally `data-confirm-yes="Yes, delete"`) asks first; from scripts use `appAlert(text)` and `await appConfirm(text, {danger: true})`. The helper lives once in `templates/app/base.html`; `backend/tests/test_popups.py` fails if a template uses the native `alert(` / `confirm(` again.
+
+## Search result text (SEO)
+- The home page title is about 60 characters and its meta description about 147 characters, so Google shows them whole (a description over about 155 characters / 1000 pixels is cut off). A blog article's description is its summary, cut at 155 characters on the page (the summary itself can stay longer). `backend/tests/test_landing.py` and `test_blog.py` check these lengths.
