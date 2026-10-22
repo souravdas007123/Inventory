@@ -29,17 +29,17 @@
           <button type="button" class="btn ghost sm" data-pk="{{ r.pk }}" data-preview="{% url 'bill_preview' r.pk %}" data-invoice="{% url 'invoice' r.pk %}" title="See the items of this bill">👁 Preview</button>
           <a class="btn sm" href="{% url 'invoice' r.pk %}">🖨️ Invoice</a>
           {% if r.obj.status == 'FINAL' and can_return %}<a class="btn ghost sm" href="{% url 'sales_return_new' r.pk %}">↩ Return</a>{% endif %}
-          {% if r.obj.status == 'FINAL' and is_owner %}<form method="post" action="{% url 'bill_cancel' r.pk %}" style="display:inline" onsubmit="return confirm('Cancel this bill? The stock will be added back.')">{% csrf_token %}<button class="btn red sm">Cancel</button></form>{% endif %}
+          {% if r.obj.status == 'FINAL' and is_owner %}<form method="post" action="{% url 'bill_cancel' r.pk %}" style="display:inline" data-confirm="Cancel this bill? The stock will be added back." data-confirm-yes="Yes, cancel the bill">{% csrf_token %}<button class="btn red sm">Cancel</button></form>{% endif %}
         {% else %}
           {% if key == 'products' %}<button type="button" class="btn ghost sm" data-xpk="{{ r.pk }}" data-xpreview="{% url 'product_preview' r.pk %}" title="See the details and batches of this product">👁 Preview</button>{% endif %}
           {% if key == 'purchases' %}<button type="button" class="btn ghost sm" data-ppk="{{ r.pk }}" data-ppreview="{% url 'purchase_preview' r.pk %}" title="See what was bought in this purchase">👁 Preview</button>{% endif %}
           {% for a in r.acts %}
-            {% if a.post %}<form method="post" action="{{ a.url }}" style="display:inline"{% if a.confirm %} onsubmit="return confirm('{{ a.confirm|escapejs }}')"{% endif %}>{% csrf_token %}<button class="btn {% if a.cls %}{{ a.cls }}{% endif %} sm">{{ a.label }}</button></form>
+            {% if a.post %}<form method="post" action="{{ a.url }}" style="display:inline"{% if a.confirm %} data-confirm="{{ a.confirm }}"{% endif %}>{% csrf_token %}<button class="btn {% if a.cls %}{{ a.cls }}{% endif %} sm">{{ a.label }}</button></form>
             {% else %}<a class="btn sm" href="{{ a.url }}"{% if a.target %} target="{{ a.target }}" rel="noopener"{% endif %}>{{ a.label }}</a>{% endif %}
           {% endfor %}
           {% if not cfg.readonly %}
             {% if not cfg.no_edit and can_change %}<a class="btn ghost sm" href="{% url 'edit' key r.pk %}">Edit</a>{% endif %}
-            {% if can_delete %}<form method="post" action="{% url 'delete' key r.pk %}" style="display:inline" onsubmit="return confirm('Are you sure you want to delete this?')">{% csrf_token %}<button class="btn red sm">Delete</button></form>{% endif %}
+            {% if can_delete %}<form method="post" action="{% url 'delete' key r.pk %}" style="display:inline" data-confirm="Are you sure you want to delete this? It cannot be brought back." data-confirm-yes="Yes, delete">{% csrf_token %}<button class="btn red sm">Delete</button></form>{% endif %}
           {% endif %}
         {% endif %}
       </td>{% endif %}

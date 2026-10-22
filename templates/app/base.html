@@ -42,6 +42,8 @@ h1{margin:0;font-size:20px}h3{margin:18px 0 8px;font-size:15px}
 .tw{overflow-x:auto}
 dialog.dlg{border:1px solid var(--line);border-radius:14px;padding:18px;width:min(660px,calc(100% - 24px));max-height:92vh;overflow:auto;background:var(--card);color:var(--ink)}
 dialog.dlg::backdrop{background:#0f2e2b99}
+dialog.msgdlg{width:min(440px,calc(100% - 24px))}.msgdlg h3{margin:0 0 8px}.msgdlg p{margin:0 0 16px;white-space:pre-line;line-height:1.5}
+.msgdlg .bar{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 .np-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}.np-head h3{margin:0}
 
 table.t{width:100%;border-collapse:collapse}
@@ -151,6 +153,10 @@ img,video{max-width:100%;height:auto}
   {% for m in messages %}<div class="msg {{ m.tags }}">{{ m }}</div>{% endfor %}
   {% block content %}{% endblock %}
 </main>
+<dialog id="app-dlg" class="dlg msgdlg" aria-labelledby="app-dlg-title">
+  <h3 id="app-dlg-title"></h3><p id="app-dlg-msg"></p>
+  <div class="bar"><button type="button" class="btn ghost" id="app-dlg-no"></button><button type="button" class="btn" id="app-dlg-yes"></button></div>
+</dialog>
 <script>
 // Set data-label from each table <th> for the mobile card view (only on tables with a header)
 function labelTables(root){
@@ -173,6 +179,61 @@ new MutationObserver(function(m){ if(m.some(function(x){return x.addedNodes.leng
   .observe(document.querySelector('main'),{childList:true,subtree:true});
 document.addEventListener('click',function(e){var s=document.getElementById('side');
   if(s&&s.classList.contains('open')&&!s.contains(e.target)&&!e.target.closest('.burger'))s.classList.remove('open');});
+</script>
+<script>
+// Messages and questions appear in a popup (never the browser's own alert / confirm box).
+//   appAlert(text, {title})                       -> Promise, closes with OK
+//   appConfirm(text, {title, yes, no, danger})    -> Promise<true|false>
+//   <form data-confirm="Question?"> or <button data-confirm="Question?" data-confirm-yes="Yes, delete"> asks before the form is sent.
+(function () {
+  var dlg = document.getElementById('app-dlg');
+  if (!dlg) return;
+  var T = document.getElementById('app-dlg-title'), M = document.getElementById('app-dlg-msg'),
+      Y = document.getElementById('app-dlg-yes'), N = document.getElementById('app-dlg-no'), done = null;
+  function ask(text, o, single) {
+    o = o || {};
+    if (typeof dlg.showModal !== 'function') {                       // a very old browser without <dialog>
+      return Promise.resolve(single ? (window.alert(text), true) : window.confirm(text));
+    }
+    if (done) { dlg.close(''); }
+    T.textContent = o.title || (single ? 'Please note' : 'Please confirm');
+    M.textContent = text;
+    Y.textContent = o.yes || (single ? 'OK' : 'Yes');
+    N.textContent = o.no || 'Cancel';
+    N.style.display = single ? 'none' : '';
+    Y.style.background = o.danger ? '#b91c1c' : '';
+    return new Promise(function (resolve) {
+      done = resolve;
+      dlg.returnValue = '';
+      dlg.showModal();
+      (o.danger && !single ? N : Y).focus();
+    });
+  }
+  dlg.addEventListener('close', function () { var r = done; done = null; if (r) r(dlg.returnValue === 'yes'); });
+  Y.addEventListener('click', function () { dlg.close('yes'); });
+  N.addEventListener('click', function () { dlg.close('no'); });
+  dlg.addEventListener('click', function (e) { if (e.target === dlg && N.style.display !== 'none') dlg.close('no'); });
+  window.appAlert = function (text, o) { return ask(text, o, true); };
+  window.appConfirm = function (text, o) { return ask(text, o, false); };
+
+  var passed = new WeakSet();
+  document.addEventListener('submit', function (e) {
+    var f = e.target, sub = e.submitter;
+    if (!f || f.tagName !== 'FORM') return;
+    if (passed.has(f)) { passed.delete(f); return; }
+    var src = sub && sub.dataset && sub.dataset.confirm ? sub : (f.dataset.confirm ? f : null);
+    if (!src) return;
+    e.preventDefault();
+    var btn = sub || f.querySelector('button.red');
+    window.appConfirm(src.dataset.confirm, {
+      yes: src.dataset.confirmYes, danger: !!(btn && btn.classList && btn.classList.contains('red')) || src.hasAttribute('data-danger')
+    }).then(function (ok) {
+      if (!ok) return;
+      passed.add(f);
+      try { if (f.requestSubmit) f.requestSubmit(sub || undefined); else f.submit(); } finally { passed.delete(f); }
+    });
+  }, true);
+})();
 </script>
 <script>
 // Double-click protection: right after a form is sent its buttons are locked for a moment ("Saving..."), so one click

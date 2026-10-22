@@ -8,7 +8,7 @@
   <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
     {% for h in held_list %}<div style="display:flex;gap:4px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:4px 6px{% if h.id == held_id %};background:var(--soft){% endif %}">
       <a class="btn sm" href="?resume={{ h.id }}" title="Open this bill again">▶ {{ h.label }} · {{ h.count }} item{{ h.count|pluralize }} · {{ h.time }}</a>
-      <form method="post" action="{% url 'bill_hold_discard' h.id %}" style="display:inline" onsubmit="return confirm('Discard this held bill? It cannot be brought back.')">{% csrf_token %}<button class="btn red sm" title="Discard this held bill">✕</button></form>
+      <form method="post" action="{% url 'bill_hold_discard' h.id %}" style="display:inline" data-confirm="Discard this held bill? It cannot be brought back." data-confirm-yes="Yes, discard">{% csrf_token %}<button class="btn red sm" title="Discard this held bill">✕</button></form>
     </div>{% endfor %}
   </div>
 </div>
@@ -283,7 +283,7 @@ function drawAlts(tr, p, box) {
 }
 async function useAlt(tr, a, replace) {
   const info = await getInfo(a.id);
-  if (!info) { alert('Could not load this medicine. Please try again.'); return; }
+  if (!info) { appAlert('Could not load this medicine. Please try again.'); return; }
   if (!replace) { addProduct(info, true); return; }
   rowField(tr, 'product').value = String(a.id);
   ensureUnits(tr, info, true);                                  // the other medicine starts with its own base unit
@@ -386,8 +386,8 @@ if (holdBtn) holdBtn.addEventListener('click', async () => {
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': token}, body: JSON.stringify({fields: fields})});
     const d = await r.json().catch(() => null);
     if (r.ok && d && d.ok) { window.location.href = '{% url "new" key="bills" %}'; return; }
-    alert((d && d.error) || 'Could not put the bill on hold. Please try again.');
-  } catch (e) { alert('Could not put the bill on hold. Please check your connection.'); }
+    appAlert((d && d.error) || 'Could not put the bill on hold. Please try again.');
+  } catch (e) { appAlert('Could not put the bill on hold. Please check your connection.'); }
   holdBtn.disabled = false;
 });
 // ---- Resume: fill the form again from the held bill ----
@@ -763,9 +763,14 @@ if (scan) {
   if (theForm) theForm.addEventListener('submit', e => {
     const auto = [...dataRows()].filter(t => { const pe = field(t, 'purchase_price'); return pe && pe.dataset.auto === '1' && pe.value !== ''; });
     if (!auto.length) return;
-    if (!window.confirm(auto.length + ' price(s) were filled automatically from the last purchase and not changed.\nAre they the same as on the supplier bill?')) {
-      e.preventDefault(); const pe = field(auto[0], 'purchase_price'); pe.focus(); pe.select();
-    } else auto.forEach(t => { field(t, 'purchase_price').dataset.auto = '0'; });
+    e.preventDefault();
+    const submitter = e.submitter;
+    appConfirm(auto.length + ' price(s) were filled automatically from the last purchase and not changed.\nAre they the same as on the supplier bill?',
+               {title: 'Check the prices', yes: 'Yes, they are the same', no: 'No, let me check'}).then(ok => {
+      if (!ok) { const pe = field(auto[0], 'purchase_price'); pe.focus(); pe.select(); return; }
+      auto.forEach(t => { field(t, 'purchase_price').dataset.auto = '0'; });
+      if (theForm.requestSubmit) theForm.requestSubmit(submitter || undefined); else theForm.submit();
+    });
   });
   supplierSel.addEventListener('change', () => dataRows().forEach(refresh));
   dataRows().forEach(refresh);

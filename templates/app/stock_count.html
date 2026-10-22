@@ -23,7 +23,7 @@
   </table></div>
   {% if editable %}<div class="bar">
     <button class="btn" name="action" value="save">💾 Save count</button>
-    <button class="btn red" name="action" value="apply" onclick="return confirm('Stock will be set to the counted quantities and this audit will be closed. Continue?')">✅ Save + Stock adjust (Apply)</button>
+    <button class="btn red" name="action" value="apply" data-confirm="Stock will be set to the counted quantities and this audit will be closed. Continue?" data-confirm-yes="Yes, apply">✅ Save + Stock adjust (Apply)</button>
   </div>{% endif %}
 </form>
 {% endblock %}

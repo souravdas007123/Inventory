@@ -37,7 +37,7 @@
   </table></div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px">
     <input type="text" name="reason" value="Expired / near expiry" maxlength="255" style="flex:1;min-width:200px" aria-label="Reason">
-    <button class="btn" onclick="return confirm('Return the ticked batches to {{ g.supplier|escapejs }}? Stock and the supplier balance will change.')">📤 Return ticked batches</button>
+    <button class="btn" data-confirm="Return the ticked batches to {{ g.supplier }}? Stock and the supplier balance will change." data-confirm-yes="Yes, return">📤 Return ticked batches</button>
   </div>
 </form>
 {% endfor %}

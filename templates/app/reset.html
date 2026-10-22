@@ -56,7 +56,7 @@
     if (!list.children.length) return;                       // nothing ticked: the server shows its own message
     e.preventDefault();
     if (typeof dlg.showModal === 'function') dlg.showModal();
-    else if (window.confirm('This removes the ticked data. A backup is made first. Continue?')) send();
+    else appConfirm('This removes the ticked data. A backup is made first. Continue?', {danger: true}).then(function (ok) { if (ok) send(); });
   });
   document.getElementById('rs-yes').addEventListener('click', function () { dlg.close(); send(); });
   document.getElementById('rs-no').addEventListener('click', function () { dlg.close(); });
