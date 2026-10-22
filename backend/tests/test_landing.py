@@ -95,7 +95,7 @@ class LandingTests(TestCase):
     @override_settings(LANDING_WHATSAPP='')
     def test_without_a_number_the_buttons_lead_to_login(self):
         html = self.client.get('/').content.decode()
-        self.assertNotIn('wa.me', html)
+        self.assertNotRegex(html, r'wa\.me/\d')        # the share link is wa.me/?text, the demo link has a number
         self.assertIn('Login to MedSync', html)
 
     @override_settings(LANDING_WHATSAPP='')
