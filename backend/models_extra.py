@@ -14,6 +14,7 @@ from django.db.models import F, Max, Sum
 from django.utils import timezone
 
 from . import gstin as gstin_check
+from . import validators as vcheck
 from .models import (
     GST_STATE_CODES, TWO, Batch, Expense, InvoiceItem, Product, PurchaseItem, Sale, Transaction,
     adjust_supplier_balance, fiscal_year,
@@ -65,6 +66,7 @@ class Customer(models.Model):
     created_at = models.DateField(auto_now_add=True, null=True)
 
     def clean(self):
+        vcheck.check_phone(self, 'phone')
         self.gstin = gstin_check.normalise(self.gstin) or None
         if self.gstin and gstin_check.changed(self, self.gstin):
             msg = gstin_check.problem(self.gstin, GST_STATE_CODES)
@@ -632,6 +634,7 @@ class Employee(models.Model):
     last_salary_period = models.DateField(null=True, blank=True, editable=False)
 
     def clean(self):
+        vcheck.check_phone(self, 'phone')
         if self.monthly_salary is not None and self.monthly_salary < 0:
             raise ValidationError({'monthly_salary': 'Salary cannot be negative.'})
         if self.leaving_date and self.joining_date and self.leaving_date < self.joining_date:

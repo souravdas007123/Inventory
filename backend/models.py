@@ -11,6 +11,7 @@ from django.db.models import F, Q, Sum
 from django.utils import timezone
 
 from . import gstin as gstin_check
+from . import validators as vcheck
 from . import supplier_prices
 
 TWO = Decimal('0.01')
@@ -135,6 +136,7 @@ class Supplier(models.Model):
     is_active = models.BooleanField(default=True, verbose_name="Active Status")
 
     def clean(self):
+        vcheck.check_phone(self, 'phone', landline=True)
         self.gstin = gstin_check.normalise(self.gstin) or None
         if self.gstin and gstin_check.changed(self, self.gstin):
             msg = gstin_check.problem(self.gstin, GST_STATE_CODES)
@@ -210,6 +212,13 @@ class Product(models.Model):
     @property
     def is_low_stock(self):
         return self.stock_qty <= self.reorder_level
+
+    def clean(self):
+        self.hsn_code = vcheck.normalise_hsn(self.hsn_code) or None
+        if self.hsn_code and vcheck.changed(self, 'hsn_code', self.hsn_code, vcheck.normalise_hsn):
+            msg = vcheck.hsn_problem(self.hsn_code)
+            if msg:
+                raise ValidationError({'hsn_code': msg})
 
     def save(self, *args, **kwargs):
         if self.barcode is not None:
@@ -752,6 +761,13 @@ class ShopProfile(models.Model):
         return GST_STATE_CODES.get(self.gstin[:2], "") if self.gstin else ""
 
     def clean(self):
+        vcheck.check_phone(self, 'phone', landline=True, blank_value='')
+        vcheck.check_phone(self, 'alert_phone', blank_value='')
+        self.drug_license = vcheck.normalise_licence(self.drug_license)
+        if self.drug_license and vcheck.changed(self, 'drug_license', self.drug_license, vcheck.normalise_licence):
+            msg = vcheck.licence_problem(self.drug_license)
+            if msg:
+                raise ValidationError({'drug_license': msg})
         self.gstin = gstin_check.normalise(self.gstin)
         if self.gstin and gstin_check.changed(self, self.gstin):
             msg = gstin_check.problem(self.gstin, GST_STATE_CODES)
@@ -1036,6 +1052,15 @@ class InvoiceItem(models.Model):
             raise ValidationError('Use either Discount % or Flat, not both.')
         if self.discount_percent and self.discount_percent > 100:
             raise ValidationError({'discount_percent': 'Discount cannot exceed 100%.'})
+
+        # Selling above the printed MRP is not allowed: the rate (before GST) must stay within the MRP of the chosen unit.
+        mrp = self.product.mrp
+        rate_edited = old is None or old.rate != self.rate or old.product_id != self.product_id or old.unit_id != self.unit_id
+        if rate_edited and self.rate is not None and mrp and vcheck.rate_above_mrp(
+                self.rate, self.product.gst_rate, Decimal(mrp) * Decimal(factor)):
+            ceiling = (Decimal(mrp) * Decimal(factor)).quantize(Decimal('0.01'))
+            raise ValidationError({'rate': f'The rate is above the MRP (Rs {ceiling} per unit incl. GST). '
+                                           f'A medicine cannot be sold for more than its MRP.'})
 
     # ---------- Save ----------
     def save(self, *args, **kwargs):

@@ -25,6 +25,7 @@ from django.http import HttpResponse
 from django.utils import timezone
 
 from . import gstin as gstin_check
+from . import validators as vcheck
 from .models import (
     GST_STATE_CODES, Brand, Category, Customer, Expense, Product, ProductUnit, Purchase, PurchaseItem, Supplier, Unit,
 )
@@ -65,6 +66,29 @@ def _unit_name(raw):
 
 def _digits(phone):
     return re.sub(r'\D', '', phone or '')[-10:]
+
+
+def _phone(raw, errors, current='', landline=False):
+    """A tidy phone number (10 digits, +91 / 0 removed), or '' with a message in `errors`.
+    The number already saved on the record is not checked again."""
+    p = vcheck.normalise_phone(txt(raw), landline)
+    if p and p != vcheck.normalise_phone(current, landline):
+        msg = vcheck.phone_problem(p, landline)
+        if msg:
+            errors.append(f"phone '{txt(raw)}' is not valid: {msg[0].lower() + msg[1:]}")
+            return ''
+    return p
+
+
+def _hsn(raw, errors, current=''):
+    """A tidy HSN code, or '' with a message in `errors`. The code already saved on the product is not checked again."""
+    h = vcheck.normalise_hsn(txt(raw))
+    if h and h != vcheck.normalise_hsn(current):
+        msg = vcheck.hsn_problem(h)
+        if msg:
+            errors.append(f"hsn_code '{txt(raw)}' is not valid: {msg[0].lower() + msg[1:]}")
+            return ''
+    return h
 
 
 def _result(n, action, data=None, errors=None, warnings=None, label=''):
@@ -190,7 +214,8 @@ def validate_products(rows, opts):
             existing_id=existing.pk if existing else None, name=name, unit=unit,
             gst_rate=str(gst) if gst is not None else None, mrp=str(mrp) if mrp is not None else None,
             barcode=barcode, schedule=schedule, reorder_level=reorder, is_active=active,
-            composition=txt(raw.get('composition')), hsn_code=txt(raw.get('hsn_code')),
+            composition=txt(raw.get('composition')),
+            hsn_code=_hsn(raw.get('hsn_code'), errors, existing.hsn_code if existing else ''),
             category=txt(raw.get('category')), brand=txt(raw.get('brand')),
             rack=txt(raw.get('rack')), row=txt(raw.get('row')), location=txt(raw.get('location')),
             default_supplier_id=sup.pk if sup else None, packs=packs,
@@ -305,9 +330,8 @@ def validate_customers(rows, opts):
         name = txt(raw.get('name'))
         if not name:
             errors.append('name is required')
-        phone = txt(raw.get('phone'))
-        if phone and len(_digits(phone)) < 10:
-            errors.append(f"phone '{phone}' must have 10 digits")
+        saved = by_phone.get(_digits(txt(raw.get('phone'))))        # the same number already saved is not checked again
+        phone = _phone(raw.get('phone'), errors, saved.phone if saved else '')
         key = _digits(phone) or name.lower()
         if key and key in seen:
             errors.append(f"this customer also appears in row {seen[key]} (duplicate in file)")
@@ -401,8 +425,8 @@ def validate_suppliers(rows, opts):
             except ValidationError:
                 errors.append(f"email '{email}' is not valid")
         data = dict(existing_id=existing.pk if existing else None, company=company, person=txt(raw.get('person')),
-                    phone=txt(raw.get('phone')), email=email, address=txt(raw.get('address')),
-                    city=txt(raw.get('city')), gstin=gstin,
+                    phone=_phone(raw.get('phone'), errors, existing.phone if existing else '', landline=True), email=email,
+                    address=txt(raw.get('address')), city=txt(raw.get('city')), gstin=gstin,
                     is_active=to_bool(raw.get('is_active'), 'is_active', errors))
         if errors:
             action = 'error'
@@ -523,11 +547,12 @@ def _new_product_spec(raw, pname, known, barcodes, errors):
             errors.append('fill in both pack_unit and pack_size')
         elif pack_unit.lower() == base.lower():
             errors.append(f"pack_unit must be different from the base unit ('{base}')")
+    hsn = _hsn(raw.get('hsn_code'), errors)
     if len(errors) > start:
         return None
     spec = dict(name=pname, gst_rate=str(gst), base_unit=base,
                 pack_unit=pack_unit if pack_size is not None else '', pack_size=pack_size or 0,
-                composition=txt(raw.get('composition')), hsn_code=txt(raw.get('hsn_code')),
+                composition=txt(raw.get('composition')), hsn_code=hsn,
                 category=txt(raw.get('category')), brand=txt(raw.get('brand')), barcode=barcode, schedule=schedule)
     known[pname.lower()] = spec
     if barcode:
