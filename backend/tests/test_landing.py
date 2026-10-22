@@ -33,6 +33,17 @@ class LandingTests(TestCase):
         self.assertGreaterEqual(len(desc), 70)
         self.assertLessEqual(len(title), 62)            # about 600 pixels
 
+    def test_the_words_of_the_title_and_the_heading_are_used_in_the_page_text(self):
+        import html as htmllib
+        page = self.client.get('/').content.decode()
+        title = htmllib.unescape(re.search(r'<title>(.*?)</title>', page).group(1))
+        h1 = re.search(r'<h1>(.*?)</h1>', page, re.S).group(1)
+        body = re.sub(r'<(script|style)[\s\S]*?</\1>', '', page)
+        body = re.sub(r'<h1>.*?</h1>', '', body, flags=re.S)
+        body = htmllib.unescape(re.sub(r'<[^>]+>', ' ', body)).lower()
+        for word in set(re.findall(r'[a-z]{3,}', (title + ' ' + h1).lower())) - {'and', 'for', 'the'}:
+            self.assertRegex(body, r'\b' + word + r'\b', word)
+
     @override_settings(LANDING_WHATSAPP='+91 98765-43210')
     def test_whatsapp_number_makes_the_demo_buttons(self):
         html = self.client.get('/').content.decode()
