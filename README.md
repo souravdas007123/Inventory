@@ -264,3 +264,8 @@ A purchase that was already sold from, or that has a return or write-off linked,
 - A held bill that is resumed keeps the units it was saved with. Picking another medicine in a row starts again with that medicine's base unit.
 - The old rule is unchanged: a bill row with no unit would use the base unit; now it is simply shown and chosen.
 
+
+## Duplicate invoices and safe purchase edits
+- The same **supplier + invoice number** cannot be entered twice: the purchase screen refuses it with a clear message (upper/lower case and extra spaces are ignored), the Excel import already did, and the database has a unique rule as the last guard. The same number from another supplier is fine.
+- A purchase row **cannot be edited below what is already sold, used or written off** (before, the stock was silently set to 0 and went out of step with the batches). The message tells the number; for goods taken back by the supplier use a Purchase Return. After every purchase save a safety check makes sure no batch is negative, otherwise the whole change is rolled back.
+- Bills were already safe: a bill edit that needs more than the available stock is refused, and cancelling or deleting a bill only gives the stock back. Tests: `backend/tests/test_stock_guards.py`.

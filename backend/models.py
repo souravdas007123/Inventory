@@ -534,6 +534,10 @@ class PurchaseItem(models.Model):
                         'A Purchase Return already exists for this purchase item, so it cannot be edited.')
                 old_batch = Batch.objects.filter(purchase_item=old).first()
                 consumed = max((old.base_qty or 0) - old_batch.qty, 0) if old_batch else 0
+                if consumed and old.product_id == self.product_id and self.base_qty < consumed:
+                    raise ValidationError(
+                        f"{consumed} units (base unit) of this purchase were already sold, used or written off, so the "
+                        f"quantity cannot be lowered below {consumed}. If the supplier took goods back, make a Purchase Return.")
                 if consumed and old.product_id != self.product_id:
                     raise ValidationError(
                         f"{consumed} units of this item have already been sold/used, so the product cannot be changed.")
@@ -628,6 +632,11 @@ class PurchaseItem(models.Model):
             new_price = Decimal(self.purchase_price or 0)
             old_price = Decimal(old.purchase_price or 0) if old else Decimal('0')
             adjust_supplier_balance(header.supplier_id, new_price - old_price)
+
+            # Safety net: after any purchase edit no batch of the touched products may be negative (rolls everything back)
+            touched = {self.product_id} | ({old.product_id} if old else set())
+            if Batch.objects.filter(product_id__in=touched, qty__lt=0).exists():
+                raise ValidationError('This change would make the stock negative, so it was not saved.')
 
     def delete_problem(self):
         """Why this item cannot be deleted, in plain words ('' when it can). Checked before anything is changed."""
