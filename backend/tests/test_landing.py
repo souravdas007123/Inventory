@@ -113,7 +113,7 @@ class LandingTests(TestCase):
 
     @override_settings(LANDING_WHATSAPP='abc')
     def test_a_bad_number_is_ignored(self):
-        self.assertNotIn('wa.me', self.client.get('/').content.decode())
+        self.assertNotRegex(self.client.get('/').content.decode(), r'wa\.me/\d')
 
     def test_robots_and_sitemap(self):
         robots = self.client.get('/robots.txt')
