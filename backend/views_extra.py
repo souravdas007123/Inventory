@@ -2,6 +2,7 @@
 alerts, Purchase Order share, stock audit."""
 import calendar
 import json
+import logging
 import re
 from datetime import date as date_cls, datetime as datetime_cls, timedelta
 from decimal import Decimal
@@ -341,6 +342,7 @@ def gstr2b_view(request):
         except (gstr2b.FileProblem, ImportFileError) as e:
             ctx['error'] = str(e)
         except (AttributeError, TypeError, KeyError, ValueError):
+            logging.getLogger(__name__).exception('GSTR-2B check failed')
             ctx['error'] = 'The file could not be read. Please upload the original GSTR-2B JSON from the GST portal.'
     return page(request, 'app/gstr2b.html', active='gstr2b', **ctx)
 

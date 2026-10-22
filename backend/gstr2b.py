@@ -282,11 +282,11 @@ def books_between(first, last):
     from .models import Purchase
     start = first - timedelta(days=LOOKBACK_DAYS)
     qs = (Purchase.objects.filter(invoice_date__gte=start, invoice_date__lte=last).select_related('supplier')
-          .annotate(taxable=Sum('items__tax'), gst=Sum('items__gst'), grand=Sum('items__purchase_price')))
+          .annotate(sum_taxable=Sum('items__tax'), sum_gst=Sum('items__gst'), sum_grand=Sum('items__purchase_price')))
     out = []
     for p in qs:
         out.append(dict(id=p.pk, number=p.invoice_number, date=p.invoice_date, gstin=gstin_check.normalise(p.supplier.gstin),
-                        supplier=p.supplier.company, taxable=p.taxable or ZERO, tax=p.gst or ZERO, total=p.grand or ZERO))
+                        supplier=p.supplier.company, taxable=p.sum_taxable or ZERO, tax=p.sum_gst or ZERO, total=p.sum_grand or ZERO))
     return out
 
 
