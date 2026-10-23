@@ -138,3 +138,17 @@ class SiteFormTests(SimpleTestCase):
             self.assertTrue(tenancy.clean_site_form(dict(price_monthly=bad))[1], bad)
         for good in ('100', '700', '100000'):
             self.assertFalse(tenancy.clean_site_form(dict(price_monthly=good))[1], good)
+
+
+class UnknownShopHostTests(SimpleTestCase):
+    def test_made_up_shop_addresses_are_recognised(self):
+        base = 'medsync.example.com'
+        for host in ('nobody.medsync.example.com', 'NOBODY.medsync.example.com:8000', 'a.b.medsync.example.com'):
+            self.assertTrue(tenancy.is_unknown_shop_host(host, base), host)
+
+    def test_the_main_site_and_other_names_are_not(self):
+        base = 'medsync.example.com'
+        for host in ('medsync.example.com', 'medsync.example.com:8000', 'www.medsync.example.com', 'testserver',
+                     'example.com', 'evil-medsync.example.com', ''):
+            self.assertFalse(tenancy.is_unknown_shop_host(host, base), host)
+        self.assertFalse(tenancy.is_unknown_shop_host('anything.localhost', ''))

@@ -135,3 +135,13 @@ def clean_site_form(post):
             prices[key] = None
             errors.append(f'The {label} price must be a whole number of rupees between 100 and 1,00,000.')
     return dict(whatsapp=number, contact_email=email, announcement=notice, **prices), errors
+
+
+def is_unknown_shop_host(host, base):
+    """True for an address such as nobody.<base> (a shop address): below the base domain, but not the base itself
+    and not www. Used to answer 'shop not found' instead of showing the main site under a made-up name."""
+    host = (host or '').split(':')[0].strip().lower().rstrip('.')
+    base = (base or '').strip().lower()
+    if not base or host in (base, 'www.' + base):
+        return False
+    return host.endswith('.' + base)

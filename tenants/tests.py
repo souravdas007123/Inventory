@@ -369,3 +369,25 @@ class WebsiteSettingsTests(TransactionTestCase):
         texts = [htmllib.unescape(re.sub(r'<[^>]+>', ' ', i)).strip() for _, i in re.findall(r'<a\b([^>]*)>(.*?)</a>', body, re.S)]
         self.assertTrue(all(texts))
         self.assertEqual(len(texts), len(set(texts)), [t for t in texts if texts.count(t) > 1])
+
+
+@skipUnless(settings.MULTI_SHOP, 'many shops is switched off')
+@override_settings(ALLOWED_HOSTS=['.localhost', 'testserver'], SHOP_BASE_DOMAIN='localhost', SECURE_SSL_REDIRECT=False,
+                   SESSION_COOKIE_SECURE=False, CSRF_COOKIE_SECURE=False)
+class UnknownShopTests(TransactionTestCase):
+    def setUp(self):
+        connection.set_schema_to_public()
+        cache.clear()
+
+    def test_an_address_without_a_shop_says_so(self):
+        resp = self.client.get('/', HTTP_HOST='nobody-here.localhost')
+        self.assertEqual(resp.status_code, 404)
+        self.assertContains(resp, 'Shop not found', status_code=404)
+        self.assertContains(resp, 'http://localhost', status_code=404)         # a button back to the main site
+        self.assertEqual(self.client.get('/login/', HTTP_HOST='nobody-here.localhost').status_code, 404)
+        connection.set_schema_to_public()
+
+    def test_the_main_site_and_www_still_open(self):
+        self.assertEqual(self.client.get('/').status_code, 200)
+        self.assertEqual(self.client.get('/', HTTP_HOST='localhost').status_code, 200)
+        self.assertEqual(self.client.get('/', HTTP_HOST='www.localhost').status_code, 200)
