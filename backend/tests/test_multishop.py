@@ -30,6 +30,7 @@ class SwitchTests(SimpleTestCase):
 @skipUnless(settings.MULTI_SHOP, 'many shops is switched off')
 class SchemaIsolationTests(TransactionTestCase):
     def test_two_shops_do_not_share_data(self):
+        from django.db import connection
         from django_tenants.utils import schema_context
 
         from backend.models import Customer
@@ -46,5 +47,6 @@ class SchemaIsolationTests(TransactionTestCase):
             with schema_context('public'):
                 self.assertFalse(Customer.objects.filter(name='Only in A').exists())
         finally:
+            connection.set_schema_to_public()
             for s in shops:
                 s.delete(force_drop=True)

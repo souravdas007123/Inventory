@@ -25,10 +25,12 @@ HOST = 'sharma-test.localhost'
                    SECURE_SSL_REDIRECT=False, SESSION_COOKIE_SECURE=False, CSRF_COOKIE_SECURE=False)
 class SignupFlowTests(TransactionTestCase):
     def setUp(self):
+        connection.set_schema_to_public()                   # an earlier test may have left the connection inside a shop
         cache.clear()                                       # the sign-up limit and login lock live in the cache
         self.addCleanup(self.drop_schema)
 
     def drop_schema(self):
+        connection.set_schema_to_public()
         Shop.objects.filter(schema_name=SCHEMA).delete()
         with connection.cursor() as cur:
             cur.execute(f'DROP SCHEMA IF EXISTS {SCHEMA} CASCADE')
@@ -144,18 +146,21 @@ class PlatformPanelTests(TransactionTestCase):
 
     def setUp(self):
         from django.contrib.auth import get_user_model
+        connection.set_schema_to_public()                   # an earlier test may have left the connection inside a shop
         cache.clear()
         self.addCleanup(self.drop_schema)
         today = timezone.localdate()
         self.shop = Shop(schema_name=self.SCHEMA, name='Panel Test Shop', owner_name='Owner', email='o@example.com',
                          phone='9876543210', trial_ends=today + timedelta(days=30))
         self.shop.save()
+        connection.set_schema_to_public()                   # making the shop leaves the connection inside it
         Domain.objects.create(domain=self.HOST, tenant=self.shop, is_primary=True)
         self.boss = get_user_model().objects.create_superuser('boss', 'b@example.com', 'pw-12345-xx')
         self.client.force_login(self.boss)
         self.today = today
 
     def drop_schema(self):
+        connection.set_schema_to_public()
         Shop.objects.filter(schema_name=self.SCHEMA).delete()
         with connection.cursor() as cur:
             cur.execute(f'DROP SCHEMA IF EXISTS {self.SCHEMA} CASCADE')
