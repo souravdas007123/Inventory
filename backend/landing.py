@@ -25,6 +25,23 @@ def _site_url(request):
     return f"{request.scheme}://{request.get_host()}"
 
 
+def site_context():
+    """Extras for the home page when many shops is on: notice bar, prices and contact links, all editable by the
+    platform owner. Never raises, so the home page cannot be broken by it."""
+    try:
+        from tenants import site
+        data, price = site.current(), site.prices()
+        number = re.sub(r'\D', '', data.get('whatsapp') or getattr(settings, 'LANDING_WHATSAPP', '') or '')
+        saving = price['monthly'] * 12 - price['yearly']
+        return dict(pricing=True, price_monthly=price['monthly'], price_yearly=price['yearly'],
+                    price_saving=saving if saving > 0 else 0, trial_days=settings.TRIAL_DAYS,
+                    site_notice=data.get('announcement') or '', contact_email=data.get('contact_email') or '',
+                    contact_whatsapp=f"https://wa.me/{number}?text={quote('Hi, I have a question about MedSync')}"
+                    if 10 <= len(number) <= 15 else '')
+    except Exception:
+        return {}
+
+
 def cta_context(request):
     """The 'Get a demo' button: a WhatsApp link when a number is configured, otherwise the login."""
     if getattr(settings, 'MULTI_SHOP', False):         # many shops: visitors can open a shop themselves
@@ -47,7 +64,8 @@ def home(request):
                   for p in BlogPost.live()[:3]]
     except Exception:
         latest = []
-    return render(request, 'app/landing.html', dict(site_url=_site_url(request), latest_posts=latest, **cta_context(request)))
+    return render(request, 'app/landing.html', dict(site_url=_site_url(request), latest_posts=latest, **cta_context(request),
+                                                         **(site_context() if getattr(settings, 'MULTI_SHOP', False) else {})))
 
 
 @require_GET

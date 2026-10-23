@@ -34,5 +34,5 @@ button.gray{background:#64748b}button.warn{background:var(--amb)}
 pre{white-space:pre-wrap;margin:0;font:inherit}
 </style></head>
 <body><header><div class="w"><b>MedSync platform</b>
-<a href="{% url 'platform' %}">Shops</a><a href="/admin/backend/blogpost/">Blog articles</a><a href="/admin/tenants/shop/">Shops (admin)</a><a href="/">My shop</a></div></header>
+<a href="{% url 'platform' %}">Shops</a><a href="{% url 'platform_site' %}">Website settings</a><a href="/admin/backend/blogpost/">Blog articles</a><a href="/admin/tenants/shop/">Shops (admin)</a><a href="/">My shop</a></div></header>
 <main>{% for m in messages %}<div class="msg {{ m.tags }}">{{ m }}</div>{% endfor %}{% block content %}{% endblock %}</main></body></html>

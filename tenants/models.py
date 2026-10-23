@@ -80,3 +80,17 @@ class Payment(models.Model):
 
     def __str__(self):
         return f'{self.shop} {self.amount} on {self.paid_on}'
+
+
+class SiteSetting(models.Model):
+    """The few things of the public website that the platform owner can change without touching the code.
+    There is only one row (id 1). Blank prices mean 'use the standard price from the settings file'."""
+    whatsapp = models.CharField(max_length=20, blank=True, default='')
+    contact_email = models.EmailField(blank=True, default='')
+    announcement = models.CharField(max_length=200, blank=True, default='')
+    price_monthly = models.PositiveIntegerField(null=True, blank=True)
+    price_yearly = models.PositiveIntegerField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return 'Website settings'

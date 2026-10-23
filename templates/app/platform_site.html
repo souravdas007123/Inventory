@@ -1,0 +1,22 @@
+{% extends "app/platform_base.html" %}
+{% block title %}Website settings{% endblock %}
+{% block content %}
+<h1>Website settings</h1>
+<p class="mut">These appear on the public home page. Blog articles are edited under <a href="/admin/backend/blogpost/">Blog articles</a>.</p>
+<form method="post" style="max-width:560px;display:grid;gap:14px">{% csrf_token %}
+<div><label for="whatsapp">WhatsApp number (with country code)</label>
+<input id="whatsapp" name="whatsapp" value="{{ values.whatsapp|default_if_none:'' }}" placeholder="919876543210" inputmode="numeric" style="width:100%"></div>
+<div><label for="contact_email">Contact e-mail</label>
+<input id="contact_email" name="contact_email" type="email" value="{{ values.contact_email|default_if_none:'' }}" placeholder="hello@example.com" style="width:100%"></div>
+<div><label for="announcement">Announcement bar (leave blank to hide)</label>
+<input id="announcement" name="announcement" maxlength="200" value="{{ values.announcement|default_if_none:'' }}" placeholder="Launch offer: first month free" style="width:100%"></div>
+<div class="grid2" style="margin:0">
+<div><label for="price_monthly">Monthly price (Rs)</label>
+<input id="price_monthly" name="price_monthly" inputmode="numeric" value="{{ values.price_monthly|default_if_none:'' }}" placeholder="{{ standard.monthly }}" style="width:100%"></div>
+<div><label for="price_yearly">Yearly price (Rs)</label>
+<input id="price_yearly" name="price_yearly" inputmode="numeric" value="{{ values.price_yearly|default_if_none:'' }}" placeholder="{{ standard.yearly }}" style="width:100%"></div>
+</div>
+<p class="mut" style="margin:0">Leave a price blank to use the standard price (Rs {{ standard.monthly }} a month, Rs {{ standard.yearly }} a year). A new price applies to the home page, the sign-up page and the payment form. Shops that already paid keep their dates.</p>
+<div><button>Save settings</button> <a class="btn gray" href="{% url 'platform' %}">Back to shops</a></div>
+</form>
+{% endblock %}

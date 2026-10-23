@@ -19,6 +19,7 @@ from django.views.decorators.http import require_http_methods
 from backend import tenancy
 from backend import validators as vcheck
 
+from . import site
 from .models import Domain, PendingSignup, Shop
 
 log = logging.getLogger(__name__)
@@ -132,7 +133,7 @@ def signup(request):
             return _notice(request, 'Check your email',
                            f'We sent a link to {pending.email}. Open it to create your shop.')
     return render(request, 'app/signup.html', dict(values=values, errors=errors, trial_days=settings.TRIAL_DAYS,
-                                                    base_domain=settings.SHOP_BASE_DOMAIN, prices=settings.PLAN_PRICES))
+                                                    base_domain=settings.SHOP_BASE_DOMAIN, prices=site.prices()))
 
 
 def _create_shop(pending):

@@ -104,3 +104,34 @@ def shop_note(request):
     if state == 'active' and left is not None and left <= 7:
         return f"Your plan ends in {left} day{'s' if left != 1 else ''}. Please renew to avoid interruption."
     return ''
+
+
+def clean_site_form(post):
+    """Checks the 'website settings' form of the platform panel. Returns (values, errors). A blank price means
+    'use the standard price from the settings file'; a blank number, e-mail or notice simply hides that item."""
+    errors = []
+    number = re.sub(r'[\s\-+()]', '', (post.get('whatsapp') or ''))
+    if number and not (number.isdigit() and 10 <= len(number) <= 15):
+        errors.append('The WhatsApp number must have 10 to 15 digits, with the country code (for example 919876543210).')
+    email = (post.get('contact_email') or '').strip()
+    if email:
+        from django.core.exceptions import ValidationError
+        from django.core.validators import validate_email
+        try:
+            validate_email(email)
+        except ValidationError:
+            errors.append('The contact e-mail is not valid.')
+    notice = ' '.join((post.get('announcement') or '').split())
+    if len(notice) > 200:
+        errors.append('The announcement can have at most 200 characters.')
+    prices = {}
+    for key, label in (('price_monthly', 'monthly'), ('price_yearly', 'yearly')):
+        raw = (post.get(key) or '').strip().replace(',', '')
+        if not raw:
+            prices[key] = None
+        elif raw.isdigit() and 100 <= int(raw) <= 100000:
+            prices[key] = int(raw)
+        else:
+            prices[key] = None
+            errors.append(f'The {label} price must be a whole number of rupees between 100 and 1,00,000.')
+    return dict(whatsapp=number, contact_email=email, announcement=notice, **prices), errors

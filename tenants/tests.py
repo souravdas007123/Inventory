@@ -262,3 +262,110 @@ class PlatformPanelTests(TransactionTestCase):
         self.assertEqual(self.client.post(f'/superadmin/shop/{self.shop.pk}/action/', {'action': 'pause'}).status_code, 302)
         self.shop.refresh_from_db()
         self.assertFalse(self.shop.is_paused)
+
+
+@skipUnless(settings.MULTI_SHOP, 'many shops is switched off')
+@override_settings(ALLOWED_HOSTS=['.localhost', 'testserver'], SHOP_BASE_DOMAIN='localhost', SECURE_SSL_REDIRECT=False,
+                   SESSION_COOKIE_SECURE=False, CSRF_COOKIE_SECURE=False)
+class WebsiteSettingsTests(TransactionTestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from tenants.models import SiteSetting
+        connection.set_schema_to_public()
+        cache.clear()
+        SiteSetting.objects.all().delete()
+        self.addCleanup(lambda: (SiteSetting.objects.all().delete(), cache.clear()))
+        self.boss = get_user_model().objects.create_superuser('boss-site', 'b@example.com', 'pw-12345-xx')
+        self.client.force_login(self.boss)
+
+    FORM = dict(whatsapp='+91 98765-43210', contact_email='hello@example.com', announcement='Launch offer: first month free',
+                price_monthly='600', price_yearly='6,500')
+
+    def save(self, **over):
+        return self.client.post('/superadmin/site/', {**self.FORM, **over}, follow=True)
+
+    def test_the_home_page_shows_the_standard_plans_until_something_is_edited(self):
+        self.client.logout()
+        page = self.client.get('/').content.decode()
+        self.assertIn('Rs 700', page)
+        self.assertIn('Rs 8000', page)
+        self.assertIn('save Rs 400', page)
+        self.assertNotIn('class="ann"', page)
+
+    def test_saved_settings_appear_on_the_home_page_and_the_sign_up_page(self):
+        resp = self.save()
+        self.assertContains(resp, 'Website settings saved')
+        self.client.logout()
+        page = self.client.get('/').content.decode()
+        self.assertIn('Launch offer: first month free', page)
+        self.assertIn('Rs 600', page)
+        self.assertIn('Rs 6500', page)
+        self.assertIn('save Rs 700', page)
+        self.assertIn('wa.me/919876543210', page)
+        self.assertIn('mailto:hello@example.com', page)
+        self.assertIn('Rs 600 a month', self.client.get('/signup/').content.decode())
+
+    def test_the_payment_form_uses_the_edited_price(self):
+        self.save()
+        shop = Shop(schema_name='s_site_price', name='Price Shop', owner_name='O', email='p@example.com',
+                    trial_ends=timezone.localdate() + timedelta(days=5))
+        try:
+            shop.save()
+            connection.set_schema_to_public()
+            self.client.post(f'/superadmin/shop/{shop.pk}/action/', dict(action='paid', plan='monthly'))
+            self.assertEqual(Payment.objects.get(shop=shop).amount, 600)
+        finally:
+            connection.set_schema_to_public()
+            Shop.objects.filter(schema_name='s_site_price').delete()
+            with connection.cursor() as cur:
+                cur.execute('DROP SCHEMA IF EXISTS s_site_price CASCADE')
+
+    def test_wrong_entries_are_refused_and_nothing_is_saved(self):
+        from tenants.models import SiteSetting
+        for bad in (dict(whatsapp='12345'), dict(contact_email='not-an-email'), dict(price_monthly='5'),
+                    dict(price_yearly='abc'), dict(announcement='x' * 201)):
+            resp = self.save(**bad)
+            self.assertEqual(resp.status_code, 200)
+            self.assertFalse(SiteSetting.objects.exists(), bad)
+            self.assertTrue(any(m.tags == 'error' for m in resp.context['messages']), bad)
+
+    def test_blank_prices_go_back_to_the_standard_ones(self):
+        self.save()
+        self.save(price_monthly='', price_yearly='', announcement='')
+        self.client.logout()
+        page = self.client.get('/').content.decode()
+        self.assertIn('Rs 700', page)
+        self.assertNotIn('class="ann"', page)
+
+    def test_a_notice_with_html_is_shown_as_plain_text(self):
+        self.save(announcement='<script>alert(1)</script>')
+        self.client.logout()
+        page = self.client.get('/').content.decode()
+        self.assertNotIn('<script>alert(1)</script>', page)
+        self.assertIn('&lt;script&gt;', page)
+
+    def test_only_a_platform_admin_can_open_the_settings(self):
+        from django.contrib.auth import get_user_model
+        self.client.logout()
+        self.assertEqual(self.client.get('/superadmin/site/').status_code, 302)
+        staff = get_user_model().objects.create_user('clerk-site', 'c@example.com', 'pw-12345-xx', is_staff=True)
+        self.client.force_login(staff)
+        self.assertEqual(self.client.get('/superadmin/site/').status_code, 404)
+        self.assertEqual(self.client.post('/superadmin/site/', self.FORM).status_code, 404)
+
+    def test_the_busy_home_page_still_follows_the_seo_rules(self):
+        import html as htmllib
+        import re
+        self.save()
+        self.client.logout()
+        page = self.client.get('/').content.decode()
+        body = re.sub(r'<(script|style)[\s\S]*?</\1>', '', page)
+        bold = re.findall(r'<(?:b|strong)>(.*?)</(?:b|strong)>', body, re.S)
+        self.assertLessEqual(len(bold), 33)
+        self.assertEqual(len(bold), len(set(bold)))
+        headings = len(re.findall(r'<h[1-6][ >]', body))
+        words = len(re.sub(r'<[^>]+>', ' ', body).split())
+        self.assertGreaterEqual(words / headings, 80, (headings, words))
+        texts = [htmllib.unescape(re.sub(r'<[^>]+>', ' ', i)).strip() for _, i in re.findall(r'<a\b([^>]*)>(.*?)</a>', body, re.S)]
+        self.assertTrue(all(texts))
+        self.assertEqual(len(texts), len(set(texts)), [t for t in texts if texts.count(t) > 1])

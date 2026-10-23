@@ -113,3 +113,28 @@ class AddMonthsTests(SimpleTestCase):
         self.assertEqual(tenancy.add_months(date(2026, 1, 31), 1), date(2026, 2, 28))
         self.assertEqual(tenancy.add_months(date(2027, 12, 31), 2), date(2028, 2, 29))     # a leap year
         self.assertEqual(tenancy.add_months(date(2028, 2, 29), 12), date(2029, 2, 28))
+
+
+class SiteFormTests(SimpleTestCase):
+    def test_a_good_form_is_cleaned(self):
+        values, errors = tenancy.clean_site_form(dict(whatsapp='+91 (98765) 43-210', contact_email=' a@b.com ',
+                                                      announcement='  Offer   today ', price_monthly='1,000', price_yearly='9000'))
+        self.assertEqual(errors, [])
+        self.assertEqual(values, dict(whatsapp='919876543210', contact_email='a@b.com', announcement='Offer today',
+                                      price_monthly=1000, price_yearly=9000))
+
+    def test_blank_fields_hide_things_and_blank_prices_mean_standard(self):
+        values, errors = tenancy.clean_site_form({})
+        self.assertEqual(errors, [])
+        self.assertEqual(values, dict(whatsapp='', contact_email='', announcement='', price_monthly=None, price_yearly=None))
+
+    def test_bad_entries_give_one_message_each(self):
+        _, errors = tenancy.clean_site_form(dict(whatsapp='abc', contact_email='x', announcement='y' * 201,
+                                                 price_monthly='50', price_yearly='1e5'))
+        self.assertEqual(len(errors), 5)
+
+    def test_prices_must_be_whole_rupees_in_range(self):
+        for bad in ('99', '100001', '-500', '700.5', 'free'):
+            self.assertTrue(tenancy.clean_site_form(dict(price_monthly=bad))[1], bad)
+        for good in ('100', '700', '100000'):
+            self.assertFalse(tenancy.clean_site_form(dict(price_monthly=good))[1], good)

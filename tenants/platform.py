@@ -19,6 +19,7 @@ from django.views.decorators.http import require_POST
 
 from backend import tenancy
 
+from . import site
 from .models import Payment, Shop
 
 log = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ def platform_admin_required(view):
 
 
 def prices():
-    return settings.PLAN_PRICES
+    return site.prices()
 
 
 def _schema_size_mb(schema):
@@ -209,3 +210,19 @@ def shop_action(request, pk):
     except ValueError as e:
         messages.error(request, str(e))
     return redirect('platform_shop', pk=shop.pk)
+
+
+@platform_admin_required
+def site_settings(request):
+    """The website settings page: WhatsApp number, contact e-mail, a notice bar and the plan prices."""
+    values = site.current()
+    if request.method == 'POST':
+        values, errors = tenancy.clean_site_form(request.POST)
+        if errors:
+            for e in errors:
+                messages.error(request, e)
+        else:
+            site.save(values)
+            messages.success(request, 'Website settings saved. The home page shows them within a minute.')
+            return redirect('platform_site')
+    return render(request, 'app/platform_site.html', dict(values=values, standard=settings.PLAN_PRICES))
