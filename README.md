@@ -296,3 +296,12 @@ A purchase that was already sold from, or that has a return or write-off linked,
 
 ## Speed check
 `python manage.py profile_pages` (run it on a database with real data, locally or on the server) opens the main pages as the owner, using GET requests only, and prints for each page the number of database queries, the time in milliseconds, the slowest single query and any query that repeats 5 or more times. A page with many queries or a repeated query is where the next speed-up is. You can also name pages: `python manage.py profile_pages /gst/ /expiry/`. The dashboard's low-stock list loads its units together with the products (no extra query per row).
+
+## Many shops in one install (work in progress, OFF by default)
+Goal: every shop that signs up gets its own PostgreSQL schema (its own tables, users and data) and its own address such as `sharma.medsync.socialflylive.com`, and the platform owner follows all shops from one super admin. It uses `django-tenants`.
+- **Off by default.** Nothing changes unless `MULTI_SHOP=1` is in `.env`. It needs PostgreSQL (`DB_NAME` in `.env`).
+- **The first shop stays where it is.** The main site (schema `public`) keeps the existing shop's data, so no data is moved. New shops get new schemas.
+- **Backups are per shop.** A shop's backup holds only that shop's tables (`pg_dump -n <schema>`, file `medsync_<schema>_...pgdump`) and a shop can only list or download its own files. The platform's backup is the whole database.
+- **Shops pages in the admin** (`/admin/` on the main site) are hidden on every other shop, so a shop owner never sees other shops.
+- Local try-out (PostgreSQL only): add `MULTI_SHOP=1` and `SHOP_BASE_DOMAIN=localhost` to `.env`, then `python manage.py migrate_schemas --shared`, `python manage.py init_multishop`, `python manage.py runserver`. To go back, remove `MULTI_SHOP=1`.
+- Prices: free trial 30 days, then Rs 700 a month or Rs 8000 a year (`PLAN_PRICES`, `TRIAL_DAYS` in settings).

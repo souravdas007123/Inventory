@@ -236,3 +236,39 @@ CACHES = {
 LANDING_WHATSAPP = os.environ.get('DJANGO_WHATSAPP', '')
 
 BACKUP_DIR = Path(os.environ.get('DJANGO_BACKUP_DIR') or (BASE_DIR / 'backups'))
+
+
+# ---- Many shops in one install (optional, OFF by default) ----
+# MULTI_SHOP=1 gives every shop its own PostgreSQL schema (its own tables) and its own address, such as
+# sharma.medsync.example.com. It needs PostgreSQL (DB_NAME in .env) and the django-tenants package.
+# With MULTI_SHOP off the app behaves exactly as a single-shop install, as before.
+MULTI_SHOP = env_bool('MULTI_SHOP', False)
+SHOP_BASE_DOMAIN = os.environ.get('SHOP_BASE_DOMAIN', 'localhost')   # shops live at <name>.<SHOP_BASE_DOMAIN>
+TRIAL_DAYS = int(os.environ.get('TRIAL_DAYS', '30') or 30)
+PLAN_PRICES = {'monthly': 700, 'yearly': 8000}                       # rupees
+
+if MULTI_SHOP:
+    if not os.environ.get('DB_NAME'):
+        raise ImproperlyConfigured('MULTI_SHOP=1 needs PostgreSQL: set DB_NAME, DB_USER, DB_PASSWORD in .env.')
+    DATABASES['default']['ENGINE'] = 'django_tenants.postgresql_backend'
+    DATABASE_ROUTERS = ('django_tenants.routers.TenantSyncRouter',)
+    TENANT_MODEL = 'tenants.Shop'
+    TENANT_DOMAIN_MODEL = 'tenants.Domain'
+    PUBLIC_SCHEMA_NAME = 'public'
+    SHOW_PUBLIC_IF_NO_TENANT_FOUND = True          # an unknown address shows the main (public) site instead of an error
+    # The main site (schema "public") keeps the first shop's data and the platform tables (shops, site content, blog).
+    SHARED_APPS = [
+        'django_tenants', 'tenants',
+        'django.contrib.contenttypes', 'django.contrib.auth', 'django.contrib.sessions',
+        'django.contrib.messages', 'django.contrib.admin', 'django.contrib.staticfiles',
+        'import_export', 'backend',
+    ]
+    TENANT_APPS = [          # every shop gets these tables in its own schema (its own users and sessions too)
+        'django.contrib.contenttypes', 'django.contrib.auth', 'django.contrib.sessions',
+        'django.contrib.admin', 'import_export', 'backend',
+    ]
+    INSTALLED_APPS = list(SHARED_APPS) + [a for a in TENANT_APPS if a not in SHARED_APPS]
+    MIDDLEWARE = ['django_tenants.middleware.main.TenantMainMiddleware'] + MIDDLEWARE
+    # Cache keys include the shop, so one shop's cached values (login lock, daily jobs) never reach another shop.
+    CACHES['default']['KEY_FUNCTION'] = 'django_tenants.cache.make_key'
+    CACHES['default']['REVERSE_KEY_FUNCTION'] = 'django_tenants.cache.reverse_key'

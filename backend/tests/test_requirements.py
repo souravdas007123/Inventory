@@ -11,3 +11,4 @@ class RequirementsTests(SimpleTestCase):
         text = (Path(settings.BASE_DIR) / 'requirements.txt').read_text().lower()
         self.assertIn('psycopg2-binary', text)
         self.assertIn('gunicorn', text)
+        self.assertIn('django-tenants', text)           # needed when MULTI_SHOP=1
