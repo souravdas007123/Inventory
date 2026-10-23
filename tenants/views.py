@@ -2,7 +2,6 @@
 
 Nothing is created until the owner clicks the link in his email, so a mistyped or fake address never makes a schema."""
 import logging
-import secrets
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -112,7 +111,7 @@ def signup(request):
             cache.set(key, cache.get(key, 0) + 1, 3600)
             PendingSignup.objects.filter(email=clean['email'], used=False).delete()      # an older unconfirmed try
             pending = PendingSignup.objects.create(
-                token=secrets.token_urlsafe(32), subdomain=clean['subdomain'], shop_name=clean['shop_name'],
+                token=tenancy.new_token(), subdomain=clean['subdomain'], shop_name=clean['shop_name'],
                 owner_name=clean['owner_name'], email=clean['email'], phone=clean['phone'],
                 password_hash=make_password(clean['password']))
             link = f"{request.scheme}://{request.get_host()}/signup/confirm/{pending.token}/"

@@ -1,6 +1,7 @@
 """Helpers for "many shops in one install" (see MULTI_SHOP in settings). Nothing here imports the shop models,
 so every function can be used and tested whether the switch is on or off."""
 import re
+import secrets
 from datetime import timedelta
 
 from django.conf import settings
@@ -39,6 +40,12 @@ def clean_subdomain(raw):
 def schema_name_for(subdomain):
     """The PostgreSQL schema of a shop: s_ plus the web address name (hyphens become underscores)."""
     return 's_' + subdomain.replace('-', '_')
+
+
+def new_token():
+    """The secret in a confirmation link: 22 letters and digits (88 random bits). It is kept short on purpose, so the
+    whole link stays on one line of the email (long lines are broken by email programs and the link stops working)."""
+    return secrets.token_hex(11)
 
 
 def trial_end(today, days=None):

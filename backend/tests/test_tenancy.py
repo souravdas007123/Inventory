@@ -90,3 +90,14 @@ class NoteTests(SimpleTestCase):
     def test_the_main_site_is_always_the_platform_when_many_shops_is_off(self):
         with override_settings(MULTI_SHOP=False):
             self.assertTrue(tenancy.is_platform())
+
+
+class TokenTests(SimpleTestCase):
+    def test_the_token_is_short_plain_and_different_each_time(self):
+        a, b = tenancy.new_token(), tenancy.new_token()
+        self.assertNotEqual(a, b)
+        self.assertRegex(a, r'^[0-9a-f]{22}$')
+
+    def test_the_confirmation_link_fits_on_one_email_line(self):
+        link = f'https://medsync.socialflylive.com/signup/confirm/{tenancy.new_token()}/'
+        self.assertLess(len(link), 76)             # email programs break longer lines and the link stops working
