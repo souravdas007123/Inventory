@@ -42,6 +42,15 @@ def schema_name_for(subdomain):
     return 's_' + subdomain.replace('-', '_')
 
 
+def add_months(day, months):
+    """The same day number some months later (the last day of that month when it has fewer days)."""
+    import calendar
+    index = day.year * 12 + (day.month - 1) + months
+    year, month = divmod(index, 12)
+    month += 1
+    return day.replace(year=year, month=month, day=min(day.day, calendar.monthrange(year, month)[1]))
+
+
 def new_token():
     """The secret in a confirmation link: 22 letters and digits (88 random bits). It is kept short on purpose, so the
     whole link stays on one line of the email (long lines are broken by email programs and the link stops working)."""

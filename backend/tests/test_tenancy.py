@@ -101,3 +101,15 @@ class TokenTests(SimpleTestCase):
     def test_the_confirmation_link_fits_on_one_email_line(self):
         link = f'https://medsync.socialflylive.com/signup/confirm/{tenancy.new_token()}/'
         self.assertLess(len(link), 76)             # email programs break longer lines and the link stops working
+
+
+class AddMonthsTests(SimpleTestCase):
+    def test_months_are_added_by_the_calendar(self):
+        self.assertEqual(tenancy.add_months(date(2026, 10, 23), 1), date(2026, 11, 23))
+        self.assertEqual(tenancy.add_months(date(2026, 10, 23), 12), date(2027, 10, 23))
+        self.assertEqual(tenancy.add_months(date(2026, 12, 15), 1), date(2027, 1, 15))     # over the year end
+
+    def test_a_short_month_ends_on_its_last_day(self):
+        self.assertEqual(tenancy.add_months(date(2026, 1, 31), 1), date(2026, 2, 28))
+        self.assertEqual(tenancy.add_months(date(2027, 12, 31), 2), date(2028, 2, 29))     # a leap year
+        self.assertEqual(tenancy.add_months(date(2028, 2, 29), 12), date(2029, 2, 28))

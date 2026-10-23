@@ -62,3 +62,21 @@ class PendingSignup(models.Model):
 
         from django.utils import timezone
         return timezone.now() - self.created_at > timedelta(hours=self.VALID_HOURS)
+
+
+class Payment(models.Model):
+    """One payment received from a shop (entered by the platform owner when the money arrives)."""
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='payments')
+    plan = models.CharField(max_length=10, choices=Shop.PLANS[1:])
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    paid_on = models.DateField()
+    period_from = models.DateField()
+    period_to = models.DateField()
+    note = models.CharField(max_length=200, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-paid_on', '-id']
+
+    def __str__(self):
+        return f'{self.shop} {self.amount} on {self.paid_on}'

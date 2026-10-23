@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en"><head>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>{% block title %}Platform{% endblock %} · MedSync</title>
+<style>
+:root{--bg:#f3f8f7;--card:#fff;--ink:#14302d;--mut:#5d7773;--line:#dcebe8;--pri:#0f9d8a;--pri2:#0b7d6e;--red:#e11d48;--amb:#d97706;--grn:#15803d;--blu:#2563eb}
+@media(prefers-color-scheme:dark){:root{--bg:#0d1d1b;--card:#112624;--ink:#e6f4f1;--mut:#93b1ac;--line:#1d3a37}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,sans-serif}
+header{background:linear-gradient(135deg,#0f2e2b,#0f9d8a);color:#fff;padding:14px 16px}
+header .w{max-width:1200px;margin:auto;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center}
+header b{font-size:18px;margin-right:auto}header a{color:#fff;text-decoration:none;opacity:.9;font-weight:600}header a:hover{opacity:1}
+main{max-width:1200px;margin:auto;padding:16px}
+h1{font-size:22px;margin:4px 0 14px}h2{font-size:16px;margin:0 0 10px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card small{display:block;color:var(--mut);font-weight:600}.card strong{font-size:22px}
+.tw{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:820px}th,td{padding:9px 11px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut)}tr:last-child td{border-bottom:0}
+.tag{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700;color:#fff}
+.t-trial{background:var(--blu)}.t-active{background:var(--grn)}.t-locked{background:var(--red)}.t-paused{background:var(--amb)}
+.msg{padding:10px 12px;border-radius:10px;margin-bottom:10px;background:#0f9d8a22}.msg.error{background:#e11d4822;color:var(--red)}
+form.inline{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin:0}
+label{font-size:12px;font-weight:600;color:var(--mut);display:block;margin-bottom:3px}
+input,select,textarea{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit}
+button,.btn{padding:9px 14px;border:0;border-radius:8px;background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;font:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block}
+button.gray{background:#64748b}button.warn{background:var(--amb)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-bottom:12px}
+.mut{color:var(--mut)}.num{text-align:right;white-space:nowrap}
+pre{white-space:pre-wrap;margin:0;font:inherit}
+</style></head>
+<body><header><div class="w"><b>MedSync platform</b>
+<a href="{% url 'platform' %}">Shops</a><a href="/admin/backend/blogpost/">Blog articles</a><a href="/admin/tenants/shop/">Shops (admin)</a><a href="/">My shop</a></div></header>
+<main>{% for m in messages %}<div class="msg {{ m.tags }}">{{ m }}</div>{% endfor %}{% block content %}{% endblock %}</main></body></html>
