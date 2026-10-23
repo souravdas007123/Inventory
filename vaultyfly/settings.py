@@ -252,6 +252,11 @@ if MULTI_SHOP:
     if not os.environ.get('DB_NAME'):
         raise ImproperlyConfigured('MULTI_SHOP=1 needs PostgreSQL: set DB_NAME, DB_USER, DB_PASSWORD in .env.')
     DATABASES['default']['ENGINE'] = 'django_tenants.postgresql_backend'
+    # Every shop lives at <name>.<SHOP_BASE_DOMAIN>, so all of those addresses must be allowed (and trusted for forms).
+    if '.' + SHOP_BASE_DOMAIN not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS = list(ALLOWED_HOSTS) + ['.' + SHOP_BASE_DOMAIN]
+    if env_bool('DJANGO_HTTPS', False):
+        CSRF_TRUSTED_ORIGINS = list(CSRF_TRUSTED_ORIGINS) + [f'https://*.{SHOP_BASE_DOMAIN}']
     DATABASE_ROUTERS = ('django_tenants.routers.TenantSyncRouter',)
     TENANT_MODEL = 'tenants.Shop'
     TENANT_DOMAIN_MODEL = 'tenants.Domain'

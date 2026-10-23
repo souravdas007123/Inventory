@@ -19,6 +19,7 @@ class SwitchTests(SimpleTestCase):
         self.assertEqual(settings.MIDDLEWARE[1], 'tenants.middleware.ShopAccessMiddleware')
         self.assertEqual(settings.DATABASES['default']['ENGINE'], 'django_tenants.postgresql_backend')
         self.assertIn('tenants', settings.INSTALLED_APPS)
+        self.assertIn('.' + settings.SHOP_BASE_DOMAIN, settings.ALLOWED_HOSTS)      # every shop address is allowed
         self.assertIn('backend', settings.SHARED_APPS)             # the first shop's data stays on the main site
         self.assertIn('backend', settings.TENANT_APPS)             # and every new shop gets the same tables
 
