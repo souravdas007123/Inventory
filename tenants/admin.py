@@ -3,7 +3,7 @@ ordinary shop is a superuser inside his own shop and must never see other shops 
 from django.contrib import admin
 from django.db import connection
 
-from .models import Domain, Shop
+from .models import Domain, PendingSignup, Shop
 
 
 def on_platform():
@@ -45,3 +45,11 @@ class ShopAdmin(PlatformOnly, admin.ModelAdmin):
 class DomainAdmin(PlatformOnly, admin.ModelAdmin):
     list_display = ('domain', 'tenant', 'is_primary')
     search_fields = ('domain',)
+
+
+@admin.register(PendingSignup)
+class PendingSignupAdmin(PlatformOnly, admin.ModelAdmin):
+    list_display = ('shop_name', 'subdomain', 'email', 'phone', 'created_at', 'used')
+    list_filter = ('used',)
+    search_fields = ('shop_name', 'email', 'subdomain')
+    exclude = ('password_hash', 'token')

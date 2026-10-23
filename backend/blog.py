@@ -13,7 +13,7 @@ from django.utils.html import escape, format_html
 from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_GET
 
-from . import access
+from . import access, tenancy
 from .blog_art import post_image
 from .landing import _site_url, cta_context
 from .models import BlogPost
@@ -113,6 +113,8 @@ def _card(p):
 
 @require_GET
 def blog_list(request):
+    if not tenancy.is_platform():
+        raise Http404
     site = _site_url(request)
     posts = [_card(p) for p in BlogPost.live()[:100]]
     ld = {'@context': 'https://schema.org', '@type': 'Blog', 'name': 'MedSync Blog', 'url': f'{site}/blog/',
@@ -124,6 +126,8 @@ def blog_list(request):
 
 @require_GET
 def blog_post(request, slug):
+    if not tenancy.is_platform():
+        raise Http404
     post = BlogPost.objects.filter(slug=slug).first()
     if post is None:
         raise Http404

@@ -245,6 +245,7 @@ BACKUP_DIR = Path(os.environ.get('DJANGO_BACKUP_DIR') or (BASE_DIR / 'backups'))
 MULTI_SHOP = env_bool('MULTI_SHOP', False)
 SHOP_BASE_DOMAIN = os.environ.get('SHOP_BASE_DOMAIN', 'localhost')   # shops live at <name>.<SHOP_BASE_DOMAIN>
 TRIAL_DAYS = int(os.environ.get('TRIAL_DAYS', '30') or 30)
+SIGNUP_SKIP_EMAIL = env_bool('SIGNUP_SKIP_EMAIL', False)   # TESTING ONLY: no email check at sign-up (needs MULTI_SHOP=1)
 PLAN_PRICES = {'monthly': 700, 'yearly': 8000}                       # rupees
 
 if MULTI_SHOP:
@@ -268,7 +269,7 @@ if MULTI_SHOP:
         'django.contrib.admin', 'import_export', 'backend',
     ]
     INSTALLED_APPS = list(SHARED_APPS) + [a for a in TENANT_APPS if a not in SHARED_APPS]
-    MIDDLEWARE = ['django_tenants.middleware.main.TenantMainMiddleware'] + MIDDLEWARE
+    MIDDLEWARE = ['django_tenants.middleware.main.TenantMainMiddleware', 'tenants.middleware.ShopAccessMiddleware'] + MIDDLEWARE
     # Cache keys include the shop, so one shop's cached values (login lock, daily jobs) never reach another shop.
     CACHES['default']['KEY_FUNCTION'] = 'django_tenants.cache.make_key'
     CACHES['default']['REVERSE_KEY_FUNCTION'] = 'django_tenants.cache.reverse_key'

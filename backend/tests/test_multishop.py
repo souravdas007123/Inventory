@@ -16,6 +16,7 @@ class SwitchTests(SimpleTestCase):
     @skipUnless(settings.MULTI_SHOP, 'many shops is switched off')
     def test_the_switch_installs_the_tenant_pieces(self):
         self.assertEqual(settings.MIDDLEWARE[0], 'django_tenants.middleware.main.TenantMainMiddleware')
+        self.assertEqual(settings.MIDDLEWARE[1], 'tenants.middleware.ShopAccessMiddleware')
         self.assertEqual(settings.DATABASES['default']['ENGINE'], 'django_tenants.postgresql_backend')
         self.assertIn('tenants', settings.INSTALLED_APPS)
         self.assertIn('backend', settings.SHARED_APPS)             # the first shop's data stays on the main site

@@ -35,3 +35,30 @@ class Shop(TenantMixin):
 
 class Domain(DomainMixin):
     pass
+
+
+class PendingSignup(models.Model):
+    """A sign-up waiting for the owner to confirm his email. Nothing (no schema, no user) is made until then."""
+    VALID_HOURS = 48
+
+    token = models.CharField(max_length=64, unique=True)
+    subdomain = models.CharField(max_length=30)
+    shop_name = models.CharField(max_length=120)
+    owner_name = models.CharField(max_length=120)
+    email = models.EmailField()
+    phone = models.CharField(max_length=20)
+    password_hash = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    used = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.shop_name} ({self.email})'
+
+    def expired(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+        return timezone.now() - self.created_at > timedelta(hours=self.VALID_HOURS)

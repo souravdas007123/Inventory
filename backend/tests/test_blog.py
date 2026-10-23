@@ -14,7 +14,8 @@ from backend.blog_art import CHOICES, COVERS, cover_svg
 from backend.blog_seed import POSTS
 from backend.models import BlogPost
 
-SAFE = dict(SECURE_SSL_REDIRECT=False, SESSION_COOKIE_SECURE=False, CSRF_COOKIE_SECURE=False, ALLOWED_HOSTS=['testserver'])
+SAFE = dict(SECURE_SSL_REDIRECT=False, SESSION_COOKIE_SECURE=False, CSRF_COOKIE_SECURE=False, ALLOWED_HOSTS=['testserver'],
+            MULTI_SHOP=False)           # these pages are tested as a single-shop site, whatever .env says
 
 
 class RenderBodyTests(SimpleTestCase):
