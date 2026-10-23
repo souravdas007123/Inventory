@@ -189,6 +189,10 @@ class BlogPagesTests(TestCase):
         self.assertEqual(self.client.get('/admin/backend/blogpost/').status_code, 200)
         self.assertEqual(self.client.get('/admin/backend/blogpost/add/').status_code, 200)
         self.assertContains(self.client.get('/admin/'), 'Blog Articles')
+        home = self.client.get('/admin/')
+        self.assertContains(home, 'Health score')
+        self.assertNotContains(home, 'Not available for this type of schema')   # shown by django-tenants for grouped apps
+        self.assertContains(home, 'Recent actions')
 
 
 class ArtTests(SimpleTestCase):

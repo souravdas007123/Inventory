@@ -1,4 +1,12 @@
-{% extends "admin/index.html" %}
+{% extends "admin/base_site.html" %}
+{% load i18n static log %}
+{# This page is complete on its own and does not extend "admin/index.html". With many shops on, the django-tenants #}
+{# package ships its own admin home that prints "Not available for this type of schema" for our grouped apps. #}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'admin/css/dashboard.css' %}">{% endblock %}
+{% block coltype %}colMS{% endblock %}
+{% block bodyclass %}{{ block.super }} dashboard{% endblock %}
+{% block nav-breadcrumbs %}{% endblock %}
+{% block nav-sidebar %}{% endblock %}
 {% block content %}
 {% if medsync_health %}<a class="ms-health {{ medsync_health.tone }}" href="{% url 'health' %}" title="See what was measured">
   <span class="ms-ring" style="--v:{{ medsync_health.score }}"><b>{{ medsync_health.score }}</b></span>
@@ -6,5 +14,35 @@
     <span>{% for s in medsync_health.sections %}{{ s.title }} {% if s.score is None %}-{% else %}{{ s.score }}{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</span></span>
   <span class="ms-hgo">Details →</span></a>{% endif %}
 {% if medsync_cards %}<div class="ms-cards">{% for c in medsync_cards %}<a class="ms-card {{ c.tone }}" href="{{ c.url }}"><small>{{ c.label }}</small><b>{{ c.value }}</b><span>{{ c.hint }}</span></a>{% endfor %}</div>{% endif %}
-{{ block.super }}
+<div id="content-main">
+{% for app in app_list %}
+<div class="app-{{ app.app_label }} module">
+  <table>
+    <caption><a href="{{ app.app_url }}" class="section" title="Models in the {{ app.name }} application">{{ app.name }}</a></caption>
+    {% for model in app.models %}{% with model_name=model.object_name|lower %}
+    <tr class="model-{{ model_name }}">
+      <th scope="row" id="{{ app.app_label }}-{{ model_name }}">{% if model.admin_url %}<a href="{{ model.admin_url }}">{{ model.name }}</a>{% else %}{{ model.name }}{% endif %}</th>
+      {% if model.add_url %}<td><a href="{{ model.add_url }}" class="addlink" aria-describedby="{{ app.app_label }}-{{ model_name }}">Add</a></td>{% else %}<td></td>{% endif %}
+      {% if model.admin_url %}{% if model.view_only %}<td><a href="{{ model.admin_url }}" class="viewlink" aria-describedby="{{ app.app_label }}-{{ model_name }}">View</a></td>{% else %}<td><a href="{{ model.admin_url }}" class="changelink" aria-describedby="{{ app.app_label }}-{{ model_name }}">Change</a></td>{% endif %}{% else %}<td></td>{% endif %}
+    </tr>{% endwith %}{% endfor %}
+  </table>
+</div>
+{% empty %}<p>You do not have permission to view or edit anything.</p>{% endfor %}
+</div>
+{% endblock %}
+{% block sidebar %}
+<div id="content-related">
+  <div class="module" id="recent-actions-module">
+    <h2>Recent actions</h2>
+    <h3>My actions</h3>
+    {% get_admin_log 10 as admin_log for_user user %}
+    {% if not admin_log %}<p>None available</p>{% else %}
+    <ul class="actionlist">{% for entry in admin_log %}
+      <li class="{% if entry.is_addition %}addlink{% endif %}{% if entry.is_change %}changelink{% endif %}{% if entry.is_deletion %}deletelink{% endif %}">
+        {% if entry.is_deletion or not entry.get_admin_url %}{{ entry.object_repr }}{% else %}<a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>{% endif %}<br>
+        {% if entry.content_type %}<span class="mini quiet">{{ entry.content_type.name|capfirst }}</span>{% else %}<span class="mini quiet">Unknown content</span>{% endif %}
+      </li>{% endfor %}
+    </ul>{% endif %}
+  </div>
+</div>
 {% endblock %}
