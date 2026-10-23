@@ -65,4 +65,5 @@ def template_context(request):
     """Adds `is_owner` and the menu (only what this user may open) to every template."""
     user = request.user
     from .views import nav_for       # imported here: views imports this module
-    return {'is_owner': is_owner(user), 'nav': nav_for(user)}
+    from . import tenancy
+    return {'is_owner': is_owner(user), 'nav': nav_for(user), 'shop_note': tenancy.shop_note(request)}

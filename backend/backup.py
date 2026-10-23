@@ -23,6 +23,22 @@ class BackupError(Exception):
     pass
 
 
+def current_schema():
+    """'' for a single-shop install and for the platform (public schema); else the schema of the shop that is open.
+    A shop's backup holds only that shop's tables, so one shop can never download another shop's data."""
+    if not getattr(settings, 'MULTI_SHOP', False):
+        return ''
+    from django.db import connection
+    name = getattr(connection, 'schema_name', '') or ''
+    return '' if name == getattr(settings, 'PUBLIC_SCHEMA_NAME', 'public') else name
+
+
+def _name_re(schema=None):
+    schema = current_schema() if schema is None else schema
+    base = re.escape(f'medsync_{schema}_') if schema else 'medsync_'
+    return re.compile(rf'^{base}\d{{8}}_\d{{6}}\.(sqlite3\.gz|pgdump)$')
+
+
 def backup_dir():
     d = Path(getattr(settings, 'BACKUP_DIR', settings.BASE_DIR / 'backups'))
     d.mkdir(parents=True, exist_ok=True)
@@ -52,13 +68,16 @@ def find_pg_dump():
     return found[0] if found else ''
 
 
-def _backup_postgres(target):
+def _backup_postgres(target, schema=''):
     exe = find_pg_dump()
     if not exe:
         raise BackupError('pg_dump was not found. Install the PostgreSQL tools, or set PG_DUMP in .env to the full path of pg_dump.')
     db = settings.DATABASES['default']
     cmd = [exe, '-Fc', '-h', str(db.get('HOST') or 'localhost'), '-p', str(db.get('PORT') or '5432'),
-           '-U', str(db.get('USER') or ''), '-f', str(target), str(db['NAME'])]
+           '-U', str(db.get('USER') or ''), '-f', str(target)]
+    if schema:
+        cmd += ['-n', schema]                                  # only this shop's tables
+    cmd.append(str(db['NAME']))
     env = dict(os.environ, PGPASSWORD=str(db.get('PASSWORD') or ''))          # the password is not shown in the command line
     try:
         done = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=900)
@@ -72,8 +91,10 @@ def _backup_postgres(target):
 
 def make_backup(keep=14):
     if is_postgres():
-        target = backup_dir() / f"medsync_{datetime.now():%Y%m%d_%H%M%S}.pgdump"
-        _backup_postgres(target)
+        schema = current_schema()
+        stem = f'medsync_{schema}_' if schema else 'medsync_'
+        target = backup_dir() / f"{stem}{datetime.now():%Y%m%d_%H%M%S}.pgdump"
+        _backup_postgres(target, schema)
         if not target.exists() or target.stat().st_size == 0:
             target.unlink(missing_ok=True)
             raise BackupError('pg_dump produced an empty file.')
@@ -101,8 +122,9 @@ def make_backup(keep=14):
 
 def list_backups():
     out = []
+    name_re = _name_re()
     for f in sorted(backup_dir().glob('medsync_*'), reverse=True):
-        if NAME_RE.match(f.name):
+        if name_re.match(f.name):
             st = f.stat()
             out.append(dict(name=f.name, size_kb=max(1, st.st_size // 1024),
                             when=datetime.fromtimestamp(st.st_mtime)))
@@ -120,7 +142,7 @@ def prune(keep):
 
 def backup_path(name):
     """Path of a backup created by this app only (guards against path traversal)."""
-    if not NAME_RE.match(name or ''):
+    if not _name_re().match(name or ''):
         return None
     p = backup_dir() / name
     return p if p.is_file() else None

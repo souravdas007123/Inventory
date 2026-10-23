@@ -5,7 +5,8 @@ import re
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 
-SAFE = dict(SECURE_SSL_REDIRECT=False, SESSION_COOKIE_SECURE=False, CSRF_COOKIE_SECURE=False, ALLOWED_HOSTS=['testserver'])
+SAFE = dict(SECURE_SSL_REDIRECT=False, SESSION_COOKIE_SECURE=False, CSRF_COOKIE_SECURE=False, ALLOWED_HOSTS=['testserver'],
+            MULTI_SHOP=False)           # these pages are tested as a single-shop site, whatever .env says
 
 
 @override_settings(**SAFE)

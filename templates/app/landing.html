@@ -135,6 +135,14 @@ summary::after{content:"+";font-size:22px;line-height:1;color:var(--amber-d)}
 details[open] summary::after{content:"–"}
 summary::-webkit-details-marker{display:none}
 details p{margin:10px 0 0;color:var(--mut);max-width:44em}
+.ann{background:var(--amber);color:#2b1d00;text-align:center;padding:9px 16px;font-weight:700;font-size:15px}
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;max-width:760px}
+.plans>div{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:22px}
+.plans .pn{display:block;font-weight:700;color:var(--mut);font-size:15px}
+.plans .pr{display:block;font:700 34px Georgia,serif;margin:6px 0 2px;color:var(--ink)}
+.plans p{margin:0 0 14px;color:var(--mut);font-size:14.5px}
+.plans .best{border-color:var(--amber);box-shadow:0 0 0 2px var(--amber) inset}
+.pnote{margin-top:16px;color:var(--mut);font-size:15px}
 .final{background:var(--deep);color:var(--on-deep);padding:72px 0}
 .final .w{display:grid;grid-template-columns:1.2fr .8fr;gap:30px;align-items:center}
 .final p{color:#bfd8d1;font-size:18px}
@@ -148,10 +156,11 @@ footer a{margin-right:16px;text-decoration:none}footer .sh{flex-basis:100%}
 </style>
 </head>
 <body>
+{% if site_notice %}<div class="ann" role="status">{{ site_notice }}</div>{% endif %}
 <header>
 <div class="w">
 <a class="logo" href="/" aria-label="MedSync home"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="lgL" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14b8a6"/><stop offset="1" stop-color="#0b7d6e"/></linearGradient></defs><rect width="64" height="64" rx="15" fill="url(#lgL)"/><path d="M9.4 23.8A24 24 0 0 1 50.4 16.6" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/><path d="M54.6 21.6L53.6 13.9L47.2 19.3Z" fill="#fff"/><path d="M54.6 40.2A24 24 0 0 1 13.6 47.4" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/><path d="M9.4 42.4L10.4 50.1L16.8 44.7Z" fill="#fff"/><g transform="rotate(-45 32 32)"><path d="M32 26.0H24.5A6.0 6.0 0 0 0 24.5 38.0H32Z" fill="#fff"/><path d="M32 26.0H39.5A6.0 6.0 0 0 1 39.5 38.0H32Z" fill="#f5a524"/></g></svg>MedSync</a>
-<nav aria-label="Main"><a class="h" href="#features">Features</a><a class="h" href="#day">A day with MedSync</a><a class="h" href="#safe">Safety</a><a class="h" href="#faq">FAQ</a><a class="h" href="/blog/">Blog</a>{% if cta_url != '/login/' %}<a href="{% url 'login' %}">Login</a>{% endif %}<a class="btn" href="{{ cta_url }}">{{ cta_nav }}</a></nav>
+<nav aria-label="Main"><a class="h" href="#features">Features</a><a class="h" href="#day">A day with MedSync</a><a class="h" href="#safe">Safety</a>{% if pricing %}<a class="h" href="#pricing">Pricing</a>{% endif %}<a class="h" href="#faq">FAQ</a><a class="h" href="/blog/">Blog</a>{% if cta_url != '/login/' %}<a href="{% url 'login' %}">Login</a>{% endif %}<a class="btn" href="{{ cta_url }}">{{ cta_nav }}</a></nav>
 </div>
 </header>
 <main>
@@ -340,6 +349,15 @@ footer a{margin-right:16px;text-decoration:none}footer .sh{flex-basis:100%}
 </ol>
 </div></section>
 
+{% if pricing %}<section id="pricing" class="p"><div class="w">
+<div class="head"><h2>Simple pricing for every shop</h2><p>Try everything free for {{ trial_days }} days. No card is needed. Then pick a plan. Each plan has every feature, so you never pay extra for a report.</p></div>
+<div class="plans">
+<div><span class="pn">Monthly</span><span class="pr">Rs {{ price_monthly }}</span><p>a month. Stop whenever you like. Your data stays with you.</p><a class="btn" href="/signup/">Try the monthly plan free</a></div>
+<div class="best"><span class="pn">Yearly{% if price_saving %}, save Rs {{ price_saving }}{% endif %}</span><span class="pr">Rs {{ price_yearly }}</span><p>a year. The best value for a shop that is here to stay.</p><a class="btn" href="/signup/">Try the yearly plan free</a></div>
+</div>
+<p class="pnote">Questions before you start?{% if contact_whatsapp %} <a href="{{ contact_whatsapp }}" rel="noopener nofollow">Ask us on WhatsApp</a>{% endif %}{% if contact_email %} <a href="mailto:{{ contact_email }}">Write to {{ contact_email }}</a>{% endif %}{% if not contact_whatsapp and not contact_email %} Sign up and we will help you set up.{% endif %}</p>
+</div></section>{% endif %}
+
 <section id="faq"><div class="w">
 <div class="head"><h2>Questions shop owners ask</h2></div>
 <details><summary>Where is my data stored?</summary><p>In your own database on your own server. Nothing is shared with anyone, and a compressed backup is taken every day.</p></details>
@@ -363,6 +381,6 @@ footer a{margin-right:16px;text-decoration:none}footer .sh{flex-basis:100%}
 <div><a class="btn" href="{{ cta_url }}">{{ cta_final }}</a></div>
 </div></div>
 </main>
-<footer><div class="w"><div><a href="#features">Product features</a><a href="#day">A day in the shop</a><a href="#safe">Safety and backups</a><a href="#faq">Questions and answers</a><a href="/blog/">Blog articles</a><a href="{% url 'login' %}">Sign in</a></div><div>© MedSync. Pharmacy inventory and billing software. Pictures use sample data.</div><div class="sh">Share MedSync: <a href="https://wa.me/?text={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">WhatsApp</a><a href="https://www.facebook.com/sharer/sharer.php?u={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">Facebook</a><a href="https://twitter.com/intent/tweet?url={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">X (Twitter)</a><a href="https://www.linkedin.com/sharing/share-offsite/?url={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">LinkedIn</a><a href="https://t.me/share/url?url={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">Telegram</a></div></div></footer>
+<footer><div class="w"><div><a href="#features">Product features</a><a href="#day">A day in the shop</a><a href="#safe">Safety and backups</a>{% if pricing %}<a href="#pricing">Plans and prices</a>{% endif %}<a href="#faq">Questions and answers</a><a href="/blog/">Blog articles</a><a href="{% url 'login' %}">Sign in</a></div><div>© MedSync. Pharmacy inventory and billing software. Pictures use sample data.</div><div class="sh">Share MedSync: <a href="https://wa.me/?text={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">WhatsApp</a><a href="https://www.facebook.com/sharer/sharer.php?u={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">Facebook</a><a href="https://twitter.com/intent/tweet?url={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">X (Twitter)</a><a href="https://www.linkedin.com/sharing/share-offsite/?url={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">LinkedIn</a><a href="https://t.me/share/url?url={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">Telegram</a></div></div></footer>
 </body>
 </html>

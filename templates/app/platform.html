@@ -1,0 +1,36 @@
+{% extends "app/platform_base.html" %}
+{% block title %}Shops{% endblock %}
+{% block content %}
+<h1>Shops</h1>
+<div class="cards">
+<div class="card"><small>Shops</small><strong>{{ total_shops }}</strong></div>
+<div class="card"><small>New in 7 days</small><strong>{{ new_week }}</strong></div>
+<div class="card"><small>Free trial</small><strong>{{ counts.trial }}</strong></div>
+<div class="card"><small>Paid</small><strong>{{ counts.active }}</strong></div>
+<div class="card"><small>Locked</small><strong>{{ counts.locked }}</strong></div>
+<div class="card"><small>Paused</small><strong>{{ counts.paused }}</strong></div>
+<div class="card"><small>Monthly income (estimate)</small><strong>Rs {{ mrr }}</strong></div>
+<div class="card"><small>Received this month</small><strong>Rs {{ revenue_month|floatformat:0 }}</strong></div>
+<div class="card"><small>Received in total</small><strong>Rs {{ revenue_total|floatformat:0 }}</strong></div>
+</div>
+<form class="inline" method="get" style="margin-bottom:12px">
+<div><label for="q">Search</label><input id="q" name="q" value="{{ q }}" placeholder="name, email, phone, address"></div>
+<div><label for="state">Status</label><select id="state" name="state"><option value="">All</option>{% for k, v in states.items %}<option value="{{ k }}"{% if k == want %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+<button>Show</button>{% if q or want %}<a class="btn gray" href="{% url 'platform' %}">Clear</a>{% endif %}
+</form>
+<div class="tw"><table>
+<thead><tr><th>Shop</th><th>Owner</th><th>Status</th><th>Plan</th><th class="num">Days left</th><th class="num">Bills</th><th class="num">Products</th><th>Last sign-in</th><th>Joined</th><th></th></tr></thead>
+<tbody>{% for r in rows %}<tr>
+<td><b>{{ r.shop.name }}</b><br><span class="mut">{{ r.domain }}</span></td>
+<td>{{ r.shop.owner_name }}<br><span class="mut">{{ r.shop.email }}<br>{{ r.shop.phone }}</span></td>
+<td><span class="tag t-{{ r.state }}">{{ r.state_label }}</span></td>
+<td>{{ r.shop.get_plan_display }}</td>
+<td class="num">{% if r.days_left is None %}-{% else %}{{ r.days_left }}{% endif %}</td>
+<td class="num">{{ r.stats.bills }}</td><td class="num">{{ r.stats.products }}</td>
+<td>{% if r.stats.last_login %}{{ r.stats.last_login|date:"d M Y, H:i" }}{% else %}<span class="mut">never</span>{% endif %}</td>
+<td>{{ r.shop.created_on|date:"d M Y" }}</td>
+<td><a class="btn" href="{% url 'platform_shop' r.shop.pk %}">Open</a></td>
+</tr>{% empty %}<tr><td colspan="10" class="mut">{% if q or want %}No shop matches.{% else %}No shop has signed up yet.{% endif %}</td></tr>{% endfor %}</tbody>
+</table></div>
+<p class="mut">Plans: Rs {{ prices.monthly }} a month or Rs {{ prices.yearly }} a year. Usage numbers refresh every 5 minutes.</p>
+{% endblock %}

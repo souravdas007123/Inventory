@@ -69,3 +69,56 @@ class PostgresBackupTests(SimpleTestCase):
     def test_other_names_are_still_refused(self):
         for name in ('../medsync_20261016_010101.pgdump', 'medsync_20261016_010101.pgdump.exe', 'x.pgdump'):
             self.assertFalse(backup.NAME_RE.match(name), name)
+
+
+class ShopBackupScopeTests(SimpleTestCase):
+    """With many shops, a shop's backup holds only its own tables and is invisible to every other shop."""
+
+    def make(self, tmp, name):
+        (Path(tmp) / name).write_bytes(b'PGDMP' + b'0' * 20)
+
+    def test_a_shop_sees_only_its_own_backups_and_the_platform_only_its_own(self):
+        with tempfile.TemporaryDirectory() as tmp, override_settings(BACKUP_DIR=tmp):
+            for name in ('medsync_20261016_010101.pgdump', 'medsync_s_demo_20261016_010101.pgdump',
+                         'medsync_s_other_20261016_010101.pgdump'):
+                self.make(tmp, name)
+            with mock.patch.object(backup, 'current_schema', return_value='s_demo'):
+                self.assertEqual([b['name'] for b in backup.list_backups()], ['medsync_s_demo_20261016_010101.pgdump'])
+                self.assertIsNone(backup.backup_path('medsync_20261016_010101.pgdump'))            # the platform's file
+                self.assertIsNone(backup.backup_path('medsync_s_other_20261016_010101.pgdump'))    # another shop's file
+                self.assertIsNotNone(backup.backup_path('medsync_s_demo_20261016_010101.pgdump'))
+            with mock.patch.object(backup, 'current_schema', return_value=''):
+                self.assertEqual([b['name'] for b in backup.list_backups()], ['medsync_20261016_010101.pgdump'])
+                self.assertIsNone(backup.backup_path('medsync_s_demo_20261016_010101.pgdump'))
+
+    def test_a_shop_backup_dumps_only_its_own_schema(self):
+        def fake_run(cmd, **kw):
+            Path(cmd[cmd.index('-f') + 1]).write_bytes(b'PGDMP' + b'0' * 50)
+            return SimpleNamespace(returncode=0, stderr='')
+        with tempfile.TemporaryDirectory() as tmp:
+            with override_settings(DATABASES=PG, BACKUP_DIR=tmp), \
+                    mock.patch.object(backup, 'find_pg_dump', return_value='pg_dump'), \
+                    mock.patch.object(backup, 'current_schema', return_value='s_demo'), \
+                    mock.patch.object(backup.subprocess, 'run', side_effect=fake_run) as run:
+                path = backup.make_backup()
+            cmd = run.call_args.args[0]
+            self.assertIn('-n', cmd)
+            self.assertEqual(cmd[cmd.index('-n') + 1], 's_demo')
+            self.assertEqual(cmd[-1], PG['default']['NAME'])             # the database name stays the last argument
+            self.assertTrue(path.name.startswith('medsync_s_demo_'))
+
+    def test_the_platform_backup_has_no_schema_filter(self):
+        def fake_run(cmd, **kw):
+            Path(cmd[cmd.index('-f') + 1]).write_bytes(b'PGDMP' + b'0' * 50)
+            return SimpleNamespace(returncode=0, stderr='')
+        with tempfile.TemporaryDirectory() as tmp:
+            with override_settings(DATABASES=PG, BACKUP_DIR=tmp), \
+                    mock.patch.object(backup, 'find_pg_dump', return_value='pg_dump'), \
+                    mock.patch.object(backup, 'current_schema', return_value=''), \
+                    mock.patch.object(backup.subprocess, 'run', side_effect=fake_run) as run:
+                backup.make_backup()
+            self.assertNotIn('-n', run.call_args.args[0])
+
+    def test_current_schema_is_empty_when_many_shops_is_off(self):
+        with override_settings(MULTI_SHOP=False):
+            self.assertEqual(backup.current_schema(), '')

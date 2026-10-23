@@ -1,6 +1,7 @@
 asgiref==3.12.1
 diff-match-patch==20241021
 django-import-export==4.4.1
+django-tenants>=3.14,<4
 Django==6.1
 et_xmlfile==2.0.0
 gunicorn>=22

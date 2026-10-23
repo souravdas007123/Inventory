@@ -1,0 +1,46 @@
+{% extends "app/platform_base.html" %}
+{% block title %}{{ shop.name }}{% endblock %}
+{% block content %}
+<p><a href="{% url 'platform' %}">&larr; All shops</a></p>
+<h1>{{ shop.name }} <span class="tag t-{{ row.state }}">{{ row.state_label }}</span></h1>
+<div class="grid2">
+<div class="card"><h2>Details</h2>
+<p><b>Owner:</b> {{ shop.owner_name }}<br><b>Email:</b> {{ shop.email }}<br><b>Mobile:</b> {{ shop.phone }}<br>
+<b>Address:</b> {{ row.domain }}{% if row.url %} &middot; <a href="{{ row.url }}" target="_blank" rel="noopener">open the shop</a>{% endif %}<br>
+<b>Joined:</b> {{ shop.created_on|date:"d M Y" }}<br>
+<b>Plan:</b> {{ shop.get_plan_display }}{% if shop.plan == 'trial' %}, trial ends {{ shop.trial_ends|date:"d M Y" }}{% else %}, paid until {{ shop.paid_until|date:"d M Y" }}{% endif %}
+{% if row.days_left is not None %} ({{ row.days_left }} days left){% endif %}</p></div>
+<div class="card"><h2>Usage</h2>
+<p><b>Bills:</b> {{ row.stats.bills }}<br><b>Products:</b> {{ row.stats.products }}<br><b>Users:</b> {{ row.stats.users }}<br>
+<b>Last bill:</b> {% if row.stats.last_bill %}{{ row.stats.last_bill|date:"d M Y" }}{% else %}none{% endif %}<br>
+<b>Last sign-in:</b> {% if row.stats.last_login %}{{ row.stats.last_login|date:"d M Y, H:i" }}{% else %}never{% endif %}<br>
+<b>Data size:</b> {% if row.stats.size_mb is None %}unknown{% else %}{{ row.stats.size_mb }} MB{% endif %}<br>
+<b>Paid so far:</b> Rs {{ paid_total|floatformat:0 }}</p></div>
+</div>
+<div class="grid2">
+<div class="card"><h2>Mark a payment</h2>
+<form class="inline" method="post" action="{% url 'platform_shop_action' shop.pk %}">{% csrf_token %}<input type="hidden" name="action" value="paid">
+<div><label for="plan">Plan</label><select id="plan" name="plan"><option value="monthly">Monthly (Rs {{ prices.monthly }})</option><option value="yearly">Yearly (Rs {{ prices.yearly }})</option></select></div>
+<div><label for="amount">Amount (blank = plan price)</label><input id="amount" name="amount" inputmode="decimal" size="9"></div>
+<div><label for="pnote">Note</label><input id="pnote" name="note" maxlength="200" placeholder="UPI reference"></div>
+<button>Save payment</button></form>
+<p class="mut">The paid-until date moves forward by one month or one year (from the old date, if the shop has not yet run out).</p></div>
+<div class="card"><h2>Free trial</h2>
+<form class="inline" method="post" action="{% url 'platform_shop_action' shop.pk %}">{% csrf_token %}<input type="hidden" name="action" value="trial">
+<div><label for="days">Add days</label><input id="days" name="days" type="number" min="1" max="365" value="7" style="width:90px"></div>
+<button{% if shop.plan != 'trial' %} disabled{% endif %}>Extend trial</button></form>
+<h2 style="margin-top:16px">Switch</h2>
+<form class="inline" method="post" action="{% url 'platform_shop_action' shop.pk %}">{% csrf_token %}
+{% if shop.is_paused %}<input type="hidden" name="action" value="resume"><button>Switch the shop on</button>
+{% else %}<input type="hidden" name="action" value="pause"><button class="warn">Switch the shop off</button>{% endif %}</form>
+<p class="mut">A shop that is switched off shows a notice instead of its pages. Nothing is deleted.</p></div>
+</div>
+<div class="card" style="margin-bottom:12px"><h2>Payments</h2>
+<div class="tw"><table style="min-width:520px"><thead><tr><th>Date</th><th>Plan</th><th class="num">Amount</th><th>Period</th><th>Note</th></tr></thead><tbody>
+{% for p in payments %}<tr><td>{{ p.paid_on|date:"d M Y" }}</td><td>{{ p.get_plan_display }}</td><td class="num">Rs {{ p.amount|floatformat:2 }}</td><td>{{ p.period_from|date:"d M Y" }} to {{ p.period_to|date:"d M Y" }}</td><td>{{ p.note }}</td></tr>
+{% empty %}<tr><td colspan="5" class="mut">No payment yet.</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="card"><h2>Notes</h2>
+<form class="inline" method="post" action="{% url 'platform_shop_action' shop.pk %}">{% csrf_token %}<input type="hidden" name="action" value="note">
+<div style="flex:1;min-width:240px"><label for="note">Add a note</label><input id="note" name="note" maxlength="500" style="width:100%"></div><button>Save note</button></form>
+<pre style="margin-top:12px">{{ shop.notes }}</pre></div>
+{% endblock %}
