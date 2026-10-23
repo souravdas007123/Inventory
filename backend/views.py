@@ -575,7 +575,8 @@ def dashboard(request):
 
     live = Batch.objects.filter(qty__gt=0, expire_date__isnull=False).select_related('product')
     active = Product.objects.exclude(is_active=False)
-    low = active.filter(stock_qty__lte=F('reorder_level')).order_by('stock_qty')
+    low = (active.filter(stock_qty__lte=F('reorder_level')).order_by('stock_qty')
+           .select_related('unit').prefetch_related('unit_conversions__unit'))   # no extra query per row
     backup_note = backup_warning() if access.is_owner(request.user) else ''
     expiring = live.filter(expire_date__gte=today, expire_date__lte=soon).order_by('expire_date')
     return page(
