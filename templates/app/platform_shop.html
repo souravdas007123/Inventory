@@ -15,7 +15,8 @@
 <b>Last bill:</b> {% if row.stats.last_bill %}{{ row.stats.last_bill|date:"d M Y" }}{% else %}none{% endif %}<br>
 <b>Last sign-in:</b> {% if row.stats.last_login %}{{ row.stats.last_login|date:"d M Y, H:i" }}{% else %}never{% endif %}<br>
 <b>Data size:</b> {% if row.stats.size_mb is None %}unknown{% else %}{{ row.stats.size_mb }} MB{% endif %}<br>
-<b>Paid so far:</b> Rs {{ paid_total|floatformat:0 }}</p></div>
+<b>Last backup:</b> {% if row.backup.when %}{{ row.backup.when|date:"d M Y, H:i" }}{% else %}none{% endif %}{% if row.backup.stale %} <span style="color:var(--red)">(older than 2 days or missing)</span>{% endif %}<br>
+<b>Paid so far:</b> Rs {{ paid_total|floatformat:0 }}<br><b>Last reminder:</b> {{ shop.last_reminder|default:"none" }}</p></div>
 </div>
 <div class="grid2">
 <div class="card"><h2>Mark a payment</h2>

@@ -19,7 +19,7 @@ from django.utils import timezone
 from django.utils.html import format_html, format_html_join
 from django.views.decorators.http import require_POST
 
-from . import access, auditlog, backup, billview, checks, levels, notify, recurring, supplier_prices
+from . import access, auditlog, backup, billview, checks, levels, notify, recurring, supplier_prices, tenancy
 from .models import (
     AuditLog, HeldBill, Batch, Bill, Brand, Category, Customer, CustomerPayment, Employee, Expense, InvoiceItem, Order, Payment,
     Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, RecurringExpense,
@@ -70,6 +70,7 @@ NAV = [
     {'key': 'users', 'url': '/users/', 'label': 'Users & Sign-ins', 'icon': '👤', 'group': 'Master Data', 'staff': True},
     {'key': 'health', 'url': '/health/', 'label': 'Health Score', 'icon': '🩺', 'group': 'Master Data', 'staff': True},
     {'key': 'backup', 'url': '/backup/', 'label': 'Backup', 'icon': '💾', 'group': 'Master Data', 'staff': True},
+    {'key': 'plan', 'url': '/plan/', 'label': 'Plan & Payments', 'icon': '💳', 'group': 'Master Data', 'staff': True, 'shop_only': True},
     {'key': 'shop', 'url': '/shop/', 'label': 'Shop Settings', 'icon': '🏪', 'group': 'Master Data', 'staff': True},
     {'key': 'reset', 'url': '/reset/', 'label': 'Reset Data', 'icon': '♻️', 'group': 'Master Data', 'staff': True},
 ]
@@ -518,6 +519,8 @@ def nav_for(user):
     """The menu entries this user may open (owner: all; others: by their model permissions)."""
     out = []
     for n in NAV:
+        if n.get('shop_only') and not tenancy.on_shop_site():       # only on a shop's own address, when many shops is on
+            continue
         rule, also_add = access.NAV_RULES.get(n['key']), None
         if rule is None and n['key'] in CONFIG:
             model = CONFIG[n['key']]['model']._meta.model_name

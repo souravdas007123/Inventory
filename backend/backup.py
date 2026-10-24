@@ -39,6 +39,23 @@ def _name_re(schema=None):
     return re.compile(rf'^{base}\d{{8}}_\d{{6}}\.(sqlite3\.gz|pgdump)$')
 
 
+_ANY_NAME_RE = re.compile(r'^medsync_(?:(?P<schema>[a-z0-9_]+)_)?\d{8}_\d{6}\.(?:sqlite3\.gz|pgdump)$')
+
+
+def latest_by_schema():
+    """{schema: time of its newest backup} for every backup file in the folder ('' is the main shop, whose PostgreSQL
+    backup holds the whole database). The folder is read once, so it stays quick with many shops."""
+    out = {}
+    for f in backup_dir().glob('medsync_*'):
+        m = _ANY_NAME_RE.match(f.name)
+        if m:
+            when = datetime.fromtimestamp(f.stat().st_mtime)
+            key = m.group('schema') or ''
+            if key not in out or when > out[key]:
+                out[key] = when
+    return out
+
+
 def backup_dir():
     d = Path(getattr(settings, 'BACKUP_DIR', settings.BASE_DIR / 'backups'))
     d.mkdir(parents=True, exist_ok=True)

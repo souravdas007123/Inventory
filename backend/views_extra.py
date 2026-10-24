@@ -20,6 +20,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from . import tenancy
 from . import access, auditlog, backup, billview, ca_export, gstr2b, health, login_audit, expiry_returns, levels, notify, refill, reorder, reports, reset, summary, supplier_prices
 from .models import (
     Batch, Bill, Brand, Category, Customer, Employee, Expense, InvoiceItem, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
@@ -1107,7 +1108,8 @@ def backup_page(request):
         messages.success(request, f"Backup created: {path.name}")
         return redirect('backup')
     return page(request, 'app/backup.html', active='backup', backups=backup.list_backups(),
-                folder=str(backup.backup_dir()), postgres=backup.is_postgres())
+                folder=str(backup.backup_dir()), postgres=backup.is_postgres(),
+                hosted=tenancy.on_shop_site())
 
 
 @staff_required

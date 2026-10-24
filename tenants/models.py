@@ -22,6 +22,7 @@ class Shop(TenantMixin):
     email_verified = models.BooleanField(default=False)
     created_on = models.DateTimeField(auto_now_add=True)
     notes = models.TextField(blank=True, default='')
+    last_reminder = models.CharField(max_length=40, blank=True, default='')      # e.g. 'trial7:2026-11-21'; see tenancy.reminder_key
 
     auto_create_schema = True            # the schema and its tables are made when the shop is first saved
     auto_drop_schema = False             # deleting a shop row never deletes its data by accident

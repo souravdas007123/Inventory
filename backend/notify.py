@@ -9,6 +9,7 @@ from django.core.mail import send_mail
 from django.db.models import F
 from django.utils import timezone
 
+from . import tenancy
 from .models import Batch, Product, ShopProfile
 
 MAX_LINES = 25      # email
@@ -101,7 +102,8 @@ def alert_digest_text(alerts, shop_name='', wa=False, limit=MAX_LINES, max_chars
 
 
 def alert_recipients():
-    emails = list(getattr(settings, 'ALERT_EMAILS', []) or [])
+    # DJANGO_ALERT_EMAILS belongs to the main shop only. With many shops, another shop's sales must never go to it.
+    emails = list(getattr(settings, 'ALERT_EMAILS', []) or []) if tenancy.is_platform() else []
     if not emails:
         shop_email = ShopProfile.get().email
         if shop_email:

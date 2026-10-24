@@ -391,3 +391,216 @@ class UnknownShopTests(TransactionTestCase):
         self.assertEqual(self.client.get('/').status_code, 200)
         self.assertEqual(self.client.get('/', HTTP_HOST='localhost').status_code, 200)
         self.assertEqual(self.client.get('/', HTTP_HOST='www.localhost').status_code, 200)
+
+
+@skipUnless(settings.MULTI_SHOP, 'many shops is switched off')
+@override_settings(ALLOWED_HOSTS=['.localhost', 'testserver'], SHOP_BASE_DOMAIN='localhost', SECURE_SSL_REDIRECT=False,
+                   SESSION_COOKIE_SECURE=False, CSRF_COOKIE_SECURE=False)
+class PlanRemindersAndBackupsTests(TransactionTestCase):
+    SCHEMA = 's_plan_test'
+    HOST = 'plan-test.localhost'
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from django_tenants.utils import schema_context
+        connection.set_schema_to_public()
+        cache.clear()
+        mail.outbox = []
+        self.addCleanup(self.drop_schema)
+        self.today = timezone.localdate()
+        self.shop = Shop(schema_name=self.SCHEMA, name='Plan Test Shop', owner_name='Asha Rao', email='asha@example.com',
+                         phone='9876543210', trial_ends=self.today + timedelta(days=5))
+        self.shop.save()
+        connection.set_schema_to_public()
+        Domain.objects.create(domain=self.HOST, tenant=self.shop, is_primary=True)
+        with schema_context(self.SCHEMA):
+            User = get_user_model()
+            User.objects.create_superuser('asha@example.com', 'asha@example.com', 'pw-12345-xx')
+            User.objects.create_user('clerk@example.com', 'clerk@example.com', 'pw-12345-xx', is_staff=True)
+        connection.set_schema_to_public()
+
+    def drop_schema(self):
+        connection.set_schema_to_public()
+        Shop.objects.filter(schema_name=self.SCHEMA).delete()
+        with connection.cursor() as cur:
+            cur.execute(f'DROP SCHEMA IF EXISTS {self.SCHEMA} CASCADE')
+
+    def reload(self):
+        connection.set_schema_to_public()
+        self.shop.refresh_from_db()
+
+    def login(self, name='asha@example.com'):
+        resp = self.client.post('/login/', {'username': name, 'password': 'pw-12345-xx'}, HTTP_HOST=self.HOST)
+        self.assertEqual(resp.status_code, 302)
+
+    # ---- reminders ----
+    def test_a_reminder_is_sent_once_and_the_next_one_when_the_date_comes_closer(self):
+        from tenants import reminders
+        out = reminders.send_due(self.today)
+        self.assertEqual(out['sent'], [f'{self.SCHEMA}:trial7'])
+        self.assertEqual(len(mail.outbox), 1)
+        msg = mail.outbox[0]
+        self.assertEqual(msg.to, ['asha@example.com'])
+        self.assertIn('ends in 5 days', msg.subject)
+        self.assertIn('Hello Asha Rao', msg.body)
+        self.assertIn('Rs 700 a month or Rs 8000 a year', msg.body)
+        self.assertIn(f'http://{self.HOST}/', msg.body)
+        self.assertEqual(reminders.send_due(self.today)['sent'], [])             # the same day again: nothing
+        self.assertEqual(len(mail.outbox), 1)
+        out = reminders.send_due(self.today + timedelta(days=4))                 # one day left
+        self.assertEqual(out['sent'], [f'{self.SCHEMA}:trial1'])
+        self.assertIn('ends tomorrow', mail.outbox[1].subject)
+        out = reminders.send_due(self.today + timedelta(days=6))                 # the trial has ended
+        self.assertEqual(out['sent'], [f'{self.SCHEMA}:trial_end'])
+        self.assertIn('has ended', mail.outbox[2].subject)
+        self.assertIn('saving new bills', mail.outbox[2].body)
+
+    def test_a_failed_send_is_not_remembered_so_it_is_tried_again(self):
+        from unittest import mock
+
+        from tenants import reminders
+        with mock.patch.object(reminders, 'send_mail', side_effect=OSError('smtp down')):
+            out = reminders.send_due(self.today)
+        self.assertEqual(out['failed'], [f'{self.SCHEMA}:trial7'])
+        self.reload()
+        self.assertEqual(self.shop.last_reminder, '')
+        self.assertEqual(reminders.send_due(self.today)['sent'], [f'{self.SCHEMA}:trial7'])
+
+    def test_a_dry_run_sends_and_remembers_nothing(self):
+        from tenants import reminders
+        out = reminders.send_due(self.today, dry_run=True)
+        self.assertEqual(out['sent'], [f'{self.SCHEMA}:trial7'])
+        self.assertEqual(mail.outbox, [])
+        self.reload()
+        self.assertEqual(self.shop.last_reminder, '')
+
+    def test_a_switched_off_shop_gets_no_reminder_and_a_renewed_one_starts_afresh(self):
+        from tenants import reminders
+        Shop.objects.filter(pk=self.shop.pk).update(is_paused=True)
+        self.assertEqual(reminders.send_due(self.today)['sent'], [])
+        Shop.objects.filter(pk=self.shop.pk).update(is_paused=False)
+        reminders.send_due(self.today)
+        Shop.objects.filter(pk=self.shop.pk).update(plan='monthly', paid_until=self.today + timedelta(days=3))
+        out = reminders.send_due(self.today)                                      # a new end date: a new reminder
+        self.assertEqual(out['sent'], [f'{self.SCHEMA}:paid7'])
+        self.assertIn('plan ends in 3 days', mail.outbox[-1].subject)
+
+    def test_the_command_lists_who_would_get_a_reminder(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+        out = StringIO()
+        call_command('send_plan_reminders', '--dry-run', stdout=out)
+        self.assertIn('would be sent', out.getvalue())
+        self.assertIn(f'{self.SCHEMA}:trial7', out.getvalue())
+        self.assertEqual(mail.outbox, [])
+
+    # ---- the shop's own plan page ----
+    def test_the_owner_sees_the_plan_page_with_status_prices_and_payments(self):
+        Payment.objects.create(shop=self.shop, plan='monthly', amount=700, paid_on=self.today, period_from=self.today,
+                               period_to=self.today + timedelta(days=30), note='UPI')
+        self.login()
+        page = self.client.get('/plan/', HTTP_HOST=self.HOST)
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, 'Plan and payments')
+        self.assertContains(page, 'Free trial')
+        self.assertContains(page, '5 days left')
+        self.assertContains(page, 'Rs 700')
+        self.assertContains(page, 'Rs 8000')
+        self.assertContains(page, 'Rs 700.00')                                     # the recorded payment
+        self.assertContains(self.client.get('/', HTTP_HOST=self.HOST), 'Plan &amp; Payments')       # menu entry
+        connection.set_schema_to_public()
+
+    def test_only_the_owner_of_a_shop_can_open_it_and_not_the_main_site(self):
+        self.assertEqual(self.client.get('/plan/', HTTP_HOST=self.HOST).status_code, 302)          # not signed in: to the login
+        self.login('clerk@example.com')
+        self.assertEqual(self.client.get('/plan/', HTTP_HOST=self.HOST).status_code, 403)          # staff who is not the owner
+        connection.set_schema_to_public()
+        from django.contrib.auth import get_user_model
+        boss = get_user_model().objects.create_superuser('boss-plan', 'b@example.com', 'pw-12345-xx')
+        self.client.force_login(boss)
+        self.assertEqual(self.client.get('/plan/').status_code, 404)                               # the main site has no plan
+        self.assertNotContains(self.client.get('/'), 'Plan &amp; Payments')
+
+    def test_a_locked_shop_page_says_new_entries_are_off(self):
+        Shop.objects.filter(pk=self.shop.pk).update(trial_ends=self.today - timedelta(days=2))
+        self.login()
+        page = self.client.get('/plan/', HTTP_HOST=self.HOST)
+        self.assertContains(page, 'Locked')
+        self.assertContains(page, 'new entries are switched off')
+        connection.set_schema_to_public()
+
+    # ---- the nightly job for all shops ----
+    def run_nightly(self, *args, fail=False):
+        import tempfile
+        from io import StringIO
+        from pathlib import Path
+        from types import SimpleNamespace
+        from unittest import mock
+
+        from django.core.management import call_command
+
+        from backend import backup
+        commands = []
+
+        def fake_run(cmd, **kw):
+            if not fail:
+                Path(cmd[cmd.index('-f') + 1]).write_bytes(b'PGDMP' + b'0' * 50)
+            return SimpleNamespace(returncode=1 if fail else 0, stderr='boom' if fail else '')
+        with tempfile.TemporaryDirectory() as tmp, override_settings(BACKUP_DIR=tmp), \
+                mock.patch.object(backup, 'find_pg_dump', return_value='pg_dump'), \
+                mock.patch.object(backup.subprocess, 'run', side_effect=fake_run) as run, \
+                mock.patch('tenants.management.commands.shops_daily.call_command',
+                           side_effect=lambda *a, **k: commands.append(a)):
+            error = None
+            try:
+                call_command('shops_daily', '--only', self.SCHEMA, '--skip-reminders', *args, stdout=StringIO(), stderr=StringIO())
+            except Exception as e:
+                error = e
+            files = sorted(p.name for p in Path(tmp).iterdir())
+            dumped = [c.args[0] for c in run.call_args_list]
+        connection.set_schema_to_public()
+        return error, files, dumped, commands
+
+    def test_the_nightly_job_backs_up_the_shop_with_only_its_own_schema(self):
+        error, files, dumped, commands = self.run_nightly()
+        self.assertIsNone(error)
+        self.assertEqual(len(files), 1)
+        self.assertTrue(files[0].startswith(f'medsync_{self.SCHEMA}_') and files[0].endswith('.pgdump'), files)
+        cmd = dumped[0]
+        self.assertEqual(cmd[cmd.index('-n') + 1], self.SCHEMA)
+        self.assertEqual(commands, [('daily_tasks', '--skip-backup')])              # its daily tasks and summary mail
+
+    def test_a_locked_shop_is_still_backed_up_but_gets_no_automatic_entries(self):
+        Shop.objects.filter(pk=self.shop.pk).update(trial_ends=self.today - timedelta(days=3))
+        error, files, dumped, commands = self.run_nightly()
+        self.assertIsNone(error)
+        self.assertEqual(len(files), 1)
+        self.assertEqual(commands, [])
+
+    def test_a_failed_backup_is_reported_by_the_command(self):
+        from django.core.management.base import CommandError
+        error, files, dumped, commands = self.run_nightly(fail=True)
+        self.assertIsInstance(error, CommandError)
+        self.assertIn(f'backup {self.SCHEMA}', str(error))
+        self.assertEqual(files, [])
+
+    def test_an_unknown_shop_name_is_refused(self):
+        from django.core.management import call_command
+        from django.core.management.base import CommandError
+        with self.assertRaises(CommandError):
+            call_command('shops_daily', '--only', 's_does_not_exist')
+        connection.set_schema_to_public()
+
+    def test_the_platform_panel_shows_the_last_backup_and_warns_when_there_is_none(self):
+        from django.contrib.auth import get_user_model
+        boss = get_user_model().objects.create_superuser('boss-bk', 'b@example.com', 'pw-12345-xx')
+        self.client.force_login(boss)
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as tmp, override_settings(BACKUP_DIR=tmp):
+            page = self.client.get('/superadmin/')
+            self.assertContains(page, 'without a backup in the last 2 days')
+            (Path(tmp) / f'medsync_{self.SCHEMA}_{timezone.localdate():%Y%m%d}_010101.pgdump').write_bytes(b'PGDMP')
+            page = self.client.get('/superadmin/')
+            self.assertNotContains(page, 'without a backup in the last 2 days')

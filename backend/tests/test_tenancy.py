@@ -1,5 +1,5 @@
 """Rules for many shops that need no database: web address names, trial and plan dates, the notice at the top of a page."""
-from datetime import date
+from datetime import date, timedelta
 from types import SimpleNamespace
 
 from django.test import SimpleTestCase, override_settings
@@ -152,3 +152,55 @@ class UnknownShopHostTests(SimpleTestCase):
                      'example.com', 'evil-medsync.example.com', ''):
             self.assertFalse(tenancy.is_unknown_shop_host(host, base), host)
         self.assertFalse(tenancy.is_unknown_shop_host('anything.localhost', ''))
+
+
+class ReminderDueTests(SimpleTestCase):
+    TODAY = date(2026, 11, 10)
+
+    def shop(self, plan='trial', trial=None, paid=None, paused=False, schema='s_demo'):
+        from types import SimpleNamespace
+        return SimpleNamespace(schema_name=schema, plan=plan, trial_ends=trial, paid_until=paid, is_paused=paused)
+
+    def due(self, **kw):
+        return tenancy.reminder_due(self.shop(**kw), self.TODAY)
+
+    def test_a_trial_gets_a_reminder_a_week_before_and_in_the_last_two_days(self):
+        d = lambda n: self.TODAY + timedelta(days=n)
+        self.assertIsNone(self.due(trial=d(8)))
+        self.assertEqual(self.due(trial=d(7)), ('trial7', d(7)))
+        self.assertEqual(self.due(trial=d(2)), ('trial7', d(2)))
+        self.assertEqual(self.due(trial=d(1)), ('trial1', d(1)))
+        self.assertEqual(self.due(trial=d(0)), ('trial1', d(0)))
+
+    def test_an_ended_trial_gets_one_reminder_for_two_weeks(self):
+        d = lambda n: self.TODAY + timedelta(days=n)
+        self.assertEqual(self.due(trial=d(-1)), ('trial_end', d(-1)))
+        self.assertEqual(self.due(trial=d(-14)), ('trial_end', d(-14)))
+        self.assertIsNone(self.due(trial=d(-15)))               # long gone: no more mail
+
+    def test_a_paid_plan_follows_the_same_rules_with_its_own_names(self):
+        d = lambda n: self.TODAY + timedelta(days=n)
+        self.assertEqual(self.due(plan='monthly', paid=d(5)), ('paid7', d(5)))
+        self.assertEqual(self.due(plan='yearly', paid=d(1)), ('paid1', d(1)))
+        self.assertEqual(self.due(plan='monthly', paid=d(-3)), ('paid_end', d(-3)))
+        self.assertIsNone(self.due(plan='monthly', paid=d(40)))
+
+    def test_paused_shops_the_main_shop_and_shops_without_a_date_get_nothing(self):
+        d = self.TODAY + timedelta(days=3)
+        self.assertIsNone(self.due(trial=d, paused=True))
+        self.assertIsNone(self.due(trial=d, schema='public'))
+        self.assertIsNone(self.due(trial=None))
+        self.assertIsNone(self.due(plan='monthly', paid=None))
+
+    def test_the_key_changes_with_the_end_date_so_a_renewal_starts_afresh(self):
+        a = tenancy.reminder_key('paid7', date(2026, 12, 1))
+        b = tenancy.reminder_key('paid7', date(2027, 1, 1))
+        self.assertEqual(a, 'paid7:2026-12-01')
+        self.assertNotEqual(a, b)
+        self.assertLessEqual(len(a), 40)                          # fits the Shop.last_reminder column
+
+
+class OnShopSiteTests(SimpleTestCase):
+    def test_it_is_false_when_many_shops_is_off(self):
+        with override_settings(MULTI_SHOP=False):
+            self.assertFalse(tenancy.on_shop_site())

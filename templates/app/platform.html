@@ -13,13 +13,14 @@
 <div class="card"><small>Received this month</small><strong>Rs {{ revenue_month|floatformat:0 }}</strong></div>
 <div class="card"><small>Received in total</small><strong>Rs {{ revenue_total|floatformat:0 }}</strong></div>
 </div>
+{% if no_backup %}<div class="msg error">{{ no_backup }} shop{{ no_backup|pluralize }} without a backup in the last 2 days. Check that the nightly job (<code>shops_daily</code>) is running.</div>{% endif %}
 <form class="inline" method="get" style="margin-bottom:12px">
 <div><label for="q">Search</label><input id="q" name="q" value="{{ q }}" placeholder="name, email, phone, address"></div>
 <div><label for="state">Status</label><select id="state" name="state"><option value="">All</option>{% for k, v in states.items %}<option value="{{ k }}"{% if k == want %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
 <button>Show</button>{% if q or want %}<a class="btn gray" href="{% url 'platform' %}">Clear</a>{% endif %}
 </form>
 <div class="tw"><table>
-<thead><tr><th>Shop</th><th>Owner</th><th>Status</th><th>Plan</th><th class="num">Days left</th><th class="num">Bills</th><th class="num">Products</th><th>Last sign-in</th><th>Joined</th><th></th></tr></thead>
+<thead><tr><th>Shop</th><th>Owner</th><th>Status</th><th>Plan</th><th class="num">Days left</th><th class="num">Bills</th><th class="num">Products</th><th>Last sign-in</th><th>Last backup</th><th>Joined</th><th></th></tr></thead>
 <tbody>{% for r in rows %}<tr>
 <td><b>{{ r.shop.name }}</b><br><span class="mut">{{ r.domain }}</span></td>
 <td>{{ r.shop.owner_name }}<br><span class="mut">{{ r.shop.email }}<br>{{ r.shop.phone }}</span></td>
@@ -28,9 +29,10 @@
 <td class="num">{% if r.days_left is None %}-{% else %}{{ r.days_left }}{% endif %}</td>
 <td class="num">{{ r.stats.bills }}</td><td class="num">{{ r.stats.products }}</td>
 <td>{% if r.stats.last_login %}{{ r.stats.last_login|date:"d M Y, H:i" }}{% else %}<span class="mut">never</span>{% endif %}</td>
+<td>{% if r.backup.when %}<span{% if r.backup.stale %} style="color:var(--red);font-weight:700"{% endif %}>{{ r.backup.when|date:"d M, H:i" }}</span>{% else %}<span style="color:var(--red);font-weight:700">none</span>{% endif %}</td>
 <td>{{ r.shop.created_on|date:"d M Y" }}</td>
 <td><a class="btn" href="{% url 'platform_shop' r.shop.pk %}">Open</a></td>
-</tr>{% empty %}<tr><td colspan="10" class="mut">{% if q or want %}No shop matches.{% else %}No shop has signed up yet.{% endif %}</td></tr>{% endfor %}</tbody>
+</tr>{% empty %}<tr><td colspan="11" class="mut">{% if q or want %}No shop matches.{% else %}No shop has signed up yet.{% endif %}</td></tr>{% endfor %}</tbody>
 </table></div>
 <p class="mut">Plans: Rs {{ prices.monthly }} a month or Rs {{ prices.yearly }} a year. Usage numbers refresh every 5 minutes.</p>
 {% endblock %}

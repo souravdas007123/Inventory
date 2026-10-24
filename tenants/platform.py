@@ -17,7 +17,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from backend import tenancy
+from backend import backup, tenancy
 
 from . import site
 from .models import Payment, Shop
@@ -86,11 +86,25 @@ def shop_stats(shop, fresh=False):
     return out
 
 
-def _row(shop, today, fresh=False):
+def _row(shop, today, fresh=False, backups=None):
     domain = shop.domains.filter(is_primary=True).first() or shop.domains.first()
     state = tenancy.shop_state(shop, today)
     return dict(shop=shop, domain=domain.domain if domain else '', state=state, state_label=STATE_LABELS[state],
-                days_left=tenancy.days_left(shop, today), stats=shop_stats(shop, fresh))
+                days_left=tenancy.days_left(shop, today), stats=shop_stats(shop, fresh),
+                backup=_backup_info((backups if backups is not None else _safe_backups()).get(shop.schema_name), today))
+
+
+def _safe_backups():
+    try:
+        return backup.latest_by_schema()
+    except Exception:
+        log.exception('Could not read the backup folder')
+        return {}
+
+
+def _backup_info(when, today):
+    """{'when': time or None, 'stale': True when there is none or it is older than 2 days}."""
+    return dict(when=when, stale=when is None or (today - when.date()).days > 2)
 
 
 def _shop_link(request, domain, path='/'):
@@ -107,7 +121,8 @@ def dashboard(request):
     q = (request.GET.get('q') or '').strip()
     want = request.GET.get('state') or ''
     shops = Shop.objects.exclude(schema_name=settings.PUBLIC_SCHEMA_NAME)
-    all_rows = [_row(s, today) for s in shops[:500]]
+    found = _safe_backups()
+    all_rows = [_row(s, today, backups=found) for s in shops[:500]]
     counts = {k: sum(1 for r in all_rows if r['state'] == k) for k in STATE_LABELS}
     monthly = sum(1 for r in all_rows if r['state'] == 'active' and r['shop'].plan == 'monthly')
     yearly = sum(1 for r in all_rows if r['state'] == 'active' and r['shop'].plan == 'yearly')
@@ -123,7 +138,8 @@ def dashboard(request):
     total = Payment.objects.aggregate(s=Sum('amount'))['s'] or Decimal('0')
     month_total = Payment.objects.filter(paid_on__year=today.year, paid_on__month=today.month).aggregate(s=Sum('amount'))['s'] or Decimal('0')
     return render(request, 'app/platform.html', dict(
-        rows=rows, counts=counts, total_shops=len(all_rows), q=q, want=want, states=STATE_LABELS,
+        rows=rows, counts=counts, total_shops=len(all_rows),
+        no_backup=sum(1 for r in all_rows if r['state'] != 'paused' and r['backup']['stale']), q=q, want=want, states=STATE_LABELS,
         new_week=sum(1 for r in all_rows if r['shop'].created_on.date() >= today - timedelta(days=7)),
         mrr=round(monthly * prices()['monthly'] + yearly * prices()['yearly'] / 12),
         revenue_total=total, revenue_month=month_total, prices=prices()))

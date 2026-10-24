@@ -1,0 +1,26 @@
+{% extends "app/base.html" %}
+{% block title %}Plan and payments{% endblock %}
+{% block content %}
+<div class="head"><h1>💳 Plan and payments</h1></div>
+<div class="card" style="margin-bottom:14px">
+  <h3 style="margin-top:0">{{ shop.name }}</h3>
+  <p style="margin:0 0 6px"><b>Status:</b> {{ state_label }}{% if state == 'locked' %} (you can view your data, but new entries are switched off){% endif %}</p>
+  <p style="margin:0 0 6px"><b>Plan:</b> {{ shop.get_plan_display }}</p>
+  {% if end %}<p style="margin:0 0 6px"><b>{% if on_trial %}Free trial ends{% else %}Paid until{% endif %}:</b> {{ end|date:"d M Y" }}{% if days_left is not None and state != 'locked' %} ({{ days_left }} day{{ days_left|pluralize }} left){% endif %}</p>{% endif %}
+</div>
+<div class="card" style="margin-bottom:14px">
+  <h3 style="margin-top:0">Prices</h3>
+  <p style="margin:0 0 6px">Monthly: <b>Rs {{ prices.monthly }}</b> a month. Yearly: <b>Rs {{ prices.yearly }}</b> a year{% if saving %}, which saves Rs {{ saving }}{% endif %}.</p>
+  <p style="margin:0 0 10px;color:var(--mute)">Every plan has every feature. Your data is never deleted when a plan ends.</p>
+  <p style="margin:0 0 6px"><b>To continue or renew, contact us:</b></p>
+  <p style="margin:0">{% if whatsapp %}<a class="btn" href="{{ whatsapp }}" target="_blank" rel="noopener">Message us on WhatsApp</a> {% endif %}{% if contact_email %}<a class="btn ghost" href="mailto:{{ contact_email }}">Email {{ contact_email }}</a>{% endif %}{% if not whatsapp and not contact_email %}Please contact MedSync. We will record your payment and extend your plan the same day.{% endif %}</p>
+</div>
+<div class="card">
+  <h3 style="margin-top:0">Payments received</h3>
+  <div class="tw"><table class="t">
+    <thead><tr><th>Date</th><th>Plan</th><th>Amount</th><th>Covers</th></tr></thead>
+    {% for p in payments %}<tr><td>{{ p.paid_on|date:"d M Y" }}</td><td>{{ p.get_plan_display }}</td><td>Rs {{ p.amount|floatformat:2 }}</td><td>{{ p.period_from|date:"d M Y" }} to {{ p.period_to|date:"d M Y" }}</td></tr>
+    {% empty %}<tr><td class="empty" colspan="4">No payment has been recorded yet.</td></tr>{% endfor %}
+  </table></div>
+</div>
+{% endblock %}

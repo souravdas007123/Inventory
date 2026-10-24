@@ -2,7 +2,8 @@
 {% block title %}Backup{% endblock %}
 {% block content %}
 <div class="head"><h1>💾 Database Backup</h1></div>
-<div class="msg info">{% if postgres %}All of your data is stored in the PostgreSQL database, so a daily backup is essential. Backups are made with <code>pg_dump</code> and saved on the server in{% else %}All of your data is stored in a single database file, so a daily backup is essential. Backups are compressed and saved on the server in{% endif %} <code>{{ folder }}</code>; only the latest 14 are kept.</div>
+{% if hosted %}<div class="msg info">MedSync takes a backup of your shop's data automatically every night and keeps the latest 14. A backup that stays on the server can be lost along with the server, so download one at least once a week and keep it on your computer or Google Drive.</div>
+{% else %}<div class="msg info">{% if postgres %}All of your data is stored in the PostgreSQL database, so a daily backup is essential. Backups are made with <code>pg_dump</code> and saved on the server in{% else %}All of your data is stored in a single database file, so a daily backup is essential. Backups are compressed and saved on the server in{% endif %} <code>{{ folder }}</code>; only the latest 14 are kept.</div>{% endif %}
 <div class="card" style="margin-bottom:14px">
   <h3 style="margin-top:0">Back up now</h3>
   <form method="post" style="display:flex;gap:8px;flex-wrap:wrap">{% csrf_token %}
@@ -11,14 +12,14 @@
   </form>
   <p style="color:var(--mute);margin:12px 0 0">A backup kept on the server can be lost along with the server, so download one at least once a week and store it on your computer or Google Drive.</p>
 </div>
-<div class="card" style="margin-bottom:14px">
+{% if not hosted %}<div class="card" style="margin-bottom:14px">
   <h3 style="margin-top:0">Automatic daily backup (PythonAnywhere)</h3>
   <ol style="margin:0;padding-left:20px;line-height:1.8">
     <li>Open the <b>Tasks</b> tab in PythonAnywhere.</li>
     <li>Choose a daily time (for example, late at night) and enter this command:<br><code>~/.virtualenvs/inv/bin/python ~/Inventory/manage.py daily_tasks</code></li>
   </ol>
   <p style="color:var(--mute);margin:10px 0 0">This one command takes the backup and then emails you the day's summary (sales, credit, purchases and stock alerts) to the email in Shop Settings. If you only want the backup, use <code>backup_db</code> instead of <code>daily_tasks</code>.</p>
-</div>
+</div>{% endif %}
 <div class="card">
   <h3 style="margin-top:0">Existing backups</h3>
   <div class="tw"><table class="t">
@@ -27,7 +28,8 @@
       <td><a class="btn ghost sm" href="{% url 'backup_download' b.name %}">⬇ Download</a></td></tr>
     {% empty %}<tr><td class="empty" colspan="4">No backups have been created yet.</td></tr>{% endfor %}
   </table></div>
-  {% if postgres %}<p style="color:var(--mute);margin:12px 0 0">To restore: create an empty database, then run <code>pg_restore -U &lt;user&gt; -h localhost -d &lt;database&gt; --no-owner &lt;backup file&gt;</code>. Make a separate backup of the current data first.</p>
+  {% if hosted %}<p style="color:var(--mute);margin:12px 0 0">To restore your data from a backup, contact MedSync support and tell us the file name. Please do not ask for a restore before you have downloaded a copy of your current data.</p>
+  {% elif postgres %}<p style="color:var(--mute);margin:12px 0 0">To restore: create an empty database, then run <code>pg_restore -U &lt;user&gt; -h localhost -d &lt;database&gt; --no-owner &lt;backup file&gt;</code>. Make a separate backup of the current data first.</p>
   {% else %}<p style="color:var(--mute);margin:12px 0 0">To restore: unzip the backup file (.gz), place it in the location of <code>db.sqlite3</code>, then reload the site. Make a separate copy of the current file first.</p>{% endif %}
 </div>
 {% endblock %}

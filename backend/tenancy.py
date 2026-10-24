@@ -145,3 +145,41 @@ def is_unknown_shop_host(host, base):
     if not base or host in (base, 'www.' + base):
         return False
     return host.endswith('.' + base)
+
+
+def on_shop_site():
+    """True while a shop's own address is open (never on the main site, never when many shops is off)."""
+    return bool(getattr(settings, 'MULTI_SHOP', False)) and not is_platform()
+
+
+REMINDER_AFTER_DAYS = 14        # a 'plan has ended' reminder is sent once, only within this many days after the end
+
+
+def reminder_due(shop, today=None):
+    """Which reminder a shop should get today: ('trial7' | 'trial1' | 'trial_end' | 'paid7' | 'paid1' | 'paid_end', end_date),
+    or None. 7 means 2 to 7 days left, 1 means the last 2 days (1 day left or the last day itself)."""
+    from django.utils import timezone
+    today = today or timezone.localdate()
+    if getattr(shop, 'schema_name', 'public') == getattr(settings, 'PUBLIC_SCHEMA_NAME', 'public') or getattr(shop, 'is_paused', False):
+        return None
+    on_trial = getattr(shop, 'plan', 'trial') == 'trial'
+    end = getattr(shop, 'trial_ends', None) if on_trial else getattr(shop, 'paid_until', None)
+    if end is None:
+        return None
+    prefix = 'trial' if on_trial else 'paid'
+    state = shop_state(shop, today)
+    left = (end - today).days
+    if state in ('trial', 'active'):
+        if left <= 1:
+            return prefix + '1', end
+        if left <= 7:
+            return prefix + '7', end
+        return None
+    if state == 'locked' and 1 <= -left <= REMINDER_AFTER_DAYS:
+        return prefix + '_end', end
+    return None
+
+
+def reminder_key(kind, end):
+    """Remembered on the shop so the same reminder is never sent twice; a new end date (renewal) starts afresh."""
+    return f'{kind}:{end.isoformat()}'
