@@ -194,6 +194,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_URL = '/login/'
+PASSWORD_RESET_TIMEOUT = 24 * 60 * 60        # 'forgot password' links work for 24 hours (and only once)
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'          # after logout, visitors land on the public home page (it has a Login button)
 

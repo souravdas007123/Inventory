@@ -7,7 +7,12 @@ from django.template.loader import render_to_string
 
 from backend import tenancy
 
-ALWAYS_OPEN = ('/login/', '/logout/')          # a locked shop's owner must still be able to sign in and out
+ALWAYS_OPEN = ('/login/', '/logout/', '/forgot/')       # a locked shop's owner must still be able to sign in and out
+ALWAYS_OPEN_PREFIX = '/reset-password/'                  # and to choose a new password
+
+
+def is_always_open(path):
+    return path in ALWAYS_OPEN or path.startswith(ALWAYS_OPEN_PREFIX)
 
 
 class ShopAccessMiddleware:
@@ -25,7 +30,7 @@ class ShopAccessMiddleware:
             state = tenancy.shop_state(shop)
             if state == 'paused':
                 return self._page('This shop is switched off', 'Please contact MedSync support to switch it on again.', 403)
-            if state == 'locked' and request.method not in ('GET', 'HEAD', 'OPTIONS') and request.path not in ALWAYS_OPEN:
+            if state == 'locked' and request.method not in ('GET', 'HEAD', 'OPTIONS') and not is_always_open(request.path):
                 return self._page('Your subscription has ended',
                                   'You can still view your data, but saving new entries is switched off. '
                                   'Please contact MedSync to choose a plan and continue.', 403)

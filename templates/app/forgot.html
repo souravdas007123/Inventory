@@ -1,0 +1,7 @@
+{% extends "app/auth_base.html" %}
+{% block title %}Forgot password{% endblock %}
+{% block box %}<p>Enter the email address of your account. We will send you a link to choose a new password.</p>
+{% if form.errors %}<div class="err">Please enter a valid email address.</div>{% endif %}
+<label for="id_email">Email address</label>
+<input type="email" name="email" id="id_email" autocomplete="email" maxlength="254" required autofocus value="{{ form.email.value|default_if_none:'' }}">
+<button>Send the link</button><a class="back" href="{% url 'login' %}">&larr; Back to sign in</a>{% endblock %}

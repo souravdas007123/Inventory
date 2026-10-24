@@ -127,6 +127,26 @@ class SignupFlowTests(TransactionTestCase):
         Shop.objects.filter(pk=shop.pk).update(is_paused=True)
         self.assertEqual(self.client.get('/', HTTP_HOST=HOST).status_code, 403)
 
+    def test_forgot_password_works_for_a_shop_and_even_when_its_plan_has_ended(self):
+        from django.core import mail
+        self.sign_up()
+        self.confirm()
+        shop = Shop.objects.get(schema_name=SCHEMA)
+        Shop.objects.filter(pk=shop.pk).update(trial_ends=timezone.localdate() - timedelta(days=1))
+        mail.outbox.clear()
+        r = self.client.post('/forgot/', {'email': 'raj@example.com'}, HTTP_HOST=HOST)       # a POST on a locked shop
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(HOST, mail.outbox[0].body)
+        import re
+        path = re.search(r'(/reset-password/\S+)', mail.outbox[0].body).group(1)
+        r = self.client.get(path, HTTP_HOST=HOST, follow=True)
+        r = self.client.post(r.redirect_chain[-1][0], {'new_password1': 'BrandNew#97531', 'new_password2': 'BrandNew#97531'},
+                             HTTP_HOST=HOST)
+        self.assertEqual(r.status_code, 302)
+        r = self.client.post('/login/', {'username': 'raj@example.com', 'password': 'BrandNew#97531'}, HTTP_HOST=HOST)
+        self.assertEqual(r.status_code, 302)
+
     def test_backups_of_one_shop_stay_inside_that_shop(self):
         from backend import backup
         from django_tenants.utils import schema_context

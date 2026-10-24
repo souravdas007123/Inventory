@@ -317,3 +317,17 @@ Goal: every shop that signs up gets its own PostgreSQL schema (its own tables, u
 - **Daily summary and stock-alert mails of a shop go only to that shop's own e-mail.** `DJANGO_ALERT_EMAILS` is used by the main shop only.
 - **Cron on the server** (site user, `crontab -e`): `30 2 * * * cd ~/htdocs/medsync.socialflylive.com && ./venv/bin/python manage.py shops_daily >> ~/shops_daily.log 2>&1`. Use this line instead of an older `daily_tasks` line.
 - **Restore one shop** (do it on the server, with the site stopped, and try it first on a copy): `pg_restore -h localhost -U <db user> -d <database> --clean --if-exists --no-owner <medsync_s_name_...pgdump>`. The file holds only that shop's schema, so other shops are not touched. To only look inside a backup, restore it into a new empty database instead.
+
+
+## Forgot password
+
+The sign-in page has a **Forgot your password?** link (`/forgot/`). The person types the email address of the account and
+gets an email with a link to choose a new password (`/reset-password/...`). The link works for 24 hours and only once.
+
+- It works the same on the main site and on every shop (users are separate per shop), and a shop whose plan has ended can still use it.
+- The answer is identical whether or not the address exists, so nobody can find out who has an account.
+- One address gets at most 3 mails an hour and one visitor at most 10 requests an hour.
+- New passwords follow the normal password rules (at least 8 characters, not only numbers, not a common password).
+- Emails go out through the same SMTP settings as the other mails (`DJANGO_EMAIL_*` in `.env`).
+- Accounts without an email address cannot use this. For those: `python manage.py changepassword <username>`
+  (for one shop: `python manage.py tenant_command changepassword --schema=s_<name>`).
