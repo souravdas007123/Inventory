@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ title }} · MedSync</title>
+<meta name="description" content="{% block desc %}{{ title }} of MedSync, pharmacy billing and inventory software for medical stores.{% endblock %}">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="robots" content="index,follow">
+<style>
+:root{--bg:#f2f7f4;--paper:#fff;--ink:#0a2f2a;--mut:#3f5a54;--line:#cfdcd6;--deep:#0a2f2a;--amber:#d98324;--amber-d:#9a5a0f}
+@media(prefers-color-scheme:dark){:root{--bg:#0a1a18;--paper:#112825;--ink:#e9f5f1;--mut:#a3bdb6;--line:#244741;--deep:#06100f;--amber-d:#f0a04b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.7 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+header{background:var(--deep);color:#e9f5f1}
+header .w{max-width:1000px;margin:0 auto;padding:0 22px;height:62px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.logo{display:flex;align-items:center;gap:10px;color:#fff;font-weight:800;font-size:20px;text-decoration:none}
+header a.back{color:#bfd8d1;text-decoration:none;font-size:15px}header a.back:hover{color:#fff}
+.wrap{max-width:1000px;margin:0 auto;padding:40px 22px 56px;display:grid;grid-template-columns:200px minmax(0,1fr);gap:48px}
+.side{position:sticky;top:20px;align-self:start;font-size:15px}
+.side a{display:block;padding:7px 12px;margin-bottom:2px;border-radius:8px;color:var(--mut);text-decoration:none;font-weight:600}
+.side a:hover{background:var(--paper)}
+.side a.on{background:var(--paper);color:var(--ink);box-shadow:inset 3px 0 0 var(--amber)}
+article{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:36px 40px}
+h1{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;font-size:clamp(28px,4vw,38px);line-height:1.15;margin:0 0 6px;letter-spacing:-.5px}
+.upd{margin:0 0 26px;color:var(--mut);font-size:15px}
+h2{font-size:19px;line-height:1.3;margin:30px 0 8px}
+p,li{color:var(--mut)}p{margin:0 0 14px}ul{margin:0 0 14px;padding-left:22px}li{margin-bottom:6px}
+a{color:var(--amber-d)}
+.note{margin-top:30px;padding:14px 16px;border-radius:8px;background:var(--bg);border:1px solid var(--line);color:var(--ink)}
+footer{background:var(--deep);color:#9bb8b0;font-size:14px;padding:20px 0 28px}
+footer .w{max-width:1000px;margin:0 auto;padding:0 22px}
+@media(max-width:800px){.wrap{display:block;padding:24px 16px 40px}.side{position:static;display:flex;flex-wrap:wrap;gap:4px;margin-bottom:16px}article{padding:24px 20px}}
+:focus-visible{outline:3px solid var(--amber);outline-offset:3px}
+</style></head>
+<body>
+<header><div class="w"><a class="logo" href="/">{% include "app/logo.html" with size=30 %}MedSync</a><a class="back" href="/">&larr; Back to home page</a></div></header>
+<div class="wrap">
+<nav class="side" aria-label="Policies">{% for k, p in pages.items %}<a href="/{{ k }}/"{% if k == key %} class="on" aria-current="page"{% endif %}>{{ p.0 }}</a>{% endfor %}</nav>
+<article>
+<h1>{{ title }}</h1>
+<p class="upd">Last updated: {{ updated }}</p>
+{% block body %}{% endblock %}
+<div class="note"><strong>Questions?</strong> {% if contact_whatsapp %}<a href="{{ contact_whatsapp }}" rel="noopener nofollow">Chat with us on WhatsApp</a>{% endif %}{% if contact_whatsapp and contact_email %} or {% endif %}{% if contact_email %}write to <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>{% endif %}{% if not contact_whatsapp and not contact_email %}Please use the contact details on the <a href="/">home page</a>.{% endif %}</div>
+</article></div>
+<footer><div class="w">&copy; MedSync. Pharmacy inventory and billing software.</div></footer>
+</body></html>

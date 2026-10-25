@@ -20,7 +20,7 @@
 <label for="password">Password</label><div class="pw"><input type="password" id="password" name="password" autocomplete="new-password"{% if errors.password %} class="bad"{% endif %}><button type="button" aria-pressed="false">Show</button></div>{% if errors.password %}<div class="err">{{ errors.password }}</div>{% else %}<p class="hint">At least 8 characters, not only digits.</p>{% endif %}
 <label for="password2">Password again</label><input type="password" id="password2" name="password2" autocomplete="new-password"{% if errors.password2 %} class="bad"{% endif %}>{% if errors.password2 %}<div class="err">{{ errors.password2 }}</div>{% endif %}
 </fieldset>
-<label class="chk"><input type="checkbox" name="agree" value="1"{% if values.agree %} checked{% endif %}><span>I agree to the terms of use and the privacy policy of MedSync.</span></label>{% if errors.agree %}<div class="err">{{ errors.agree }}</div>{% endif %}
+<label class="chk"><input type="checkbox" name="agree" value="1"{% if values.agree %} checked{% endif %}><span>I agree to the <a href="/terms/" target="_blank" rel="noopener">terms of use</a> and the <a href="/privacy/" target="_blank" rel="noopener">privacy policy</a> of MedSync.</span></label>{% if errors.agree %}<div class="err">{{ errors.agree }}</div>{% endif %}
 <button class="go">Create my shop</button></form>
 <div class="links"><span>Already have a shop?</span><a href="{% url 'login' %}">Sign in</a><a class="quiet" href="/">&larr; Back to home page</a></div>
 {% endblock %}

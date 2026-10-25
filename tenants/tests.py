@@ -112,6 +112,10 @@ class SignupFlowTests(TransactionTestCase):
         self.assertEqual(self.client.get('/sitemap.xml', HTTP_HOST=HOST).status_code, 404)
         self.assertContains(self.client.get('/robots.txt', HTTP_HOST=HOST), 'Disallow: /')
         self.assertEqual(self.client.get('/signup/', HTTP_HOST=HOST).status_code, 404)
+        for path in ('/terms/', '/privacy/', '/refund/'):                      # the policies belong to the main site
+            self.assertEqual(self.client.get(path, HTTP_HOST=HOST).status_code, 404, path)
+            self.assertEqual(self.client.get(path).status_code, 200, path)
+        self.assertContains(self.client.get('/signup/'), 'href="/privacy/"')
 
     def test_paused_and_locked_shops(self):
         self.sign_up()

@@ -22,16 +22,16 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
-{"@type":"SoftwareApplication","name":"MedSync","applicationCategory":"BusinessApplication","operatingSystem":"Web browser","url":"{{ site_url }}/","description":"Pharmacy inventory, GST billing, batch and expiry management software for medical stores in India.","featureList":["GST billing with barcode scan","Batch and expiry (FEFO) tracking","Alternative medicine suggestion","Supplier price comparison","Reorder suggestions","Schedule H/H1/X drug register","GSTR-1, GSTR-3B and HSN reports","Accountant Excel export","Customer credit ledger","Sales and purchase returns","Import from Excel","Daily automatic backup","Measured health score"],"offers":{"@type":"Offer","description":"Free demo on request","price":"0","priceCurrency":"INR"}},
+{"@type":"SoftwareApplication","name":"MedSync","applicationCategory":"BusinessApplication","operatingSystem":"Web browser","url":"{{ site_url }}/","description":"Pharmacy inventory, GST billing, batch and expiry management software for medical stores in India.","featureList":["GST billing with barcode scan","Batch and expiry (FEFO) tracking","Alternative medicine suggestion","Supplier price comparison","Reorder suggestions","Schedule H/H1/X drug register","GSTR-1, GSTR-3B and HSN reports","Accountant Excel export","Customer credit ledger","Sales and purchase returns","Import from Excel","Daily automatic backup","Measured health score"],"offers":{"@type":"Offer","description":"Free trial for every new shop","price":"0","priceCurrency":"INR"}},
 {"@type":"FAQPage","mainEntity":[
-{"@type":"Question","name":"Where is my data stored?","acceptedAnswer":{"@type":"Answer","text":"In your own database on your own server. Nothing is shared with anyone, and a compressed backup is taken every day."}},
+{"@type":"Question","name":"Where is my data stored?","acceptedAnswer":{"@type":"Answer","text":"In a private space made only for your shop. Other shops cannot see it, nothing is sold or shared, and a compressed backup is taken every day."}},
 {"@type":"Question","name":"Do I need special hardware?","acceptedAnswer":{"@type":"Answer","text":"No. MedSync runs in a web browser on any computer, tablet or phone. A barcode scanner works like a keyboard."}},
 {"@type":"Question","name":"Can my accountant use it?","acceptedAnswer":{"@type":"Answer","text":"Yes. One Excel export has the sales and purchase registers, credit and debit notes, GST by rate, expenses and payments. The GST page also gives GSTR-1, GSTR-3B and HSN summaries."}},
 {"@type":"Question","name":"Is Schedule H and H1 selling tracked?","acceptedAnswer":{"@type":"Answer","text":"Yes. Billing asks for the doctor and patient details for scheduled drugs, and the drug register exports to Excel."}},
 {"@type":"Question","name":"Can I move my existing stock into MedSync?","acceptedAnswer":{"@type":"Answer","text":"Yes. Products, stock and purchases can be imported from Excel or CSV. You see a preview and any problems before anything is saved."}},
 {"@type":"Question","name":"What happens to expired medicines?","acceptedAnswer":{"@type":"Answer","text":"Expired batches are never billed. They are listed on the expiry page, and you can return them to the supplier or write them off, and stock and accounts adjust automatically."}},
 {"@type":"Question","name":"Can several staff use it at once?","acceptedAnswer":{"@type":"Answer","text":"Yes. Each person has a login with a role, so billing staff, purchase staff and the owner each see only what they need."}},
-{"@type":"Question","name":"How do I know the numbers are right?","acceptedAnswer":{"@type":"Answer","text":"The owner's health score compares stock with batches, opens the latest backup to check it, times the pages on your own server and lists every problem with its reason."}}]}]}
+{"@type":"Question","name":"How do I know the numbers are right?","acceptedAnswer":{"@type":"Answer","text":"The owner's health score compares stock with batches, opens the latest backup to check it, times the pages on the server and lists every problem with its reason."}}]}]}
 </script>
 <style>
 :root{--bg:#f2f7f4;--paper:#fff;--ink:#0a2f2a;--mut:#3f5a54;--line:#cfdcd6;--deep:#0a2f2a;--on-deep:#e9f5f1;--amber:#d98324;--amber-d:#9a5a0f;--red:#b42318;--green:#13795b;--foil:#e6ecea}
@@ -62,7 +62,8 @@ header .btn{padding:8px 16px;font-size:15px}
 .hero .w{display:grid;grid-template-columns:1.1fr .9fr;gap:44px;align-items:center}
 .hero .lead{font-size:19px;color:#bfd8d1;max-width:31em;margin-bottom:26px}
 .cta{display:flex;gap:12px;flex-wrap:wrap}
-.keys{margin-top:26px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;color:#bfd8d1;font-size:14px}
+.assure{margin:14px 0 0;font-size:15px;color:#bfd8d1}
+.keys{margin-top:22px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;color:#bfd8d1;font-size:14px}
 kbd{font:600 13px ui-monospace,Consolas,monospace;background:#16443d;border:1px solid #2c6b60;border-bottom-width:3px;border-radius:6px;padding:2px 8px;color:#e9f5f1}
 .slip{position:relative;background:#fffef9;color:#15211f;font:13px/1.5 ui-monospace,"SFMono-Regular",Consolas,"Liberation Mono",monospace;padding:20px 20px 26px;max-width:380px;margin-left:auto;transform:rotate(1.6deg);box-shadow:0 24px 50px rgb(0 0 0/.35);
 -webkit-mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) bottom/16px 100% repeat-x;mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) bottom/16px 100% repeat-x}
@@ -142,16 +143,24 @@ details p{margin:10px 0 0;color:var(--mut);max-width:44em}
 .plans .pr{display:block;font:700 34px Georgia,serif;margin:6px 0 2px;color:var(--ink)}
 .plans p{margin:0 0 14px;color:var(--mut);font-size:14.5px}
 .plans .best{border-color:var(--amber);box-shadow:0 0 0 2px var(--amber) inset}
+.incl{list-style:none;margin:22px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:8px 22px;color:var(--mut);font-size:15px}
+.incl li{padding-left:24px;position:relative}
+.incl li::before{content:"";position:absolute;left:2px;top:6px;width:12px;height:7px;border-left:3px solid var(--green);border-bottom:3px solid var(--green);transform:rotate(-45deg)}
 .pnote{margin-top:16px;color:var(--mut);font-size:15px}
 .final{background:var(--deep);color:var(--on-deep);padding:72px 0}
 .final .w{display:grid;grid-template-columns:1.2fr .8fr;gap:30px;align-items:center}
 .final p{color:#bfd8d1;font-size:18px}
-footer{background:var(--deep);color:#9bb8b0;font-size:14px;padding:22px 0 30px;border-top:1px solid #16443d}
-footer .w{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
-footer a{margin-right:16px;text-decoration:none}footer .sh{flex-basis:100%}
+footer{background:var(--deep);color:#9bb8b0;font-size:15px;padding:44px 0 26px;border-top:1px solid #16443d}
+footer .fcols{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:34px}
+footer .fb p{margin:10px 0 8px;max-width:26em;line-height:1.55}
+footer .fl{color:#fff;font-size:20px;font-weight:800;letter-spacing:-.3px}
+footer .fh{display:block;margin-bottom:10px;color:#e9f5f1;font-weight:700}
+footer a{display:block;margin:0 0 8px;text-decoration:none;color:#9bb8b0}footer a:hover{color:#fff;text-decoration:underline}
+footer .sh{grid-column:1/-1;padding-top:20px;border-top:1px solid #16443d;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center}footer .sh a{display:inline;margin:0}
+footer .legal{grid-column:1/-1;font-size:14px}
 :focus-visible{outline:3px solid var(--amber);outline-offset:3px}
-@media(max-width:900px){.chip{left:8px}.hero .w,.row,.final .w{grid-template-columns:1fr}.row.rev .txt{order:0}.row{gap:26px}.slipwrap{margin:0 auto}.slip{margin:0 auto}.facts .w{grid-template-columns:1fr 1fr}.day{grid-template-columns:1fr 1fr}.day li{padding-bottom:20px}.steps,.roles{grid-template-columns:1fr}.guard{columns:1}nav a.h{display:none}section{padding:48px 0}.hero{padding:40px 0 52px}}
-@media(max-width:480px){.day{grid-template-columns:1fr}.facts .w{grid-template-columns:1fr}.hs{flex-direction:column;align-items:stretch}.ring{margin:0 auto}}
+@media(max-width:900px){.chip{left:8px}.hero .w,.row,.final .w{grid-template-columns:1fr}.row.rev .txt{order:0}.row{gap:26px}.slipwrap{margin:0 auto}.slip{margin:0 auto}.facts .w{grid-template-columns:1fr 1fr}.day{grid-template-columns:1fr 1fr}.day li{padding-bottom:20px}.steps,.roles{grid-template-columns:1fr}.guard{columns:1}nav a.h{display:none}section{padding:48px 0}.hero{padding:40px 0 52px}footer .fcols{grid-template-columns:1fr 1fr}footer .fb{grid-column:1/-1}}
+@media(max-width:480px){footer .fcols{grid-template-columns:1fr}.day{grid-template-columns:1fr}.facts .w{grid-template-columns:1fr}.hs{flex-direction:column;align-items:stretch}.ring{margin:0 auto}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 </style>
 </head>
@@ -169,6 +178,7 @@ footer a{margin-right:16px;text-decoration:none}footer .sh{flex-basis:100%}
 <h1>Pharmacy billing and GST software for medical stores</h1>
 <p class="lead">MedSync is pharmacy software that bills in seconds, sells the oldest batch first, warns you before medicines expire, and hands your accountant a ready Excel. Medical stores type less because it fills in what it can, so the numbers stay right, without the guesswork.</p>
 <div class="cta"><a class="btn" href="{{ cta_url }}">{{ cta_hero }}</a><a class="btn o" href="#features">See what it does</a></div>
+{% if pricing %}<p class="assure">Free for {{ trial_days }} days. No card needed. Stop any time.</p>{% endif %}
 <div class="keys" aria-label="Billing keys"><span>Billing in three keys:</span><kbd>F2</kbd> search <kbd>Enter</kbd> next field <kbd>F9</kbd> save</div>
 </div>
 <div class="slipwrap">
@@ -195,7 +205,7 @@ footer a{margin-right:16px;text-decoration:none}footer .sh{flex-basis:100%}
 <div><span class="w7">Runs in any browser</span><span>Computer, tablet or phone. No special hardware.</span></div>
 <div><span class="w7">Barcode ready</span><span>A scanner works like a keyboard. Scan, and the cursor stays put.</span></div>
 <div><span class="w7">Daily backup</span><span>Taken every day, and the latest one is actually opened and checked.</span></div>
-<div><span class="w7">Your data, your server</span><span>Nothing is shared with anyone.</span></div>
+<div><span class="w7">Private to your shop</span><span>Every shop has its own space. Nobody else can see your data.</span></div>
 </div></div>
 
 <section id="day"><div class="w">
@@ -293,7 +303,7 @@ footer a{margin-right:16px;text-decoration:none}footer .sh{flex-basis:100%}
 <ul>
 <li><span class="w7">Data (40):</span> stock against batches, negative batches.</li>
 <li><span class="w7">Safety (25):</span> backup age, whether the latest backup really opens, database integrity, secure settings.</li>
-<li><span class="w7">Speed (20):</span> pages timed on your own server.</li>
+<li><span class="w7">Speed (20):</span> pages timed on the server.</li>
 <li><span class="w7">Shop (15):</span> expired stock, low stock, missing MRP and HSN.</li>
 </ul></div>
 <div><div class="win" role="img" aria-label="Illustration of the health score with sample numbers">
@@ -337,15 +347,15 @@ footer a{margin-right:16px;text-decoration:none}footer .sh{flex-basis:100%}
 <div class="roles">
 <div><h3>Backups you can trust</h3><p>A compressed backup every day, kept for you to restore, and the owner is warned if one is missed.</p></div>
 <div><h3>Access you control</h3><p>Role-based logins, owner-only pages, login throttling after repeated wrong passwords and an audit log.</p></div>
-<div><h3>Data that stays yours</h3><p>It lives in your own database on your own server. Debug details are switched off, and logins are forced onto a secure connection.</p></div>
+<div><h3>Data that stays yours</h3><p>Each shop gets its own private space, and we never sell or share it. Sign-in runs over a secure connection, and your reports export to Excel whenever you want them.</p></div>
 </div></div></section>
 
 <section class="p"><div class="w">
 <div class="head"><h2>Start without stopping the shop</h2><p>You do not need to stop selling to switch.</p></div>
 <ol class="steps">
-<li><span class="w7">Tell us about your shop</span>We set up your units, GST rates and staff logins.</li>
+{% if pricing %}<li><span class="w7">Create your shop</span>Sign up with your email. It takes a minute, needs no card, and your shop gets its own web address.</li>{% else %}<li><span class="w7">Tell us about your shop</span>We set up your units, GST rates and staff logins.</li>{% endif %}
 <li><span class="w7">Bring your stock</span>Upload your Excel sheet, check the preview and save. Old data stays in your file.</li>
-<li><span class="w7">Start billing</span>Your first bill takes a minute. We stay with you while your staff learn.</li>
+<li><span class="w7">Start billing</span>Your first bill takes a minute.{% if pricing %} Write to us any time while your staff learn.{% else %} We stay with you while your staff learn.{% endif %}</li>
 </ol>
 </div></section>
 
@@ -355,19 +365,20 @@ footer a{margin-right:16px;text-decoration:none}footer .sh{flex-basis:100%}
 <div><span class="pn">Monthly</span><span class="pr">Rs {{ price_monthly }}</span><p>a month. Stop whenever you like. Your data stays with you.</p><a class="btn" href="/signup/">Try the monthly plan free</a></div>
 <div class="best"><span class="pn">Yearly{% if price_saving %}, save Rs {{ price_saving }}{% endif %}</span><span class="pr">Rs {{ price_yearly }}</span><p>a year. The best value for a shop that is here to stay.</p><a class="btn" href="/signup/">Try the yearly plan free</a></div>
 </div>
+<ul class="incl"><li>Billing, stock, batch and expiry</li><li>GST reports and the accountant Excel</li><li>Staff logins with roles</li><li>A daily backup of your shop</li><li>Help to set up</li></ul>
 <p class="pnote">Questions before you start?{% if contact_whatsapp %} <a href="{{ contact_whatsapp }}" rel="noopener nofollow">Ask us on WhatsApp</a>{% endif %}{% if contact_email %} <a href="mailto:{{ contact_email }}">Write to {{ contact_email }}</a>{% endif %}{% if not contact_whatsapp and not contact_email %} Sign up and we will help you set up.{% endif %}</p>
 </div></section>{% endif %}
 
 <section id="faq"><div class="w">
 <div class="head"><h2>Questions shop owners ask</h2></div>
-<details><summary>Where is my data stored?</summary><p>In your own database on your own server. Nothing is shared with anyone, and a compressed backup is taken every day.</p></details>
+<details><summary>Where is my data stored?</summary><p>In a private space made only for your shop. Other shops cannot see it, nothing is sold or shared, and a compressed backup is taken every day.</p></details>
 <details><summary>Do I need special hardware?</summary><p>No. MedSync runs in a web browser on any computer, tablet or phone. A barcode scanner works like a keyboard.</p></details>
 <details><summary>Can my accountant use it?</summary><p>Yes. One Excel export has the sales and purchase registers, credit and debit notes, GST by rate, expenses and payments. The GST page also gives GSTR-1, GSTR-3B and HSN summaries.</p></details>
 <details><summary>Is Schedule H and H1 selling tracked?</summary><p>Yes. Billing asks for the doctor and patient details for scheduled drugs, and the drug register exports to Excel.</p></details>
 <details><summary>Can I move my existing stock into MedSync?</summary><p>Yes. Products, stock and purchases can be imported from Excel or CSV. You see a preview and any problems before anything is saved.</p></details>
 <details><summary>What happens to expired medicines?</summary><p>Expired batches are never billed. They are listed on the expiry page, and you can return them to the supplier or write them off. Stock and accounts adjust automatically.</p></details>
 <details><summary>Can several staff use it at once?</summary><p>Yes. Each person has a login with a role, so billing staff, purchase staff and the owner each see only what they need.</p></details>
-<details><summary>How do I know the numbers are right?</summary><p>The owner's health score compares stock with batches, opens the latest backup to check it, times the pages on your own server and lists every problem with its reason.</p></details>
+<details><summary>How do I know the numbers are right?</summary><p>The owner's health score compares stock with batches, opens the latest backup to check it, times the pages on the server and lists every problem with its reason.</p></details>
 </div></section>
 
 {% if latest_posts %}<section class="p"><div class="w">
@@ -377,10 +388,16 @@ footer a{margin-right:16px;text-decoration:none}footer .sh{flex-basis:100%}
 </div></section>{% endif %}
 
 <div class="final"><div class="w">
-<div><h2>See it with your own medicines</h2><p>Send us a message. We will show you a demo with your kind of stock and bills, and answer your questions.</p></div>
+{% if pricing %}<div><h2>Try it with your own medicines</h2><p>Create your shop and bill your first customer today. It is free for {{ trial_days }} days, needs no card, and you can stop whenever you like.</p></div>{% else %}<div><h2>See it with your own medicines</h2><p>Send us a message. We will show you a demo with your kind of stock and bills, and answer your questions.</p></div>{% endif %}
 <div><a class="btn" href="{{ cta_url }}">{{ cta_final }}</a></div>
 </div></div>
 </main>
-<footer><div class="w"><div><a href="#features">Product features</a><a href="#day">A day in the shop</a><a href="#safe">Safety and backups</a>{% if pricing %}<a href="#pricing">Plans and prices</a>{% endif %}<a href="#faq">Questions and answers</a><a href="/blog/">Blog articles</a><a href="{% url 'login' %}">Sign in</a></div><div>© MedSync. Pharmacy inventory and billing software. Pictures use sample data.</div><div class="sh">Share MedSync: <a href="https://wa.me/?text={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">WhatsApp</a><a href="https://www.facebook.com/sharer/sharer.php?u={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">Facebook</a><a href="https://twitter.com/intent/tweet?url={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">X (Twitter)</a><a href="https://www.linkedin.com/sharing/share-offsite/?url={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">LinkedIn</a><a href="https://t.me/share/url?url={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">Telegram</a></div></div></footer>
+<footer><div class="w fcols">
+<div class="fb"><span class="fl">MedSync</span><p>Pharmacy inventory and billing software for medical stores in India. GST billing, batch and expiry tracking and reports for your accountant.</p>{% if contact_whatsapp or contact_email %}<p>{% if contact_whatsapp %}<a href="{{ contact_whatsapp }}" rel="noopener nofollow">Chat on WhatsApp</a>{% endif %}{% if contact_email %}<a href="mailto:{{ contact_email }}">Email us</a>{% endif %}</p>{% endif %}</div>
+<div><span class="fh">Product</span><a href="#features">Product features</a><a href="#day">A day in the shop</a><a href="#safe">Safety and backups</a>{% if pricing %}<a href="#pricing">Plans and prices</a>{% endif %}<a href="#faq">Questions and answers</a><a href="/blog/">Blog articles</a></div>
+<div><span class="fh">Account and policies</span><a href="{% url 'login' %}">Sign in</a>{% if pricing %}<a href="/signup/">Sign up free</a>{% endif %}<a href="/terms/">Terms of use</a><a href="/privacy/">Privacy policy</a><a href="/refund/">Refund and cancellation</a></div>
+<div class="sh"><span>Share MedSync:</span> <a href="https://wa.me/?text={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">WhatsApp</a><a href="https://www.facebook.com/sharer/sharer.php?u={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">Facebook</a><a href="https://twitter.com/intent/tweet?url={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">X (Twitter)</a><a href="https://www.linkedin.com/sharing/share-offsite/?url={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">LinkedIn</a><a href="https://t.me/share/url?url={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">Telegram</a></div>
+<div class="legal">&copy; MedSync. All rights reserved. Pictures on this page use sample data.</div>
+</div></footer>
 </body>
 </html>

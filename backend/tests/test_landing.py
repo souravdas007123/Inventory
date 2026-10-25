@@ -169,3 +169,28 @@ class LogoutAndLoginLinksTests(TestCase):
         resp = self.client.get('/login/')
         self.assertContains(resp, 'href="/">')
         self.assertContains(resp, 'Back to home page')
+
+
+@override_settings(**SAFE)
+class LegalPagesTests(TestCase):
+    def test_terms_privacy_and_refund_pages_are_public(self):
+        for path, word in (('/terms/', 'Terms of use'), ('/privacy/', 'Privacy policy'), ('/refund/', 'Refund and cancellation')):
+            resp = self.client.get(path)
+            self.assertEqual(resp.status_code, 200, path)
+            self.assertContains(resp, word)
+            self.assertContains(resp, '<h1>' + word + '</h1>', html=False)
+            self.assertNotContains(resp, 'noindex')
+
+    def test_the_home_page_footer_links_to_the_policies(self):
+        page = self.client.get('/').content.decode()
+        for path in ('/terms/', '/privacy/', '/refund/'):
+            self.assertIn(f'href="{path}"', page)
+
+    def test_the_policies_are_in_the_sitemap_and_robots(self):
+        self.assertContains(self.client.get('/sitemap.xml'), '<loc>http://testserver/privacy/</loc>')
+        self.assertContains(self.client.get('/robots.txt'), 'Allow: /terms/')
+
+    def test_the_home_page_no_longer_says_your_own_server(self):
+        page = self.client.get('/').content.decode().lower()
+        self.assertNotIn('own server', page)
+        self.assertNotIn('your server', page)

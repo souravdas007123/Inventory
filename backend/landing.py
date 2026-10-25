@@ -72,7 +72,7 @@ def home(request):
 def robots_txt(request):
     if not tenancy.is_platform():
         return HttpResponse('User-agent: *\nDisallow: /\n', content_type='text/plain')
-    body = f"User-agent: *\nAllow: /$\nAllow: /blog/\nAllow: /favicon.ico\nAllow: /favicon.svg\nAllow: /apple-touch-icon.png\nAllow: /og.png\nDisallow: /\n\nSitemap: {_site_url(request)}/sitemap.xml\n"
+    body = f"User-agent: *\nAllow: /$\nAllow: /blog/\nAllow: /terms/\nAllow: /privacy/\nAllow: /refund/\nAllow: /favicon.ico\nAllow: /favicon.svg\nAllow: /apple-touch-icon.png\nAllow: /og.png\nDisallow: /\n\nSitemap: {_site_url(request)}/sitemap.xml\n"
     return HttpResponse(body, content_type='text/plain')
 
 
@@ -82,7 +82,10 @@ def sitemap_xml(request):
         raise Http404
     base = _site_url(request)
     urls = [f'  <url><loc>{base}/</loc><changefreq>monthly</changefreq><priority>1.0</priority></url>',
-            f'  <url><loc>{base}/blog/</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>']
+            f'  <url><loc>{base}/blog/</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>',
+            f'  <url><loc>{base}/terms/</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>',
+            f'  <url><loc>{base}/privacy/</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>',
+            f'  <url><loc>{base}/refund/</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>']
     try:
         for p in BlogPost.live():
             urls.append(f'  <url><loc>{base}{escape(p.get_absolute_url())}</loc><lastmod>{p.updated_at:%Y-%m-%d}</lastmod>'
