@@ -21,6 +21,15 @@ class ThrottledLoginView(LoginView):
     """Login is blocked for 15 minutes (per IP + username) after 5 failed attempts."""
     template_name = 'app/login.html'
 
+    def dispatch(self, request, *args, **kwargs):
+        from django.conf import settings
+        if getattr(settings, 'MULTI_SHOP', False):
+            from . import tenancy
+            if tenancy.is_platform():                # the main site: one sign-in page for every shop (see tenants/mainlogin.py)
+                from tenants.mainlogin import main_login
+                return main_login(request)
+        return super().dispatch(request, *args, **kwargs)
+
     def _key(self):
         user = (self.request.POST.get('username') or '').strip().lower()
         raw = f"{client_ip(self.request)}|{user}"

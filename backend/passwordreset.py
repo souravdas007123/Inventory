@@ -39,7 +39,29 @@ class ForgotView(PasswordResetView):
         address = _too_many('forgot-mail:' + _hash(email), MAX_PER_ADDRESS)
         if visitor or address:                               # silently nothing: the page looks the same
             return redirect(self.success_url)
+        self.send_to_shop_owner(form, email)
         return super().form_valid(form)
+
+    def send_to_shop_owner(self, form, email):
+        """On the main site, a shop owner's account is inside his shop: send the link to his shop's own address."""
+        from django.conf import settings
+        from . import tenancy
+        if not getattr(settings, 'MULTI_SHOP', False) or not tenancy.is_platform():
+            return
+        from django_tenants.utils import schema_context
+
+        from tenants.models import Domain, Shop
+        port = self.request.get_port()
+        extra = f':{port}' if port not in ('80', '443') else ''
+        for shop in Shop.objects.filter(email__iexact=email):
+            domain = Domain.objects.filter(tenant=shop).order_by('-is_primary', 'id').first()
+            if domain is None:
+                continue
+            with schema_context(shop.schema_name):
+                form.save(domain_override=domain.domain + extra, use_https=self.request.is_secure(),
+                          token_generator=self.token_generator, from_email=self.from_email,
+                          email_template_name=self.email_template_name, subject_template_name=self.subject_template_name,
+                          request=self.request)
 
 
 class ConfirmView(PasswordResetConfirmView):

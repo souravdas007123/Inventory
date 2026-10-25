@@ -331,3 +331,20 @@ gets an email with a link to choose a new password (`/reset-password/...`). The 
 - Emails go out through the same SMTP settings as the other mails (`DJANGO_EMAIL_*` in `.env`).
 - Accounts without an email address cannot use this. For those: `python manage.py changepassword <username>`
   (for one shop: `python manage.py tenant_command changepassword --schema=s_<name>`).
+
+## One sign-in page for every shop (main site)
+
+With many shops on, everybody can sign in at the main site's `/login/` — nobody has to remember a shop address.
+
+- **Owner:** types the email used at sign-up and the password. We find the shop by that email, check the password inside the shop,
+  then send the person to his shop's own address, already signed in.
+- **Staff:** types his username and password and opens "Staff member? Enter your shop address" to give the shop name
+  (`sharma-medical`, the full address or a link all work). Usernames are only unique inside one shop, so staff need the shop name.
+- **Main shop users** (and platform admins) sign in as before and stay on the main site.
+- The shop's own address (`<name>.<base domain>/login/`) still works exactly as before.
+- How the hand-over works: the main site and each shop are different web addresses, so a sign-in cannot be shared. The main site
+  makes a one-time pass (table `tenants_logintoken`, valid for 1 minute, works once and only for that shop) and opens
+  `/sso/<pass>/` on the shop, which then signs the person in.
+- Wrong details always give the same message, and the same lock applies (5 wrong tries, then 15 minutes per address and name).
+- "Forgot your password?" on the main site also reaches shop owners: the email link opens on the owner's own shop address.
+- Needs `python manage.py migrate_schemas --shared` once (adds `tenants.0006_logintoken`).

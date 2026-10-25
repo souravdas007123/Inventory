@@ -65,6 +65,18 @@ class PendingSignup(models.Model):
         return timezone.now() - self.created_at > timedelta(hours=self.VALID_HOURS)
 
 
+class LoginToken(models.Model):
+    """A one-time pass that carries a person from the main site's sign-in page into his own shop (valid for one minute)."""
+    VALID_SECONDS = 60
+
+    token = models.CharField(max_length=64, unique=True)
+    schema_name = models.CharField(max_length=63)
+    user_id = models.IntegerField()
+    next_url = models.CharField(max_length=300, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    used = models.BooleanField(default=False)
+
+
 class Payment(models.Model):
     """One payment received from a shop (entered by the platform owner when the money arrives)."""
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='payments')

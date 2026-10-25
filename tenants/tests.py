@@ -147,6 +147,71 @@ class SignupFlowTests(TransactionTestCase):
         r = self.client.post('/login/', {'username': 'raj@example.com', 'password': 'BrandNew#97531'}, HTTP_HOST=HOST)
         self.assertEqual(r.status_code, 302)
 
+    def main_login(self, ident='raj@example.com', password=GOOD['password'], **extra):
+        return self.client.post('/login/', dict(username=ident, password=password, **extra))
+
+    def sso_path(self, response):
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response['Location'].startswith('http://' + HOST + '/sso/'), response['Location'])
+        return '/' + response['Location'].split('/', 3)[3]
+
+    def test_main_site_login_takes_a_shop_owner_into_his_shop(self):
+        self.sign_up()
+        self.confirm()
+        path = self.sso_path(self.main_login())
+        r = self.client.get(path, HTTP_HOST=HOST)
+        self.assertEqual((r.status_code, r['Location']), (302, '/'))
+        self.assertEqual(self.client.get('/', HTTP_HOST=HOST).status_code, 200)               # signed in inside the shop
+        self.assertEqual(self.client.get('/sso/' + path.split('/')[2] + '/', HTTP_HOST=HOST).status_code, 400)   # used once only
+
+    def test_the_pass_is_one_minute_and_only_for_its_own_shop(self):
+        from tenants.models import LoginToken
+        self.sign_up()
+        self.confirm()
+        path = self.sso_path(self.main_login())
+        LoginToken.objects.update(created_at=timezone.now() - timedelta(minutes=5))
+        self.assertEqual(self.client.get(path, HTTP_HOST=HOST).status_code, 400)               # too late
+        self.assertEqual(self.client.get(path).status_code, 404)                               # the main site has no such page
+
+    def test_main_site_login_wrong_password_and_lock(self):
+        self.sign_up()
+        self.confirm()
+        r = self.main_login(password='wrong-password-1')
+        self.assertContains(r, 'Incorrect email, username or password.')
+        self.assertContains(self.main_login(ident='nobody@example.com', password='x'), 'Incorrect email')
+        for _ in range(5):
+            self.main_login(password='wrong-password-1')
+        self.assertEqual(self.main_login().status_code, 429)                                   # even the right password now
+
+    def test_staff_sign_in_with_shop_address(self):
+        from django.contrib.auth import get_user_model
+        from django_tenants.utils import schema_context
+        self.sign_up()
+        self.confirm()
+        with schema_context(SCHEMA):
+            get_user_model().objects.create_user('ramesh', password='Staff-pass-4455')
+        self.assertContains(self.main_login('ramesh', 'Staff-pass-4455'), 'Incorrect')           # no shop given: cannot be found
+        self.assertContains(self.main_login('ramesh', 'Staff-pass-4455', shop='other-shop'), 'Incorrect')
+        for text in ('sharma-test', 'Sharma-Test.localhost', 'https://sharma-test.localhost/login/'):
+            self.client.cookies.clear()
+            cache.clear()
+            self.assertTrue(self.sso_path(self.main_login('ramesh', 'Staff-pass-4455', shop=text)))
+
+    def test_main_shop_users_still_sign_in_on_the_main_site(self):
+        from django.contrib.auth import get_user_model
+        user = get_user_model().objects.create_user('boss', password='Boss-pass-123456')
+        self.addCleanup(user.delete)
+        r = self.main_login('boss', 'Boss-pass-123456')
+        self.assertEqual((r.status_code, r['Location']), (302, '/'))
+
+    def test_forgot_password_on_the_main_site_reaches_a_shop_owner(self):
+        self.sign_up()
+        self.confirm()
+        mail.outbox.clear()
+        self.assertEqual(self.client.post('/forgot/', {'email': 'raj@example.com'}).status_code, 302)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('http://' + HOST + '/reset-password/', mail.outbox[0].body)
+
     def test_backups_of_one_shop_stay_inside_that_shop(self):
         from backend import backup
         from django_tenants.utils import schema_context

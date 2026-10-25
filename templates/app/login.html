@@ -17,9 +17,15 @@ button{width:100%;margin-top:20px;padding:12px;border:0;border-radius:10px;backg
 .err{background:#e11d4822;color:var(--red);padding:10px;border-radius:10px;margin-bottom:8px}
 </style></head>
 <body><form class="box" method="post">{% csrf_token %}
-<h1 style="display:flex;align-items:center;gap:10px">{% include "app/logo.html" with size=36 %}MedSync</h1><p>Sign in to your account</p>
-{% if locked %}<div class="err">Too many failed attempts. Please try again after 15 minutes.</div>{% elif form.errors %}<div class="err">Incorrect username or password.</div>{% endif %}
-<label>Username</label>{{ form.username }}
-<label>Password</label>{{ form.password }}
+<h1 style="display:flex;align-items:center;gap:10px">{% include "app/logo.html" with size=36 %}MedSync</h1><p>{% if main_site %}Sign in to your shop{% else %}Sign in to your account{% endif %}</p>
+{% if locked %}<div class="err">Too many failed attempts. Please try again after 15 minutes.</div>{% elif failed or form.errors %}<div class="err">{% if main_site %}Incorrect email, username or password.{% else %}Incorrect username or password.{% endif %}</div>{% endif %}
+{% if main_site %}<label for="id_username">Email or username</label>
+<input type="text" name="username" id="id_username" value="{{ ident }}" autocomplete="username" autocapitalize="none" required autofocus>
+<label for="id_password">Password</label>
+<input type="password" name="password" id="id_password" autocomplete="current-password" required>
+<details style="margin-top:12px"{% if shop_text %} open{% endif %}><summary style="cursor:pointer;font-size:13px;opacity:.75">Staff member? Enter your shop address</summary>
+<input type="text" name="shop" value="{{ shop_text }}" placeholder="for example: sharma-medical" autocapitalize="none" style="margin-top:8px"></details>
+{% else %}<label>Username</label>{{ form.username }}
+<label>Password</label>{{ form.password }}{% endif %}
 <input type="hidden" name="next" value="{{ next }}">
 <button>Login</button><a class="back" href="{% url 'forgot' %}">Forgot your password?</a><a class="back" style="margin-top:8px" href="/">&larr; Back to home page</a></form></body></html>

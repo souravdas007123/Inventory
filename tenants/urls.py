@@ -1,10 +1,11 @@
 from django.urls import path
 
-from . import plan, platform, views
+from . import mainlogin, plan, platform, views
 
 urlpatterns = [
     path('signup/', views.signup, name='signup'),
     path('signup/confirm/<str:token>/', views.confirm, name='signup_confirm'),
+    path('sso/<str:token>/', mainlogin.sso, name='sso'),
     path('plan/', plan.plan, name='plan'),
     path('superadmin/', platform.dashboard, name='platform'),
     path('superadmin/site/', platform.site_settings, name='platform_site'),
