@@ -44,4 +44,9 @@
 <form class="inline" method="post" action="{% url 'platform_shop_action' shop.pk %}">{% csrf_token %}<input type="hidden" name="action" value="note">
 <div style="flex:1;min-width:240px"><label for="note">Add a note</label><input id="note" name="note" maxlength="500" style="width:100%"></div><button>Save note</button></form>
 <pre style="margin-top:12px">{{ shop.notes }}</pre></div>
+<div class="card" style="margin-top:12px;border-color:var(--red)"><h2>Delete this shop</h2>
+<p class="mut">This removes the shop for good: its products, bills, users, payments and its web address. A last backup file is saved on the server first, and the web address and email can then be used to sign up again. To go on, type <b>{{ confirm_word }}</b> below.</p>
+<form class="inline" method="post" action="{% url 'platform_shop_delete' shop.pk %}">{% csrf_token %}
+<div><label for="confirm">Type {{ confirm_word }}</label><input id="confirm" name="confirm" autocomplete="off" autocapitalize="none" spellcheck="false" size="22"></div>
+<button class="warn" style="background:var(--red)">Delete the shop for good</button></form></div>
 {% endblock %}

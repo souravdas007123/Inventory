@@ -276,6 +276,58 @@ class PlatformPanelTests(TransactionTestCase):
         self.shop.refresh_from_db()
         return resp, [str(m) for m in resp.context['messages']]
 
+    def delete(self, confirm, backup_ok=True):
+        from pathlib import Path
+        from unittest import mock
+        patch = mock.patch('tenants.platform.backup.make_backup',
+                           return_value=Path('medsync_s_panel_test_20260101_000000.pgdump')) if backup_ok else \
+            mock.patch('tenants.platform.backup.make_backup', side_effect=RuntimeError('pg_dump missing'))
+        with patch:
+            resp = self.client.post(f'/superadmin/shop/{self.shop.pk}/delete/', {'confirm': confirm}, follow=True)
+        connection.set_schema_to_public()
+        return resp, [str(m) for m in resp.context['messages']]
+
+    def schema_exists(self):
+        with connection.cursor() as cur:
+            cur.execute('SELECT 1 FROM information_schema.schemata WHERE schema_name = %s', [self.SCHEMA])
+            return cur.fetchone() is not None
+
+    def test_a_shop_is_deleted_only_when_its_name_is_typed(self):
+        page = self.client.get(f'/superadmin/shop/{self.shop.pk}/')
+        self.assertContains(page, 'Delete this shop')
+        self.assertContains(page, 'Type panel-test')
+        resp, msgs = self.delete('wrong')
+        self.assertIn('does not match', msgs[0])
+        self.assertTrue(Shop.objects.filter(pk=self.shop.pk).exists())
+        self.assertTrue(self.schema_exists())
+
+    def test_deleting_a_shop_removes_everything_and_frees_the_address_and_email(self):
+        Payment.objects.create(shop=self.shop, plan='monthly', amount=700, paid_on=self.today, period_from=self.today,
+                               period_to=self.today + timedelta(days=30))
+        PendingSignup.objects.create(token='t1', subdomain='panel-test', shop_name='Panel', owner_name='O',
+                                     email='O@example.com', phone='9876543210', password_hash='x')
+        resp, msgs = self.delete('Panel-Test')                 # capital letters do not matter
+        self.assertIn('was deleted', msgs[0])
+        self.assertIn('medsync_s_panel_test_20260101_000000.pgdump', msgs[0])
+        self.assertFalse(Shop.objects.filter(schema_name=self.SCHEMA).exists())
+        self.assertFalse(Domain.objects.filter(domain=self.HOST).exists())
+        self.assertFalse(Payment.objects.filter(shop_id=self.shop.pk).exists())
+        self.assertFalse(PendingSignup.objects.filter(email__iexact='o@example.com').exists())
+        self.assertFalse(self.schema_exists())
+
+    def test_nothing_is_deleted_when_the_last_backup_fails(self):
+        resp, msgs = self.delete('panel-test', backup_ok=False)
+        self.assertIn('nothing was deleted', msgs[0])
+        self.assertTrue(Shop.objects.filter(pk=self.shop.pk).exists())
+        self.assertTrue(self.schema_exists())
+
+    def test_the_main_shop_and_unknown_shops_cannot_be_deleted(self):
+        main = Shop.objects.filter(schema_name='public').first()
+        if main:
+            self.assertEqual(self.client.post(f'/superadmin/shop/{main.pk}/delete/', {'confirm': 'public'}).status_code, 404)
+        self.assertEqual(self.client.post('/superadmin/shop/99999999/delete/', {'confirm': 'x'}).status_code, 404)
+        self.assertEqual(self.client.get(f'/superadmin/shop/{self.shop.pk}/delete/').status_code, 405)
+
     def test_only_a_platform_admin_can_open_the_panel(self):
         from django.contrib.auth import get_user_model
         self.client.logout()

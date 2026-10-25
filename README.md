@@ -348,3 +348,14 @@ With many shops on, everybody can sign in at the main site's `/login/` — nobod
 - Wrong details always give the same message, and the same lock applies (5 wrong tries, then 15 minutes per address and name).
 - "Forgot your password?" on the main site also reaches shop owners: the email link opens on the owner's own shop address.
 - Needs `python manage.py migrate_schemas --shared` once (adds `tenants.0006_logintoken`).
+
+## Deleting a shop (for tests and for shops that left)
+
+Open the shop in the platform panel (`/superadmin/`, then the shop) and use **Delete this shop** at the bottom.
+
+- You must type the first part of the shop's web address (shown on the page). Capital letters do not matter.
+- First a last backup of that shop is saved in the backup folder (`medsync_s_<name>_<date>.pgdump`). If it cannot be saved, nothing is deleted.
+- Then its data (products, bills, users), payments and web address are removed for good, together with any unconfirmed sign-up of the same email. The address and the email can be used to sign up again straight away.
+- The main shop cannot be deleted. Only platform admins see this button.
+- The last backup of a deleted shop is not cleaned up automatically. Delete the file by hand when you no longer need it.
+- To restore such a shop, see "Restore one shop".

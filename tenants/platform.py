@@ -20,7 +20,7 @@ from django.views.decorators.http import require_POST
 from backend import backup, tenancy
 
 from . import site
-from .models import Payment, Shop
+from .models import LoginToken, Payment, PendingSignup, Shop
 
 log = logging.getLogger(__name__)
 STATE_LABELS = {'trial': 'Free trial', 'active': 'Paid', 'locked': 'Locked', 'paused': 'Paused'}
@@ -152,7 +152,7 @@ def shop_detail(request, pk):
     row = _row(shop, today, fresh=True)
     row['url'] = _shop_link(request, row['domain'], '/login/')
     return render(request, 'app/platform_shop.html', dict(
-        row=row, shop=shop, payments=shop.payments.all()[:50], prices=prices(), today=today,
+        row=row, shop=shop, payments=shop.payments.all()[:50], prices=prices(), today=today, confirm_word=shop_name_to_type(shop),
         paid_total=shop.payments.aggregate(s=Sum('amount'))['s'] or Decimal('0')))
 
 
@@ -226,6 +226,53 @@ def shop_action(request, pk):
     except ValueError as e:
         messages.error(request, str(e))
     return redirect('platform_shop', pk=shop.pk)
+
+
+def shop_name_to_type(shop):
+    """What the platform owner must type to confirm a delete: the first part of the shop's web address."""
+    domain = shop.domains.filter(is_primary=True).first() or shop.domains.first()
+    return (domain.domain.split('.')[0] if domain else shop.schema_name[2:]).lower()
+
+
+def delete_shop(shop):
+    """Saves a last backup of the shop, then removes its data (schema), web address, payments and sign-up records for good.
+    Returns the name of the backup file. Raises ValueError when it is not safe to go on (the shop is left as it was)."""
+    from django_tenants.utils import schema_context
+    if shop.schema_name == settings.PUBLIC_SCHEMA_NAME:
+        raise ValueError('The main shop cannot be deleted.')
+    try:
+        with schema_context(shop.schema_name):
+            saved = backup.make_backup(keep=0)             # keep=0: a last backup is never pruned away
+    except Exception:
+        log.exception('Last backup of %s failed', shop.schema_name)
+        raise ValueError('The last backup of this shop could not be saved, so nothing was deleted.')
+    connection.set_schema_to_public()
+    schema, email = shop.schema_name, shop.email
+    with transaction.atomic():
+        LoginToken.objects.filter(schema_name=schema).delete()
+        if email:
+            PendingSignup.objects.filter(email__iexact=email).delete()
+        shop.delete(force_drop=True)                       # the schema, the row, its domains and payments
+    cache.delete(f'shop-stats:{schema}')
+    return saved.name
+
+
+@platform_admin_required
+@require_POST
+def shop_delete(request, pk):
+    shop = get_object_or_404(Shop.objects.exclude(schema_name=settings.PUBLIC_SCHEMA_NAME), pk=pk)
+    typed = (request.POST.get('confirm') or '').strip().lower()
+    if typed != shop_name_to_type(shop):
+        messages.error(request, 'The name you typed does not match, so nothing was deleted.')
+        return redirect('platform_shop', pk=shop.pk)
+    name = shop.name
+    try:
+        saved = delete_shop(shop)
+    except ValueError as e:
+        messages.error(request, str(e))
+        return redirect('platform_shop', pk=shop.pk)
+    messages.success(request, f'The shop "{name}" was deleted. Its last backup is saved as {saved}.')
+    return redirect('platform')
 
 
 @platform_admin_required
