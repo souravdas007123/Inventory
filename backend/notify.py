@@ -136,6 +136,36 @@ def whatsapp_link(text, phone=''):
     return f"{base}?text={quote(text)}"
 
 
+BILL_WA_ITEMS = 12      # item lines in the WhatsApp bill; more are summed up in one line, so the link stays short enough
+
+
+def bill_text(bill, shop_name, items, grand):
+    """The WhatsApp message for a customer's bill: items, GST, total and what is still due. `items` are InvoiceItem rows."""
+    zero = Decimal('0')
+    lines = [f"*{shop_name}*", f"Bill {bill.display_number} \u00b7 {bill.date:%d %b %Y}" if bill.date else f"Bill {bill.display_number}"]
+    name = (bill.customer_name or '').strip()
+    if name and name.lower() != 'cash':
+        lines.append(f"Hello {name},")
+    lines.append('')
+    for n, it in enumerate(items[:BILL_WA_ITEMS], 1):
+        qty = f"{it.qty} {it.unit or ''}".strip()
+        lines.append(f"{n}. {it.product.name if it.product else '-'} x {qty} - \u20b9{(it.total or zero):.2f}")
+    if len(items) > BILL_WA_ITEMS:
+        rest = items[BILL_WA_ITEMS:]
+        lines.append(f"+ {len(rest)} more item{'s' if len(rest) != 1 else ''} - \u20b9{sum((i.total or zero for i in rest), zero):.2f}")
+    gst = sum(((i.cgst or zero) + (i.sgst or zero) + (i.igst or zero) for i in items), zero)
+    lines.append('')
+    if gst:
+        lines.append(f"GST included: \u20b9{gst:.2f}")
+    lines.append(f"*Total: \u20b9{grand}*")
+    if bill.payment_mode == 'CREDIT':
+        lines.append(f"Paid now: \u20b9{(bill.amount_paid or zero):.2f}, due: \u20b9{bill.credit_due:.2f}")
+    else:
+        lines.append(f"Paid by {bill.get_payment_mode_display()}")
+    lines += ['', 'Thank you! Get well soon.']
+    return '\n'.join(lines)
+
+
 def credit_reminder_link(shop_name, name, phone, balance):
     """WhatsApp link (wa.me, no API) to remind a customer about outstanding credit."""
     text = (f"Hello {name}, this is a reminder from {shop_name or 'MedSync'} that your outstanding balance of \u20b9{balance:,.2f} "

@@ -296,6 +296,7 @@ CONFIG = {
         title='Billing', one='Bill', model=Bill, order=['-id'],
         related=['order'], prefetch=[models.Prefetch('items', queryset=InvoiceItem.objects.select_related('product', 'unit'))],
         search=['customer_name', 'invoice_number'],
+        actions=lambda o: [dict(label='\U0001F4AC WhatsApp', url=f'/bills/{o.pk}/whatsapp/', target='_blank')] if o.status == 'FINAL' else [],
         initial=lambda: {'date': timezone.localdate()},
         cols=[('Invoice No.', lambda o: o.display_number), ('Customer', lambda o: o.customer_name),
               ('Mode', lambda o: badge(o.invoice_mode.title(), 'green' if o.invoice_mode == 'online' else 'grey')),
@@ -999,9 +1000,8 @@ def invoice(request, pk):
         bill=bill, shop=ShopProfile.get(), rows=rows,
         taxable=s('taxable_value'), cgst=s('cgst'), sgst=s('sgst'), igst=s('igst'),
         total=total, round_off=grand - total, grand=grand,
-        wa_link=notify.whatsapp_link(
-            f"{ShopProfile.get().name} - Bill {bill.display_number} ({bill.date:%d %b %Y}): Total \u20b9{grand}. Thank you!",
-            bill.customer.phone if bill.customer_id else ''),
+        wa_link=notify.whatsapp_link(notify.bill_text(bill, ShopProfile.get().name, items, grand),
+                                     bill.customer.phone if bill.customer_id else ''),
         words=rupees_in_words(int(grand)),
         fmt='thermal' if request.GET.get('fmt') == 'thermal' else 'a4',
     ))

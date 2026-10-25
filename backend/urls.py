@@ -33,6 +33,7 @@ urlpatterns = [
     path('reset-password/<uidb64>/<token>/', passwordreset.ConfirmView.as_view(), name='reset_confirm'),
     path('report/', views.report, name='report'),
     path('shop/', views.shop, name='shop'),
+    path('bills/<int:pk>/whatsapp/', views_extra.bill_whatsapp, name='bill_whatsapp'),
     path('bills/<int:pk>/invoice/', views.invoice, name='invoice'),
     path('bills/hold/', views_extra.bill_hold, name='bill_hold'),
     path('bills/hold/<int:pk>/discard/', views_extra.bill_hold_discard, name='bill_hold_discard'),
