@@ -469,6 +469,7 @@ if (scan) {
   scan.addEventListener('input', () => { clearTimeout(scanTimer); scanTimer = setTimeout(() => lookup(scan.value.trim(), false), 250); });
   scan.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); lookup(scan.value.trim(), true); } });
 }
+{% include 'app/_camscan_bills.js' %}
 </script>{% endif %}{% if key == 'purchases' %}
 <script>
 // ---- Price hint: last price from this supplier, cheapest supplier, and how the typed price compares ----
@@ -775,6 +776,7 @@ if (scan) {
   supplierSel.addEventListener('change', () => dataRows().forEach(refresh));
   dataRows().forEach(refresh);
 })();
+{% include 'app/_camscan_purchases.js' %}
 </script>{% endif %}{% if key == 'expenses' %}{{ emp_salary|json_script:"emp-salary" }}
 <script>
 // An employee is chosen only for a Salary entry; picking one fills the amount with the monthly salary.

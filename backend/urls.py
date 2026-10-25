@@ -1,7 +1,7 @@
 from django.contrib.auth import views as auth_views
 from django.urls import path
 
-from . import blog, helpviews, landing, legal, passwordreset, security, views, views_extra, views_import
+from . import blog, helpviews, landing, legal, passwordreset, pwa, security, views, views_extra, views_import
 
 # NOTE: specific paths must always come BEFORE the generic '<str:key>/...' patterns below.
 urlpatterns = [
@@ -20,6 +20,11 @@ urlpatterns = [
     path('favicon.svg', landing.asset, {'name': 'favicon.svg'}, name='landing_favicon'),
     path('favicon.ico', landing.asset, {'name': 'favicon.ico'}, name='landing_favicon_ico'),
     path('apple-touch-icon.png', landing.asset, {'name': 'apple-touch-icon.png'}, name='landing_apple_icon'),
+    path('manifest.webmanifest', pwa.manifest, name='manifest'),
+    path('sw.js', pwa.service_worker, name='service_worker'),
+    path('icon-192.png', landing.asset, {'name': 'icon-192.png'}, name='icon_192'),
+    path('icon-512.png', landing.asset, {'name': 'icon-512.png'}, name='icon_512'),
+    path('icon-maskable-512.png', landing.asset, {'name': 'icon-maskable-512.png'}, name='icon_maskable'),
     path('login/', security.ThrottledLoginView.as_view(), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('forgot/', passwordreset.ForgotView.as_view(), name='forgot'),
