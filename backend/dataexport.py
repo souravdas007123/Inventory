@@ -32,7 +32,7 @@ def _is_number(text):
 
 
 def models():
-    return [m for m in apps.get_app_config('backend').get_models() if m.__name__ not in SKIP]
+    return [m for m in apps.get_app_config('backend').get_models() if m.__name__ not in SKIP and m._meta.managed and not m._meta.proxy]
 
 
 def table_csv(model):

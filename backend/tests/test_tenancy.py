@@ -121,12 +121,12 @@ class SiteFormTests(SimpleTestCase):
                                                       announcement='  Offer   today ', price_monthly='1,000', price_yearly='9000'))
         self.assertEqual(errors, [])
         self.assertEqual(values, dict(whatsapp='919876543210', contact_email='a@b.com', announcement='Offer today',
-                                      price_monthly=1000, price_yearly=9000))
+                                      shop_notice='', price_monthly=1000, price_yearly=9000))
 
     def test_blank_fields_hide_things_and_blank_prices_mean_standard(self):
         values, errors = tenancy.clean_site_form({})
         self.assertEqual(errors, [])
-        self.assertEqual(values, dict(whatsapp='', contact_email='', announcement='', price_monthly=None, price_yearly=None))
+        self.assertEqual(values, dict(whatsapp='', contact_email='', announcement='', shop_notice='', price_monthly=None, price_yearly=None))
 
     def test_bad_entries_give_one_message_each(self):
         _, errors = tenancy.clean_site_form(dict(whatsapp='abc', contact_email='x', announcement='y' * 201,
