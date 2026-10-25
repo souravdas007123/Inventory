@@ -12,6 +12,11 @@
 <div><dt>Paid</dt><dd>{{ counts.active }}</dd></div>
 <div><dt>Locked</dt><dd>{{ counts.locked }}</dd></div>
 <div><dt>Paused</dt><dd>{{ counts.paused }}</dd></div></dl></div>
+<div class="grp"><h2>Growth</h2><dl>
+<div><dt>New in 30 days</dt><dd>{{ growth.new_month }}</dd></div>
+<div><dt>Trials ending in 7 days</dt><dd>{{ growth.ending_soon }}</dd></div>
+<div><dt>Shops that have paid</dt><dd>{{ growth.paid_share }}%</dd></div>
+<div><dt>No sign-in for 14 days</dt><dd>{{ growth.quiet }}</dd></div></dl></div>
 <div class="grp money"><h2>Money</h2><dl>
 <div><dt>Monthly income (estimate)</dt><dd>Rs {{ mrr }}</dd></div>
 <div><dt>Received this month</dt><dd>Rs {{ revenue_month|floatformat:0 }}</dd></div>

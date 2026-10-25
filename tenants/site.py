@@ -7,7 +7,7 @@ from django.core.cache import cache
 
 log = logging.getLogger(__name__)
 KEY = 'site-setting-v1'
-FIELDS = ('whatsapp', 'contact_email', 'announcement', 'price_monthly', 'price_yearly')
+FIELDS = ('whatsapp', 'contact_email', 'announcement', 'shop_notice', 'price_monthly', 'price_yearly')
 
 
 def current():
@@ -30,6 +30,14 @@ def save(values):
     from .models import SiteSetting
     SiteSetting.objects.update_or_create(pk=1, defaults=values)
     cache.delete(KEY)
+
+
+def shop_notice():
+    """The platform-wide message shown inside every shop ('' when none or when it cannot be read)."""
+    try:
+        return current().get('shop_notice') or ''
+    except Exception:
+        return ''
 
 
 def prices():

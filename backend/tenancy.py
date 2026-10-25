@@ -124,6 +124,9 @@ def clean_site_form(post):
     notice = ' '.join((post.get('announcement') or '').split())
     if len(notice) > 200:
         errors.append('The announcement can have at most 200 characters.')
+    shop_notice = ' '.join((post.get('shop_notice') or '').split())
+    if len(shop_notice) > 200:
+        errors.append('The notice for shops can have at most 200 characters.')
     prices = {}
     for key, label in (('price_monthly', 'monthly'), ('price_yearly', 'yearly')):
         raw = (post.get(key) or '').strip().replace(',', '')
@@ -134,7 +137,7 @@ def clean_site_form(post):
         else:
             prices[key] = None
             errors.append(f'The {label} price must be a whole number of rupees between 100 and 1,00,000.')
-    return dict(whatsapp=number, contact_email=email, announcement=notice, **prices), errors
+    return dict(whatsapp=number, contact_email=email, announcement=notice, shop_notice=shop_notice, **prices), errors
 
 
 def is_unknown_shop_host(host, base):

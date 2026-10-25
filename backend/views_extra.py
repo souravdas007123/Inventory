@@ -1113,6 +1113,25 @@ def backup_page(request):
 
 
 @staff_required
+def data_export(request):
+    from . import dataexport
+    from django.core.cache import cache
+    if request.method != 'POST':
+        return redirect('backup')
+    key = f'export-{request.user.pk}'
+    if cache.get(key):
+        messages.error(request, 'Please wait a minute before downloading your data again.')
+        return redirect('backup')
+    cache.set(key, 1, 60)
+    profile = ShopProfile.objects.first()
+    data = dataexport.build_zip(getattr(profile, 'name', '') or '')
+    auditlog.record(request, 'EXPORT', 'All data', f'{len(data) // 1024} KB zip')
+    resp = HttpResponse(data, content_type='application/zip')
+    resp['Content-Disposition'] = f'attachment; filename="medsync-data-{timezone.localdate():%Y-%m-%d}.zip"'
+    return resp
+
+
+@staff_required
 def backup_download(request, name):
     path = backup.backup_path(name)
     if not path:

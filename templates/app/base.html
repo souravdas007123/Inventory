@@ -154,6 +154,8 @@ img,video{max-width:100%;height:auto}
 </script>
 <main class="main">
   <div class="top"><button class="burger" onclick="document.getElementById('side').classList.toggle('open')">☰</button><b style="display:flex;align-items:center;gap:8px">{% include "app/logo.html" with size=24 %}MedSync</b></div>
+  {% if support_by %}<div class="msg info"><b>Support session.</b> MedSync support ({{ support_by }}) is signed in to help you. Everything done is recorded in the Audit log. Sign out to end it.</div>{% endif %}
+  {% if platform_notice %}<div class="msg info">{{ platform_notice }}</div>{% endif %}
   {% if shop_note %}<div class="msg info">{{ shop_note }} <a href="/plan/">Plan and payments</a></div>{% endif %}
   {% for m in messages %}<div class="msg {{ m.tags }}">{{ m }}</div>{% endfor %}
   {% block content %}{% endblock %}

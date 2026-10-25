@@ -12,6 +12,11 @@
   </form>
   <p style="color:var(--mute);margin:12px 0 0">A backup kept on the server can be lost along with the server, so download one at least once a week and store it on your computer or Google Drive.</p>
 </div>
+<div class="card" style="margin-bottom:14px">
+  <h3 style="margin-top:0">Download all my data</h3>
+  <p style="color:var(--mute);margin:0 0 10px">Get one zip file with your products, batches, bills, purchases, customers, suppliers and expenses as spreadsheets (CSV). Your data always belongs to you.</p>
+  <form method="post" action="{% url 'data_export' %}">{% csrf_token %}<button class="btn ghost">⬇ Download my data (zip)</button></form>
+</div>
 {% if not hosted %}<div class="card" style="margin-bottom:14px">
   <h3 style="margin-top:0">Automatic daily backup (PythonAnywhere)</h3>
   <ol style="margin:0;padding-left:20px;line-height:1.8">

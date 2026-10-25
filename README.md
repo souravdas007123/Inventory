@@ -394,3 +394,11 @@ Without this the script does everything except the restart and tells you to run 
   Website settings (many shops) or `LANDING_WHATSAPP` (one shop).
 - The owner's dashboard shows a four-step card (shop details, products, stock, first bill). It ticks itself from the data, can be
   hidden for the session, and disappears when all four are done.
+
+## Download all my data (Backup page, owner only)
+`/backup/export/` (button "Download my data (zip)" on the Backup page) gives one zip with a CSV for every table of the shop plus a `README.txt` with the row counts. Text that starts with `=`, `+`, `-` or `@` gets an apostrophe in front so Excel never runs it as a formula. The export is written to the Audit log (action `EXPORT`), and one download per minute is allowed. The blog, import layouts, audit log and sign-in history are not included.
+
+## Platform panel tools (`/superadmin/`)
+* **Growth** numbers on the Shops page: new shops in 30 days, trials ending in 7 days, share of shops that have paid, shops with no sign-in for 14 days.
+* **Notice inside every shop**: `/superadmin/site/` has a "Notice inside every shop" box (200 characters). It appears at the top of every page of every shop (cached up to one minute). Leave it blank to hide it.
+* **Sign in to this shop for support**: on a shop's page the button signs the platform owner in as the shop's first active owner account. The shop sees a "Support session" banner, the visit is written to the shop's own Audit log (action `SUPPORT`) and to the shop's notes, the pass works once for one minute, and the session ends after one hour. Needs `migrate_schemas --shared` (migration `tenants 0007`).

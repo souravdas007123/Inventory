@@ -11,6 +11,9 @@
 <input id="contact_email" name="contact_email" type="email" value="{{ values.contact_email|default_if_none:'' }}" placeholder="hello@example.com" style="width:100%"></div>
 <div><label for="announcement">Announcement bar (leave blank to hide)</label>
 <input id="announcement" name="announcement" maxlength="200" value="{{ values.announcement|default_if_none:'' }}" placeholder="Launch offer: first month free" style="width:100%"></div>
+<div><label for="shop_notice">Notice inside every shop (leave blank to hide)</label>
+<input id="shop_notice" name="shop_notice" maxlength="200" value="{{ values.shop_notice|default_if_none:'' }}" placeholder="Planned maintenance tonight at 11 PM for 10 minutes" style="width:100%">
+<p class="mut" style="margin:4px 0 0">Shown at the top of every page for all shops, for example before maintenance or when a new feature arrives.</p></div>
 <div class="grid2" style="margin:0">
 <div><label for="price_monthly">Monthly price (Rs)</label>
 <input id="price_monthly" name="price_monthly" inputmode="numeric" value="{{ values.price_monthly|default_if_none:'' }}" placeholder="{{ standard.monthly }}" style="width:100%"></div>

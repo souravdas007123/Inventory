@@ -66,5 +66,10 @@ def template_context(request):
     user = request.user
     from .views import nav_for       # imported here: views imports this module
     from . import tenancy
-    return {'is_owner': is_owner(user), 'nav': nav_for(user), 'shop_note': tenancy.shop_note(request),
-            'platform_url': tenancy.platform_panel_url(user)}
+    ctx = {'is_owner': is_owner(user), 'nav': nav_for(user), 'shop_note': tenancy.shop_note(request),
+           'platform_url': tenancy.platform_panel_url(user), 'platform_notice': '', 'support_by': ''}
+    if tenancy.on_shop_site():
+        from tenants import site
+        ctx['platform_notice'] = site.shop_notice()
+        ctx['support_by'] = request.session.get('support_by', '') if user.is_authenticated else ''
+    return ctx

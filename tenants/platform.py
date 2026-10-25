@@ -115,6 +115,19 @@ def _shop_link(request, domain, path='/'):
     return f"{request.scheme}://{domain}{':' + port if port else ''}{path}"
 
 
+def _growth(rows, today):
+    """Numbers that show how the business is growing: new shops, trials about to end, paying share, quiet shops."""
+    total = len(rows)
+    paying = sum(1 for r in rows if r['shop'].plan != 'trial' and r['state'] in ('active', 'locked', 'paused'))
+    quiet_from = timezone.now() - timedelta(days=14)
+    return dict(
+        new_month=sum(1 for r in rows if r['shop'].created_on.date() >= today - timedelta(days=30)),
+        ending_soon=sum(1 for r in rows if r['state'] == 'trial' and r['days_left'] is not None and r['days_left'] <= 7),
+        paid_share=round(100 * paying / total) if total else 0,
+        quiet=sum(1 for r in rows if r['state'] in ('trial', 'active') and
+                  (r['stats'].get('last_login') is None or r['stats']['last_login'] < quiet_from)))
+
+
 @platform_admin_required
 def dashboard(request):
     today = timezone.localdate()
@@ -141,6 +154,7 @@ def dashboard(request):
         rows=rows, counts=counts, total_shops=len(all_rows),
         no_backup=sum(1 for r in all_rows if r['state'] != 'paused' and r['backup']['stale']), q=q, want=want, states=STATE_LABELS,
         new_week=sum(1 for r in all_rows if r['shop'].created_on.date() >= today - timedelta(days=7)),
+        growth=_growth(all_rows, today),
         mrr=round(monthly * prices()['monthly'] + yearly * prices()['yearly'] / 12),
         revenue_total=total, revenue_month=month_total, prices=prices()))
 
@@ -226,6 +240,33 @@ def shop_action(request, pk):
     except ValueError as e:
         messages.error(request, str(e))
     return redirect('platform_shop', pk=shop.pk)
+
+
+@platform_admin_required
+@require_POST
+def shop_support(request, pk):
+    """Signs the platform owner in to the shop as its owner, to help with a problem. The visit is written to the shop's own
+    audit log, the shop sees a banner during it, and the session ends after one hour."""
+    from django_tenants.utils import schema_context
+    from .mainlogin import _shop_url
+    shop = get_object_or_404(Shop.objects.exclude(schema_name=settings.PUBLIC_SCHEMA_NAME), pk=pk)
+    with schema_context(shop.schema_name):
+        owner = get_user_model().objects.filter(is_superuser=True, is_active=True).order_by('id').first()
+        owner_id = owner.pk if owner else None
+    connection.set_schema_to_public()
+    if owner_id is None:
+        messages.error(request, 'This shop has no active owner account to sign in to.')
+        return redirect('platform_shop', pk=shop.pk)
+    token = tenancy.new_token()
+    url = _shop_url(request, shop, token)
+    if url is None:
+        messages.error(request, 'This shop has no web address.')
+        return redirect('platform_shop', pk=shop.pk)
+    LoginToken.objects.create(token=token, schema_name=shop.schema_name, user_id=owner_id, next_url='/',
+                              support_by=request.user.get_username()[:150])
+    _log(shop, f'Support sign-in by {request.user.get_username()}')
+    shop.save()
+    return redirect(url)
 
 
 def shop_name_to_type(shop):

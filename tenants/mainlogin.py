@@ -129,6 +129,11 @@ def sso(request, token):
     if user is None:
         return redirect('/login/')
     auth_login(request, user, backend=BACKEND)
+    if t.support_by:
+        request.session['support_by'] = t.support_by
+        request.session.set_expiry(3600)                 # a support session ends after one hour
+        from backend import auditlog
+        auditlog.record(user, 'SUPPORT', 'Sign-in', f'MedSync support ({t.support_by}) signed in to help')
     dest = t.next_url if url_has_allowed_host_and_scheme(t.next_url, {request.get_host()}) and _safe_next(t.next_url) else '/'
     return redirect(dest)
 

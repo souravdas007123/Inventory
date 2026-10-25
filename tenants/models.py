@@ -51,6 +51,7 @@ class PendingSignup(models.Model):
     password_hash = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
     used = models.BooleanField(default=False)
+    support_by = models.CharField(max_length=150, blank=True, default='')       # set when MedSync support signs in to help a shop
 
     class Meta:
         ordering = ['-created_at']
@@ -101,6 +102,7 @@ class SiteSetting(models.Model):
     whatsapp = models.CharField(max_length=20, blank=True, default='')
     contact_email = models.EmailField(blank=True, default='')
     announcement = models.CharField(max_length=200, blank=True, default='')
+    shop_notice = models.CharField(max_length=200, blank=True, default='')      # shown at the top of every shop
     price_monthly = models.PositiveIntegerField(null=True, blank=True)
     price_yearly = models.PositiveIntegerField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
