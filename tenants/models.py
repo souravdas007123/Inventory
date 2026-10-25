@@ -75,7 +75,6 @@ class LoginToken(models.Model):
     next_url = models.CharField(max_length=300, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
     used = models.BooleanField(default=False)
-    support_by = models.CharField(max_length=150, blank=True, default='')       # set when MedSync support signs in to help a shop
 
 
 class Payment(models.Model):

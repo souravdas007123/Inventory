@@ -242,33 +242,6 @@ def shop_action(request, pk):
     return redirect('platform_shop', pk=shop.pk)
 
 
-@platform_admin_required
-@require_POST
-def shop_support(request, pk):
-    """Signs the platform owner in to the shop as its owner, to help with a problem. The visit is written to the shop's own
-    audit log, the shop sees a banner during it, and the session ends after one hour."""
-    from django_tenants.utils import schema_context
-    from .mainlogin import _shop_url
-    shop = get_object_or_404(Shop.objects.exclude(schema_name=settings.PUBLIC_SCHEMA_NAME), pk=pk)
-    with schema_context(shop.schema_name):
-        owner = get_user_model().objects.filter(is_superuser=True, is_active=True).order_by('id').first()
-        owner_id = owner.pk if owner else None
-    connection.set_schema_to_public()
-    if owner_id is None:
-        messages.error(request, 'This shop has no active owner account to sign in to.')
-        return redirect('platform_shop', pk=shop.pk)
-    token = tenancy.new_token()
-    url = _shop_url(request, shop, token)
-    if url is None:
-        messages.error(request, 'This shop has no web address.')
-        return redirect('platform_shop', pk=shop.pk)
-    LoginToken.objects.create(token=token, schema_name=shop.schema_name, user_id=owner_id, next_url='/',
-                              support_by=request.user.get_username()[:150])
-    _log(shop, f'Support sign-in by {request.user.get_username()}')
-    shop.save()
-    return redirect(url)
-
-
 def shop_name_to_type(shop):
     """What the platform owner must type to confirm a delete: the first part of the shop's web address."""
     domain = shop.domains.filter(is_primary=True).first() or shop.domains.first()

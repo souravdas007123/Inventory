@@ -339,40 +339,11 @@ class PlatformPanelTests(TransactionTestCase):
             get_user_model().objects.create_superuser('shopowner', 's@example.com', 'pw-12345-xx')
         connection.set_schema_to_public()
 
-    def support_login(self):
-        resp = self.client.post(f'/superadmin/shop/{self.shop.pk}/support/')
-        self.assertEqual(resp.status_code, 302)
-        self.assertTrue(resp['Location'].startswith('http://' + self.HOST + '/sso/'), resp['Location'])
-        return '/' + resp['Location'].split('/', 3)[3]
-
-    def test_support_sign_in_opens_the_shop_shows_a_banner_and_is_logged(self):
-        from backend.models_extra import AuditLog
-        from django_tenants.utils import schema_context
+    def test_there_is_no_way_for_the_platform_to_sign_in_to_a_shop(self):
         self.make_owner()
-        path = self.support_login()
-        shop_client = self.client_class()
-        r = shop_client.get(path, HTTP_HOST=self.HOST)
-        self.assertEqual((r.status_code, r['Location']), (302, '/'))
-        page = shop_client.get('/', HTTP_HOST=self.HOST)
-        self.assertContains(page, 'Support session')
-        self.assertContains(page, 'boss')
-        with schema_context(self.SCHEMA):
-            self.assertTrue(AuditLog.objects.filter(action='SUPPORT').exists())
-        connection.set_schema_to_public()
-        self.shop.refresh_from_db()
-        self.assertIn('Support sign-in by boss', self.shop.notes)
-        self.assertEqual(shop_client.get(path, HTTP_HOST=self.HOST).status_code, 400)        # one use only
-
-    def test_support_sign_in_needs_a_platform_admin_and_a_post(self):
-        self.make_owner()
-        self.assertEqual(self.client.get(f'/superadmin/shop/{self.shop.pk}/support/').status_code, 405)
-        with override_settings(PLATFORM_ADMINS=['somebody-else']):
-            resp = self.client.post(f'/superadmin/shop/{self.shop.pk}/support/')
-            self.assertFalse(resp.status_code == 302 and '/sso/' in resp['Location'])
-
-    def test_support_sign_in_without_an_owner_account_says_so(self):
-        resp = self.client.post(f'/superadmin/shop/{self.shop.pk}/support/', follow=True)
-        self.assertIn('no active owner account', [str(m) for m in resp.context['messages']][0])
+        page = self.client.get(f'/superadmin/shop/{self.shop.pk}/')
+        self.assertNotContains(page, 'Sign in to this shop')
+        self.assertEqual(self.client.post(f'/superadmin/shop/{self.shop.pk}/support/').status_code, 404)
 
     def test_the_platform_notice_is_shown_inside_a_shop_until_it_is_removed(self):
         from tenants import site
@@ -389,18 +360,6 @@ class PlatformPanelTests(TransactionTestCase):
             from tenants.models import SiteSetting
             SiteSetting.objects.all().delete()
             cache.clear()
-
-    def test_the_normal_sign_in_has_no_support_banner(self):
-        self.make_owner()
-        shop_client = self.client_class()
-        shop_client.post('/login/', {'username': 'shopowner', 'password': 'pw-12345-xx'}, HTTP_HOST=self.HOST)
-        self.assertNotContains(shop_client.get('/', HTTP_HOST=self.HOST), 'Support session')
-
-    def test_the_panel_shows_growth_numbers_and_the_support_button(self):
-        page = self.client.get('/superadmin/')
-        for text in ('Growth', 'New in 30 days', 'Trials ending in 7 days', 'Shops that have paid', 'No sign-in for 14 days'):
-            self.assertContains(page, text)
-        self.assertContains(self.client.get(f'/superadmin/shop/{self.shop.pk}/'), 'Sign in to this shop for support')
 
     def test_the_platform_panel_can_be_reached_from_the_shop_pages_and_the_admin(self):
         for url in ('/', '/admin/', '/admin/tenants/shop/'):
