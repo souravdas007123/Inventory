@@ -94,8 +94,10 @@ class SignupFlowTests(TransactionTestCase):
         self.sign_up()
         self.confirm()
         login = self.client.post('/login/', {'username': 'raj@example.com', 'password': GOOD['password']})   # main site
-        self.assertEqual(login.status_code, 200)                                                             # refused
-        self.assertFalse(login.wsgi_request.user.is_authenticated)
+        self.assertEqual(login.status_code, 302)                       # he is sent to his own shop, not signed in here
+        self.assertTrue(login['Location'].startswith('http://' + HOST + '/sso/'))
+        self.assertNotIn('_auth_user_id', self.client.session)         # no session on the main site
+        self.assertEqual(self.client.get('/superadmin/').status_code, 302)    # and no access to the platform pages
 
     def test_a_taken_address_or_email_is_refused(self):
         self.sign_up()
