@@ -1,20 +1,6 @@
-<!doctype html>
-<html lang="en"><head>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="icon" href="/favicon.ico" sizes="48x48">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex">
-<title>Confirm your email · MedSync</title>
-<style>
-:root{--card:#fff;--ink:#14302d;--line:#dcebe8;--pri:#0f9d8a;--pri2:#0b7d6e}
-@media(prefers-color-scheme:dark){:root{--card:#112624;--ink:#e6f4f1;--line:#1d3a37}}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;background:linear-gradient(135deg,#0f2e2b,#0f9d8a);color:var(--ink);font:15px/1.5 system-ui,sans-serif}
-.box{width:100%;max-width:440px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:30px;box-shadow:0 20px 50px #0006}
-h1{margin:0 0 10px;font-size:22px}p{margin:0 0 20px;opacity:.8}
-button{width:100%;padding:12px;border:0;border-radius:10px;background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;font:inherit;font-weight:700;cursor:pointer}
-</style></head>
-<body><form class="box" method="post" onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='Creating your shop...'">{% csrf_token %}
-<h1>Create your shop</h1>
-<p>{{ pending.shop_name }}: {{ pending.subdomain }}. Your {{ trial_days }}-day free trial starts when you press the button. Making your shop takes about a minute, so please wait on this page.</p>
-<button>Create my shop</button></form></body></html>
+{% extends "app/auth_base.html" %}
+{% block title %}Confirm your email{% endblock %}
+{% block heading %}Create your shop{% endblock %}
+{% block lead %}{{ pending.shop_name }}: {{ pending.subdomain }}. Your {{ trial_days }}-day free trial starts when you press the button. Making your shop takes about a minute, so please wait on this page.{% endblock %}
+{% block content %}<form method="post" onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='Creating your shop...'">{% csrf_token %}
+<button class="go">Create my shop</button></form>{% endblock %}

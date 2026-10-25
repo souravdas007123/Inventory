@@ -1,38 +1,31 @@
-<!doctype html>
-<html lang="en"><head>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="icon" href="/favicon.ico" sizes="48x48">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex">
-<title>Create your shop · MedSync</title>
-<style>
-:root{--card:#fff;--ink:#14302d;--line:#dcebe8;--pri:#0f9d8a;--pri2:#0b7d6e;--red:#e11d48}
-@media(prefers-color-scheme:dark){:root{--card:#112624;--ink:#e6f4f1;--line:#1d3a37}}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;background:linear-gradient(135deg,#0f2e2b,#0f9d8a);color:var(--ink);font:14px system-ui,sans-serif}
-.box{width:100%;max-width:460px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px;box-shadow:0 20px 50px #0006}
-h1{margin:0 0 4px;font-size:24px}p.sub{margin:0 0 14px;opacity:.7}
-label{display:block;font-weight:600;font-size:13px;margin:12px 0 4px}
-input[type=text],input[type=email],input[type=password],input[type=tel]{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit}
-.err{color:var(--red);font-size:12.5px;margin-top:4px}.hint{opacity:.65;font-size:12.5px;margin-top:4px}
-.addr{display:flex;align-items:center;gap:6px}.addr input{flex:1}.addr span{opacity:.7;font-size:13px}
-.chk{display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-size:13px}.chk input{margin-top:3px}
-button{width:100%;margin-top:18px;padding:12px;border:0;border-radius:10px;background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;font:inherit;font-weight:700;cursor:pointer}
-.back{display:block;text-align:center;margin-top:14px;color:inherit;opacity:.7;text-decoration:none;font-weight:600}.back:hover{opacity:1}
-.hp{position:absolute;left:-9999px;height:0;overflow:hidden}
-</style></head>
-<body><form class="box" method="post" novalidate>{% csrf_token %}
-<h1>Create your shop</h1>
-<p class="sub">{{ trial_days }}-day free trial. No card needed. Then Rs {{ prices.monthly }} a month or Rs {{ prices.yearly }} a year.</p>
+{% extends "app/auth_base.html" %}
+{% block title %}Create your shop{% endblock %}
+{% block panelclass %} wide{% endblock %}
+{% block heading %}Create your shop{% endblock %}
+{% block lead %}{{ trial_days }}-day free trial, no card needed. After that Rs {{ prices.monthly }} a month or Rs {{ prices.yearly }} a year.{% endblock %}
+{% block content %}<form method="post" novalidate>{% csrf_token %}
 <div class="hp" aria-hidden="true"><label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
-<label for="shop_name">Shop name</label><input type="text" id="shop_name" name="shop_name" value="{{ values.shop_name }}" maxlength="120" autocomplete="organization">{% if errors.shop_name %}<div class="err">{{ errors.shop_name }}</div>{% endif %}
-<label for="owner_name">Your name</label><input type="text" id="owner_name" name="owner_name" value="{{ values.owner_name }}" maxlength="120" autocomplete="name">{% if errors.owner_name %}<div class="err">{{ errors.owner_name }}</div>{% endif %}
-<label for="email">Email (you will sign in with it)</label><input type="email" id="email" name="email" value="{{ values.email }}" autocomplete="email">{% if errors.email %}<div class="err">{{ errors.email }}</div>{% endif %}
-<label for="phone">Mobile number</label><input type="tel" id="phone" name="phone" value="{{ values.phone }}" autocomplete="tel">{% if errors.phone %}<div class="err">{{ errors.phone }}</div>{% endif %}
-<label for="subdomain">Web address of your shop</label>
-<div class="addr"><input type="text" id="subdomain" name="subdomain" value="{{ values.subdomain }}" maxlength="30" autocapitalize="none" autocomplete="off"><span>.{{ base_domain }}</span></div>
-{% if errors.subdomain %}<div class="err">{{ errors.subdomain }}</div>{% else %}<div class="hint">Letters, digits and hyphens, for example sharma-medical.</div>{% endif %}
-<label for="password">Password</label><input type="password" id="password" name="password" autocomplete="new-password">{% if errors.password %}<div class="err">{{ errors.password }}</div>{% else %}<div class="hint">At least 8 characters, not only digits.</div>{% endif %}
-<label for="password2">Password again</label><input type="password" id="password2" name="password2" autocomplete="new-password">{% if errors.password2 %}<div class="err">{{ errors.password2 }}</div>{% endif %}
+<fieldset><legend>Your shop</legend>
+<label for="shop_name">Shop name</label><input type="text" id="shop_name" name="shop_name" value="{{ values.shop_name }}" maxlength="120" autocomplete="organization"{% if errors.shop_name %} class="bad"{% endif %}>{% if errors.shop_name %}<div class="err">{{ errors.shop_name }}</div>{% endif %}
+<label for="subdomain">Web address</label>
+<div class="addr"><input type="text" id="subdomain" name="subdomain" value="{{ values.subdomain }}" maxlength="30" autocapitalize="none" autocomplete="off" spellcheck="false"{% if errors.subdomain %} class="bad"{% endif %}><span>.{{ base_domain }}</span></div>
+{% if errors.subdomain %}<div class="err">{{ errors.subdomain }}</div>{% else %}<p class="hint">Your shop opens at <b id="preview">{{ values.subdomain|default:"your-shop" }}.{{ base_domain }}</b>. Use letters, digits and hyphens.</p>{% endif %}
+</fieldset>
+<fieldset><legend>About you</legend>
+<label for="owner_name">Your name</label><input type="text" id="owner_name" name="owner_name" value="{{ values.owner_name }}" maxlength="120" autocomplete="name"{% if errors.owner_name %} class="bad"{% endif %}>{% if errors.owner_name %}<div class="err">{{ errors.owner_name }}</div>{% endif %}
+<label for="email">Email</label><input type="email" id="email" name="email" value="{{ values.email }}" autocomplete="email"{% if errors.email %} class="bad"{% endif %}>{% if errors.email %}<div class="err">{{ errors.email }}</div>{% else %}<p class="hint">You will sign in with this email.</p>{% endif %}
+<label for="phone">Mobile number</label><input type="tel" id="phone" name="phone" value="{{ values.phone }}" autocomplete="tel"{% if errors.phone %} class="bad"{% endif %}>{% if errors.phone %}<div class="err">{{ errors.phone }}</div>{% endif %}
+</fieldset>
+<fieldset><legend>Password</legend>
+<label for="password">Password</label><div class="pw"><input type="password" id="password" name="password" autocomplete="new-password"{% if errors.password %} class="bad"{% endif %}><button type="button" aria-pressed="false">Show</button></div>{% if errors.password %}<div class="err">{{ errors.password }}</div>{% else %}<p class="hint">At least 8 characters, not only digits.</p>{% endif %}
+<label for="password2">Password again</label><input type="password" id="password2" name="password2" autocomplete="new-password"{% if errors.password2 %} class="bad"{% endif %}>{% if errors.password2 %}<div class="err">{{ errors.password2 }}</div>{% endif %}
+</fieldset>
 <label class="chk"><input type="checkbox" name="agree" value="1"{% if values.agree %} checked{% endif %}><span>I agree to the terms of use and the privacy policy of MedSync.</span></label>{% if errors.agree %}<div class="err">{{ errors.agree }}</div>{% endif %}
-<button>Create my shop</button><a class="back" href="/">&larr; Back to home page</a></form></body></html>
+<button class="go">Create my shop</button></form>
+<div class="links"><span>Already have a shop?</span><a href="{% url 'login' %}">Sign in</a><a class="quiet" href="/">&larr; Back to home page</a></div>
+{% endblock %}
+{% block script %}<script>document.querySelectorAll(".pw").forEach(function(w){var i=w.querySelector("input"),b=w.querySelector("button");b.addEventListener("click",function(){var s=i.type==="password";i.type=s?"text":"password";b.textContent=s?"Hide":"Show";b.setAttribute("aria-pressed",s)})})</script><script>(function(){var n=document.getElementById("shop_name"),s=document.getElementById("subdomain"),p=document.getElementById("preview"),base="{{ base_domain|escapejs }}",touched=s.value!=="";
+function slug(t){return t.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,30).replace(/-+$/,"")}
+function show(){if(p)p.textContent=(s.value||"your-shop")+"."+base}
+n.addEventListener("input",function(){if(!touched){s.value=slug(n.value);show()}});
+s.addEventListener("input",function(){touched=true;show()})})()</script>{% endblock %}

@@ -20,6 +20,13 @@ class ForgotPasswordTests(TestCase):
     def test_login_page_links_to_forgot(self):
         self.assertContains(self.client.get('/login/'), 'href="/forgot/"')
 
+    def test_all_sign_in_pages_share_the_new_layout(self):
+        for url in ('/login/', '/forgot/'):
+            page = self.client.get(url).content.decode()
+            self.assertIn('class="shell"', page, url)
+            self.assertIn('MedSync', page, url)
+        self.assertContains(self.client.get('/login/'), 'Show</button>')       # the show-password button
+
     def test_pages_open(self):
         for url in ('/forgot/', '/forgot/sent/', '/reset-password/done/'):
             self.assertEqual(self.client.get(url).status_code, 200, url)

@@ -1,12 +1,14 @@
 {% extends "app/auth_base.html" %}
 {% block title %}Choose a new password{% endblock %}
-{% block box %}{% if validlink %}<p>Choose a new password for your account.</p>
-{% if form.errors %}<div class="err">{% for field in form %}{% for e in field.errors %}{{ e }} {% endfor %}{% endfor %}{% for e in form.non_field_errors %}{{ e }} {% endfor %}</div>{% endif %}
+{% block heading %}{% if validlink %}Choose a new password{% else %}This link is not valid any more{% endif %}{% endblock %}
+{% block lead %}{% if validlink %}Pick a password you have not used on other sites.{% else %}It may have been used already, or it may have expired.{% endif %}{% endblock %}
+{% block content %}{% if validlink %}<form method="post">{% csrf_token %}
+{% if form.errors %}<div class="alert" role="alert">{% for field in form %}{% for e in field.errors %}{{ e }} {% endfor %}{% endfor %}{% for e in form.non_field_errors %}{{ e }} {% endfor %}</div>{% endif %}
 <label for="id_new_password1">New password</label>
-<input type="password" name="new_password1" id="id_new_password1" autocomplete="new-password" required autofocus>
+<div class="pw"><input type="password" name="new_password1" id="id_new_password1" autocomplete="new-password" required autofocus><button type="button" aria-pressed="false">Show</button></div>
 <p class="hint">At least 8 characters, not only numbers, and not a very common password.</p>
 <label for="id_new_password2">New password again</label>
 <input type="password" name="new_password2" id="id_new_password2" autocomplete="new-password" required>
-<button>Change password</button>
-{% else %}<p>This link is not valid any more. It may have been used already, or it may have expired.</p>
-<a class="back" href="{% url 'forgot' %}">Ask for a new link</a>{% endif %}{% endblock %}
+<button class="go">Change password</button></form>
+{% else %}<a class="go" href="{% url 'forgot' %}">Ask for a new link</a>{% endif %}{% endblock %}
+{% block script %}<script>document.querySelectorAll(".pw").forEach(function(w){var i=w.querySelector("input"),b=w.querySelector("button");b.addEventListener("click",function(){var s=i.type==="password";i.type=s?"text":"password";b.textContent=s?"Hide":"Show";b.setAttribute("aria-pressed",s)})})</script>{% endblock %}

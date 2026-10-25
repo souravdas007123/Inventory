@@ -6,19 +6,88 @@
 <meta name="robots" content="noindex,nofollow">
 <title>{% block title %}{% endblock %} · MedSync</title>
 <style>
-:root{--card:#fff;--ink:#14302d;--line:#dcebe8;--pri:#0f9d8a;--pri2:#0b7d6e;--red:#e11d48}
-@media(prefers-color-scheme:dark){:root{--card:#112624;--ink:#e6f4f1;--line:#1d3a37}}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;background:linear-gradient(135deg,#0f2e2b,#0f9d8a);color:var(--ink);font:14px system-ui,sans-serif}
-.box{width:100%;max-width:380px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:30px;box-shadow:0 20px 50px #0006}
-h1{margin:0 0 4px;font-size:24px}p{margin:0 0 18px;opacity:.65}
-label{display:block;font-weight:600;font-size:13px;margin:12px 0 4px}
-input{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit}
-button{width:100%;margin-top:20px;padding:12px;border:0;border-radius:10px;background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;font:inherit;font-weight:700;cursor:pointer}
-.back{display:block;text-align:center;margin-top:16px;color:inherit;opacity:.7;text-decoration:none;font-weight:600}.back:hover{opacity:1}
-.err{background:#e11d4822;color:var(--red);padding:10px;border-radius:10px;margin-bottom:8px}
-.hint{font-size:12px;opacity:.65;margin:4px 0 0}
+:root{--ink:#0d2b28;--paper:#f6f8f7;--field:#fff;--text:#14302d;--mute:#5d726f;--line:#d3e0dd;--pri:#0f9d8a;--pri-d:#0a6b5f;--amber:#f5a524;--red:#c8203f;--redbg:#fdecef}
+@media(prefers-color-scheme:dark){:root{--paper:#0f1f1d;--field:#142927;--text:#e6f4f1;--mute:#93aaa6;--line:#26433f;--pri:#2fbfaa;--pri-d:#1c8f7e;--red:#ff7d93;--redbg:#3a1a21}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--text);font:15px/1.5 "Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif}
+.shell{display:grid;grid-template-columns:minmax(320px,5fr) minmax(0,6fr);min-height:100vh}
+.side{position:sticky;top:0;height:100vh;overflow:hidden;background:var(--ink);color:#e8f5f2;padding:44px 48px;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:12px;font-size:22px;font-weight:700;letter-spacing:-.01em;color:#fff;text-decoration:none}
+.side h2{margin:56px 0 18px;font-size:34px;line-height:1.15;font-weight:700;letter-spacing:-.02em;max-width:15em;color:#fff}
+.side ul{list-style:none;margin:0;padding:0;max-width:26em;color:#bcd6d1}
+.side li{display:flex;gap:12px;margin:0 0 12px}
+.side li:before{content:"";flex:none;width:8px;height:8px;margin-top:8px;border-radius:50%;background:var(--amber)}
+.strip{position:absolute;left:-30px;right:-90px;bottom:-60px;opacity:.95;pointer-events:none}
+.main{display:flex;align-items:center;justify-content:center;padding:40px 24px}
+.panel{width:100%;max-width:420px}
+.panel.wide{max-width:460px}
+h1{margin:0 0 6px;font-size:28px;line-height:1.2;font-weight:700;letter-spacing:-.02em}
+.lead{margin:0 0 26px;color:var(--mute)}
+form{margin:0}
+fieldset{border:0;margin:26px 0 0;padding:0;min-width:0}
+fieldset:first-of-type{margin-top:0}
+legend{padding:0;margin:0 0 -4px;font-size:14px;font-weight:700;color:var(--pri-d)}
+@media(prefers-color-scheme:dark){legend{color:var(--pri)}}
+label{display:block;font-weight:600;font-size:14px;margin:14px 0 6px}
+input[type=text],input[type=email],input[type=password],input[type=tel]{width:100%;height:44px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--text);font:inherit;transition:border-color .15s,box-shadow .15s}
+input:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px color-mix(in srgb,var(--pri) 28%,transparent)}
+input.bad{border-color:var(--red)}
+.pw{position:relative}.pw input{padding-right:64px}
+.pw button{position:absolute;right:4px;top:4px;height:36px;width:auto;margin:0;padding:0 10px;border:0;border-radius:6px;background:transparent;color:var(--pri-d);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+@media(prefers-color-scheme:dark){.pw button{color:var(--pri)}}
+.addr{display:flex;align-items:center}
+.addr input{border-radius:8px 0 0 8px;min-width:0}
+.addr span{height:44px;display:flex;align-items:center;padding:0 12px;border:1px solid var(--line);border-left:0;border-radius:0 8px 8px 0;background:color-mix(in srgb,var(--line) 35%,var(--field));color:var(--mute);font-size:13px;white-space:nowrap}
+.hint{margin:6px 0 0;font-size:13px;color:var(--mute)}
+.hint b{color:var(--text);font-weight:600;word-break:break-all}
+.err{margin:6px 0 0;font-size:13px;font-weight:600;color:var(--red)}
+.alert{margin:0 0 6px;padding:12px 14px;border-radius:8px;background:var(--redbg);color:var(--red);font-weight:600;font-size:14px}
+.chk{display:flex;gap:10px;align-items:flex-start;margin:22px 0 0;font-weight:400;font-size:14px}
+.chk input{margin-top:3px;width:16px;height:16px;accent-color:var(--pri-d)}
+.go{display:block;width:100%;height:48px;margin-top:22px;border:0;border-radius:8px;background:var(--pri-d);color:#fff;font:inherit;font-weight:700;cursor:pointer;transition:background .15s}
+.go:hover{background:#085a50}.go:focus-visible{outline:3px solid color-mix(in srgb,var(--pri) 45%,transparent);outline-offset:2px}.go:disabled{opacity:.7;cursor:wait}
+a.go{display:flex;align-items:center;justify-content:center;text-decoration:none}
+.links{margin-top:22px;display:flex;flex-wrap:wrap;gap:8px 20px;font-size:14px}
+.links a,.quiet{color:var(--pri-d);font-weight:600;text-decoration:none}
+@media(prefers-color-scheme:dark){.links a,.quiet{color:var(--pri)}}
+.links a:hover,.quiet:hover{text-decoration:underline}
+.fine{margin-top:26px;font-size:13px;color:var(--mute)}
+details{margin-top:14px}summary{cursor:pointer;font-size:14px;color:var(--pri-d);font-weight:600}
+@media(prefers-color-scheme:dark){summary{color:var(--pri)}}
+.hp{position:absolute;left:-9999px;height:0;overflow:hidden}
+@media(max-width:860px){
+ .shell{display:block}
+ .side{position:static;height:auto;padding:18px 20px}
+ .side h2,.side ul,.strip{display:none}
+ .main{display:block;padding:28px 20px 40px}
+ .panel,.panel.wide{margin:0 auto}
+ h1{font-size:25px}
+}
 </style></head>
-<body><form class="box" method="post">{% csrf_token %}
-<h1 style="display:flex;align-items:center;gap:10px">{% include "app/logo.html" with size=36 %}MedSync</h1>
-{% block box %}{% endblock %}
-</form></body></html>
+<body><div class="shell">
+<aside class="side"><a class="brand" href="/">{% include "app/logo.html" with size=40 %}MedSync</a>
+<h2>Know what is on your shelf, and what is about to expire.</h2>
+<ul><li>Daily alerts for stock that is running low or close to expiry.</li><li>GST bills, purchases and returns in a few clicks.</li><li>Works in any browser, on a phone or a computer.</li></ul>
+<svg class="strip" viewBox="0 0 640 300" aria-hidden="true" focusable="false"><g transform="rotate(-7 320 150)">
+<rect x="10" y="30" width="620" height="230" rx="22" fill="#143c37" stroke="#1f5750" stroke-width="2"/>
+<g fill="#0d2b28" stroke="#1f5750" stroke-width="2">
+<rect x="40" y="55" width="80" height="50" rx="25"/><rect x="140" y="55" width="80" height="50" rx="25"/><rect x="240" y="55" width="80" height="50" rx="25"/><rect x="340" y="55" width="80" height="50" rx="25"/><rect x="440" y="55" width="80" height="50" rx="25"/><rect x="540" y="55" width="80" height="50" rx="25"/>
+<rect x="40" y="125" width="80" height="50" rx="25"/><rect x="140" y="125" width="80" height="50" rx="25"/><rect x="240" y="125" width="80" height="50" rx="25"/><rect x="340" y="125" width="80" height="50" rx="25"/><rect x="440" y="125" width="80" height="50" rx="25"/><rect x="540" y="125" width="80" height="50" rx="25"/>
+<rect x="40" y="195" width="80" height="50" rx="25"/><rect x="140" y="195" width="80" height="50" rx="25"/><rect x="240" y="195" width="80" height="50" rx="25"/><rect x="340" y="195" width="80" height="50" rx="25"/><rect x="440" y="195" width="80" height="50" rx="25"/><rect x="540" y="195" width="80" height="50" rx="25"/></g>
+<g stroke="none">
+<path d="M80 62h-26a18 18 0 0 0 0 36h26z" fill="#fff"/><path d="M80 62h26a18 18 0 0 1 0 36h-26z" fill="#f5a524"/>
+<path d="M280 62h-26a18 18 0 0 0 0 36h26z" fill="#fff"/><path d="M280 62h26a18 18 0 0 1 0 36h-26z" fill="#f5a524"/>
+<path d="M580 62h-26a18 18 0 0 0 0 36h26z" fill="#fff"/><path d="M580 62h26a18 18 0 0 1 0 36h-26z" fill="#f5a524"/>
+<path d="M180 132h-26a18 18 0 0 0 0 36h26z" fill="#fff"/><path d="M180 132h26a18 18 0 0 1 0 36h-26z" fill="#f5a524"/>
+<path d="M380 132h-26a18 18 0 0 0 0 36h26z" fill="#fff"/><path d="M380 132h26a18 18 0 0 1 0 36h-26z" fill="#f5a524"/>
+<path d="M80 202h-26a18 18 0 0 0 0 36h26z" fill="#fff"/><path d="M80 202h26a18 18 0 0 1 0 36h-26z" fill="#f5a524"/>
+<path d="M480 202h-26a18 18 0 0 0 0 36h26z" fill="#fff"/><path d="M480 202h26a18 18 0 0 1 0 36h-26z" fill="#f5a524"/>
+<path d="M280 202h-26a18 18 0 0 0 0 36h26z" fill="#fff"/><path d="M280 202h26a18 18 0 0 1 0 36h-26z" fill="#f5a524"/>
+</g></g></svg>
+</aside>
+<main class="main"><div class="panel{% block panelclass %}{% endblock %}">
+<h1>{% block heading %}{% endblock %}</h1>
+<p class="lead">{% block lead %}{% endblock %}</p>
+{% block content %}{% endblock %}
+</div></main></div>{% block script %}{% endblock %}</body></html>

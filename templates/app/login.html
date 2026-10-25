@@ -1,31 +1,23 @@
-<!doctype html>
-<html lang="en"><head>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="icon" href="/favicon.ico" sizes="48x48">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Login · MedSync</title>
-<style>
-:root{--card:#fff;--ink:#14302d;--line:#dcebe8;--pri:#0f9d8a;--pri2:#0b7d6e;--red:#e11d48}
-@media(prefers-color-scheme:dark){:root{--card:#112624;--ink:#e6f4f1;--line:#1d3a37}}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;background:linear-gradient(135deg,#0f2e2b,#0f9d8a);color:var(--ink);font:14px system-ui,sans-serif}
-.box{width:100%;max-width:380px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:30px;box-shadow:0 20px 50px #0006}
-h1{margin:0 0 4px;font-size:24px}p{margin:0 0 18px;opacity:.65}
-label{display:block;font-weight:600;font-size:13px;margin:12px 0 4px}
-input{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit}
-button{width:100%;margin-top:20px;padding:12px;border:0;border-radius:10px;background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;font:inherit;font-weight:700;cursor:pointer}
-.back{display:block;text-align:center;margin-top:16px;color:inherit;opacity:.7;text-decoration:none;font-weight:600}.back:hover{opacity:1}
-.err{background:#e11d4822;color:var(--red);padding:10px;border-radius:10px;margin-bottom:8px}
-</style></head>
-<body><form class="box" method="post">{% csrf_token %}
-<h1 style="display:flex;align-items:center;gap:10px">{% include "app/logo.html" with size=36 %}MedSync</h1><p>{% if main_site %}Sign in to your shop{% else %}Sign in to your account{% endif %}</p>
-{% if locked %}<div class="err">Too many failed attempts. Please try again after 15 minutes.</div>{% elif failed or form.errors %}<div class="err">{% if main_site %}Incorrect email, username or password.{% else %}Incorrect username or password.{% endif %}</div>{% endif %}
+{% extends "app/auth_base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block heading %}Sign in{% endblock %}
+{% block lead %}{% if main_site %}Use the email address you signed up with.{% else %}Sign in to your shop.{% endif %}{% endblock %}
+{% block content %}<form method="post">{% csrf_token %}
+{% if locked %}<div class="alert" role="alert">Too many failed attempts. Please try again after 15 minutes.</div>{% elif failed or form.errors %}<div class="alert" role="alert">{% if main_site %}Incorrect email, username or password.{% else %}Incorrect username or password.{% endif %}</div>{% endif %}
 {% if main_site %}<label for="id_username">Email or username</label>
-<input type="text" name="username" id="id_username" value="{{ ident }}" autocomplete="username" autocapitalize="none" required autofocus>
+<input type="text" name="username" id="id_username" value="{{ ident }}" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
 <label for="id_password">Password</label>
-<input type="password" name="password" id="id_password" autocomplete="current-password" required>
-<details style="margin-top:12px"{% if shop_text %} open{% endif %}><summary style="cursor:pointer;font-size:13px;opacity:.75">Staff member? Enter your shop address</summary>
-<input type="text" name="shop" value="{{ shop_text }}" placeholder="for example: sharma-medical" autocapitalize="none" style="margin-top:8px"></details>
-{% else %}<label>Username</label>{{ form.username }}
-<label>Password</label>{{ form.password }}{% endif %}
+<div class="pw"><input type="password" name="password" id="id_password" autocomplete="current-password" required><button type="button" aria-pressed="false">Show</button></div>
+<details{% if shop_text %} open{% endif %}><summary>Staff member? Enter your shop address</summary>
+<label for="id_shop">Shop address</label>
+<input type="text" name="shop" id="id_shop" value="{{ shop_text }}" placeholder="for example sharma-medical" autocapitalize="none" spellcheck="false">
+<p class="hint">Your username is only unique inside your shop, so we need the shop name.</p></details>
+{% else %}<label for="{{ form.username.id_for_label }}">Username</label>{{ form.username }}
+<label for="{{ form.password.id_for_label }}">Password</label>
+<div class="pw">{{ form.password }}<button type="button" aria-pressed="false">Show</button></div>{% endif %}
 <input type="hidden" name="next" value="{{ next }}">
-<button>Login</button><a class="back" href="{% url 'forgot' %}">Forgot your password?</a><a class="back" style="margin-top:8px" href="{{ home_url|default:'/' }}">&larr; Back to home page</a></form></body></html>
+<button class="go">Sign in</button></form>
+<div class="links"><a href="{% url 'forgot' %}">Forgot your password?</a><a class="quiet" href="{{ home_url|default:'/' }}">&larr; Back to home page</a></div>
+{% if main_site %}<p class="fine">New to MedSync? <a class="quiet" href="/signup/">Create your shop</a>, free for the first days.</p>{% endif %}
+{% endblock %}
+{% block script %}<script>document.querySelectorAll(".pw").forEach(function(w){var i=w.querySelector("input"),b=w.querySelector("button");b.addEventListener("click",function(){var s=i.type==="password";i.type=s?"text":"password";b.textContent=s?"Hide":"Show";b.setAttribute("aria-pressed",s)})})</script>{% endblock %}
