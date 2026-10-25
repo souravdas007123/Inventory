@@ -78,7 +78,7 @@ class CameraScanTests(TestCase):
             self.assertContains(page, 'BarcodeDetector', msg_prefix=url)
 
     def test_other_screens_do_not_get_it(self):
-        self.assertNotContains(self.client.get('/products/new/'), 'cam-open')
+        self.assertNotContains(self.client.get('/products/'), 'cam-open')
 
     def test_the_inline_scripts_are_valid_javascript(self):
         node = shutil.which('node')
