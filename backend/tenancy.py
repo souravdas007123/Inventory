@@ -183,3 +183,14 @@ def reminder_due(shop, today=None):
 def reminder_key(kind, end):
     """Remembered on the shop so the same reminder is never sent twice; a new end date (renewal) starts afresh."""
     return f'{kind}:{end.isoformat()}'
+
+
+def port_suffix(request):
+    """':8000' when the site is opened on an unusual port while testing on a computer, else ''.
+
+    Behind the web server the port the app itself listens on (like 8091) must never go into an address given to a person,
+    so on a secure (https) site the port is never added."""
+    if request.is_secure():
+        return ''
+    port = request.get_port()
+    return f':{port}' if port not in ('80', '443', '') else ''

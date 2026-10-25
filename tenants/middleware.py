@@ -38,9 +38,7 @@ class ShopAccessMiddleware:
 
     @staticmethod
     def _main_site(request):
-        port = request.get_port()
-        extra = f':{port}' if port not in ('80', '443') else ''
-        return f"{request.scheme}://{settings.SHOP_BASE_DOMAIN}{extra}/"
+        return f"{request.scheme}://{settings.SHOP_BASE_DOMAIN}{tenancy.port_suffix(request)}/"
 
     @staticmethod
     def _page(title, message, status, link_url='/', link_text='Back'):

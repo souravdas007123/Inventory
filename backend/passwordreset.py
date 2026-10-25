@@ -51,8 +51,7 @@ class ForgotView(PasswordResetView):
         from django_tenants.utils import schema_context
 
         from tenants.models import Domain, Shop
-        port = self.request.get_port()
-        extra = f':{port}' if port not in ('80', '443') else ''
+        extra = tenancy.port_suffix(self.request)
         for shop in Shop.objects.filter(email__iexact=email):
             domain = Domain.objects.filter(tenant=shop).order_by('-is_primary', 'id').first()
             if domain is None:

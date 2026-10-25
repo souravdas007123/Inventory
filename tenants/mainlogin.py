@@ -76,9 +76,7 @@ def _shop_url(request, shop, token):
     domain = Domain.objects.filter(tenant=shop).order_by('-is_primary', 'id').first()
     if domain is None:
         return None
-    port = request.get_port()
-    extra = f':{port}' if port not in ('80', '443') else ''
-    return f'{request.scheme}://{domain.domain}{extra}/sso/{token}/'
+    return f'{request.scheme}://{domain.domain}{tenancy.port_suffix(request)}/sso/{token}/'
 
 
 def main_login(request):
@@ -136,6 +134,4 @@ def sso(request, token):
 
 
 def _main_login_url(request):
-    port = request.get_port()
-    extra = f':{port}' if port not in ('80', '443') else ''
-    return f"{request.scheme}://{settings.SHOP_BASE_DOMAIN}{extra}/login/"
+    return f"{request.scheme}://{settings.SHOP_BASE_DOMAIN}{tenancy.port_suffix(request)}/login/"

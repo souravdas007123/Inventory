@@ -2,7 +2,7 @@
 from datetime import date, timedelta
 from types import SimpleNamespace
 
-from django.test import SimpleTestCase, override_settings
+from django.test import RequestFactory, SimpleTestCase, override_settings
 
 from backend import tenancy
 
@@ -204,3 +204,15 @@ class OnShopSiteTests(SimpleTestCase):
     def test_it_is_false_when_many_shops_is_off(self):
         with override_settings(MULTI_SHOP=False):
             self.assertFalse(tenancy.on_shop_site())
+
+
+class PortSuffixTests(SimpleTestCase):
+    def test_a_secure_site_never_shows_the_port_the_app_listens_on(self):
+        rf = RequestFactory()
+        request = rf.get('/', secure=True, SERVER_NAME='shop.example.com', SERVER_PORT='8091')
+        self.assertEqual(tenancy.port_suffix(request), '')
+
+    def test_testing_on_a_computer_keeps_the_port(self):
+        rf = RequestFactory()
+        self.assertEqual(tenancy.port_suffix(rf.get('/', SERVER_NAME='localhost', SERVER_PORT='8000')), ':8000')
+        self.assertEqual(tenancy.port_suffix(rf.get('/', SERVER_NAME='localhost', SERVER_PORT='80')), '')
