@@ -1,38 +1,43 @@
 {% extends "app/platform_base.html" %}
 {% block title %}Shops{% endblock %}
+{% block nav_shops %} on{% endblock %}
 {% block content %}
 <h1>Shops</h1>
-<div class="cards">
-<div class="card"><small>Shops</small><strong>{{ total_shops }}</strong></div>
-<div class="card"><small>New in 7 days</small><strong>{{ new_week }}</strong></div>
-<div class="card"><small>Free trial</small><strong>{{ counts.trial }}</strong></div>
-<div class="card"><small>Paid</small><strong>{{ counts.active }}</strong></div>
-<div class="card"><small>Locked</small><strong>{{ counts.locked }}</strong></div>
-<div class="card"><small>Paused</small><strong>{{ counts.paused }}</strong></div>
-<div class="card"><small>Monthly income (estimate)</small><strong>Rs {{ mrr }}</strong></div>
-<div class="card"><small>Received this month</small><strong>Rs {{ revenue_month|floatformat:0 }}</strong></div>
-<div class="card"><small>Received in total</small><strong>Rs {{ revenue_total|floatformat:0 }}</strong></div>
+<p class="sub">Every shop on MedSync, with its plan, usage and backup. Usage numbers refresh every 5 minutes.</p>
+<section class="kpis">
+<div class="grp"><h2>Shops</h2><dl>
+<div><dt>All shops</dt><dd>{{ total_shops }}</dd></div>
+<div><dt>New in 7 days</dt><dd>{{ new_week }}</dd></div>
+<div><dt>Free trial</dt><dd>{{ counts.trial }}</dd></div>
+<div><dt>Paid</dt><dd>{{ counts.active }}</dd></div>
+<div><dt>Locked</dt><dd>{{ counts.locked }}</dd></div>
+<div><dt>Paused</dt><dd>{{ counts.paused }}</dd></div></dl></div>
+<div class="grp money"><h2>Money</h2><dl>
+<div><dt>Monthly income (estimate)</dt><dd>Rs {{ mrr }}</dd></div>
+<div><dt>Received this month</dt><dd>Rs {{ revenue_month|floatformat:0 }}</dd></div>
+<div><dt>Received in total</dt><dd>Rs {{ revenue_total|floatformat:0 }}</dd></div></dl></div>
+</section>
+{% if no_backup %}<div class="warnbar"><b>{{ no_backup }} shop{{ no_backup|pluralize }} without a backup in the last 2 days.</b> Check that the nightly job (<code>shops_daily</code>) is running.</div>{% endif %}
+<div class="bar">
+<nav class="chips" aria-label="Filter by status">
+<a href="?{% if q %}q={{ q|urlencode }}{% endif %}"{% if not want %} class="on"{% endif %}>All<b>{{ total_shops }}</b></a>
+{% for k, v in states.items %}<a href="?state={{ k }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}"{% if k == want %} class="on"{% endif %}>{{ v }}</a>{% endfor %}
+</nav>
+<form class="search" method="get">{% if want %}<input type="hidden" name="state" value="{{ want }}">{% endif %}
+<input id="q" name="q" value="{{ q }}" placeholder="Search shops" aria-label="Search shops"><button>Search</button>{% if q or want %}<a class="btn line" href="{% url 'platform' %}">Clear</a>{% endif %}</form>
 </div>
-{% if no_backup %}<div class="msg error">{{ no_backup }} shop{{ no_backup|pluralize }} without a backup in the last 2 days. Check that the nightly job (<code>shops_daily</code>) is running.</div>{% endif %}
-<form class="inline" method="get" style="margin-bottom:12px">
-<div><label for="q">Search</label><input id="q" name="q" value="{{ q }}" placeholder="name, email, phone, address"></div>
-<div><label for="state">Status</label><select id="state" name="state"><option value="">All</option>{% for k, v in states.items %}<option value="{{ k }}"{% if k == want %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
-<button>Show</button>{% if q or want %}<a class="btn gray" href="{% url 'platform' %}">Clear</a>{% endif %}
-</form>
 <div class="tw"><table>
-<thead><tr><th>Shop</th><th>Owner</th><th>Status</th><th>Plan</th><th class="num">Days left</th><th class="num">Bills</th><th class="num">Products</th><th>Last sign-in</th><th>Last backup</th><th>Joined</th><th></th></tr></thead>
+<thead><tr><th>Shop</th><th>Owner</th><th>Status</th><th class="num">Days left</th><th>Usage</th><th>Last sign-in</th><th>Last backup</th><th></th></tr></thead>
 <tbody>{% for r in rows %}<tr>
-<td><b>{{ r.shop.name }}</b><br><span class="mut">{{ r.domain }}</span></td>
+<td><span class="n">{{ r.shop.name }}</span><br><span class="mut">{{ r.domain }}</span><br><span class="mut">Joined {{ r.shop.created_on|date:"d M Y" }}</span></td>
 <td>{{ r.shop.owner_name }}<br><span class="mut">{{ r.shop.email }}<br>{{ r.shop.phone }}</span></td>
-<td><span class="tag t-{{ r.state }}">{{ r.state_label }}</span></td>
-<td>{{ r.shop.get_plan_display }}</td>
+<td><span class="tag t-{{ r.state }}">{{ r.state_label }}</span>{% if r.shop.plan != 'trial' %}<br><span class="mut">{{ r.shop.get_plan_display }}</span>{% endif %}</td>
 <td class="num">{% if r.days_left is None %}-{% else %}{{ r.days_left }}{% endif %}</td>
-<td class="num">{{ r.stats.bills }}</td><td class="num">{{ r.stats.products }}</td>
+<td>{{ r.stats.bills }} bills<br><span class="mut">{{ r.stats.products }} products</span></td>
 <td>{% if r.stats.last_login %}{{ r.stats.last_login|date:"d M Y, H:i" }}{% else %}<span class="mut">never</span>{% endif %}</td>
 <td>{% if r.backup.when %}<span{% if r.backup.stale %} style="color:var(--red);font-weight:700"{% endif %}>{{ r.backup.when|date:"d M, H:i" }}</span>{% else %}<span style="color:var(--red);font-weight:700">none</span>{% endif %}</td>
-<td>{{ r.shop.created_on|date:"d M Y" }}</td>
-<td><a class="btn" href="{% url 'platform_shop' r.shop.pk %}">Open</a></td>
-</tr>{% empty %}<tr><td colspan="11" class="mut">{% if q or want %}No shop matches.{% else %}No shop has signed up yet.{% endif %}</td></tr>{% endfor %}</tbody>
+<td class="num"><a class="btn" href="{% url 'platform_shop' r.shop.pk %}">Open</a></td>
+</tr>{% empty %}<tr><td colspan="8" class="mut">{% if q or want %}No shop matches.{% else %}No shop has signed up yet.{% endif %}</td></tr>{% endfor %}</tbody>
 </table></div>
-<p class="mut">Plans: Rs {{ prices.monthly }} a month or Rs {{ prices.yearly }} a year. Usage numbers refresh every 5 minutes.</p>
+<p class="mut" style="margin-top:12px">Plans: Rs {{ prices.monthly }} a month or Rs {{ prices.yearly }} a year.</p>
 {% endblock %}

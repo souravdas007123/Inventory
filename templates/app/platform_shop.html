@@ -1,22 +1,22 @@
 {% extends "app/platform_base.html" %}
 {% block title %}{{ shop.name }}{% endblock %}
+{% block nav_shops %} on{% endblock %}
 {% block content %}
-<p><a href="{% url 'platform' %}">&larr; All shops</a></p>
-<h1>{{ shop.name }} <span class="tag t-{{ row.state }}">{{ row.state_label }}</span></h1>
+<a class="back" href="{% url 'platform' %}">&larr; All shops</a>
+<h1>{{ shop.name }} <span class="tag t-{{ row.state }}" style="vertical-align:middle;margin-left:6px">{{ row.state_label }}</span></h1>
+<p class="sub">{{ row.domain }}{% if row.url %} &middot; <a href="{{ row.url }}" target="_blank" rel="noopener">open the shop</a>{% endif %}</p>
 <div class="grid2">
-<div class="card"><h2>Details</h2>
-<p><b>Owner:</b> {{ shop.owner_name }}<br><b>Email:</b> {{ shop.email }}<br><b>Mobile:</b> {{ shop.phone }}<br>
-<b>Address:</b> {{ row.domain }}{% if row.url %} &middot; <a href="{{ row.url }}" target="_blank" rel="noopener">open the shop</a>{% endif %}<br>
-<b>Joined:</b> {{ shop.created_on|date:"d M Y" }}<br>
-<b>Plan:</b> {{ shop.get_plan_display }}{% if shop.plan == 'trial' %}, trial ends {{ shop.trial_ends|date:"d M Y" }}{% else %}, paid until {{ shop.paid_until|date:"d M Y" }}{% endif %}
-{% if row.days_left is not None %} ({{ row.days_left }} days left){% endif %}</p></div>
-<div class="card"><h2>Usage</h2>
-<p><b>Bills:</b> {{ row.stats.bills }}<br><b>Products:</b> {{ row.stats.products }}<br><b>Users:</b> {{ row.stats.users }}<br>
-<b>Last bill:</b> {% if row.stats.last_bill %}{{ row.stats.last_bill|date:"d M Y" }}{% else %}none{% endif %}<br>
-<b>Last sign-in:</b> {% if row.stats.last_login %}{{ row.stats.last_login|date:"d M Y, H:i" }}{% else %}never{% endif %}<br>
-<b>Data size:</b> {% if row.stats.size_mb is None %}unknown{% else %}{{ row.stats.size_mb }} MB{% endif %}<br>
-<b>Last backup:</b> {% if row.backup.when %}{{ row.backup.when|date:"d M Y, H:i" }}{% else %}none{% endif %}{% if row.backup.stale %} <span style="color:var(--red)">(older than 2 days or missing)</span>{% endif %}<br>
-<b>Paid so far:</b> Rs {{ paid_total|floatformat:0 }}<br><b>Last reminder:</b> {{ shop.last_reminder|default:"none" }}</p></div>
+<div class="card"><h2>Details</h2><dl class="kv">
+<dt>Owner</dt><dd>{{ shop.owner_name }}</dd><dt>Email</dt><dd>{{ shop.email }}</dd><dt>Mobile</dt><dd>{{ shop.phone }}</dd>
+<dt>Address</dt><dd>{{ row.domain }}</dd><dt>Joined</dt><dd>{{ shop.created_on|date:"d M Y" }}</dd>
+<dt>Plan</dt><dd>{{ shop.get_plan_display }}{% if shop.plan == 'trial' %}, trial ends {{ shop.trial_ends|date:"d M Y" }}{% else %}, paid until {{ shop.paid_until|date:"d M Y" }}{% endif %}{% if row.days_left is not None %} ({{ row.days_left }} days left){% endif %}</dd></dl></div>
+<div class="card"><h2>Usage</h2><dl class="kv">
+<dt>Bills</dt><dd>{{ row.stats.bills }}</dd><dt>Products</dt><dd>{{ row.stats.products }}</dd><dt>Users</dt><dd>{{ row.stats.users }}</dd>
+<dt>Last bill</dt><dd>{% if row.stats.last_bill %}{{ row.stats.last_bill|date:"d M Y" }}{% else %}none{% endif %}</dd>
+<dt>Last sign-in</dt><dd>{% if row.stats.last_login %}{{ row.stats.last_login|date:"d M Y, H:i" }}{% else %}never{% endif %}</dd>
+<dt>Data size</dt><dd>{% if row.stats.size_mb is None %}unknown{% else %}{{ row.stats.size_mb }} MB{% endif %}</dd>
+<dt>Last backup</dt><dd>{% if row.backup.when %}{{ row.backup.when|date:"d M Y, H:i" }}{% else %}none{% endif %}{% if row.backup.stale %} <span style="color:var(--red)">(older than 2 days or missing)</span>{% endif %}</dd>
+<dt>Paid so far</dt><dd>Rs {{ paid_total|floatformat:0 }}</dd><dt>Last reminder</dt><dd>{{ shop.last_reminder|default:"none" }}</dd></dl></div>
 </div>
 <div class="grid2">
 <div class="card"><h2>Mark a payment</h2>
@@ -36,8 +36,8 @@
 {% else %}<input type="hidden" name="action" value="pause"><button class="warn">Switch the shop off</button>{% endif %}</form>
 <p class="mut">A shop that is switched off shows a notice instead of its pages. Nothing is deleted.</p></div>
 </div>
-<div class="card" style="margin-bottom:12px"><h2>Payments</h2>
-<div class="tw"><table style="min-width:520px"><thead><tr><th>Date</th><th>Plan</th><th class="num">Amount</th><th>Period</th><th>Note</th></tr></thead><tbody>
+<div class="card" style="margin-bottom:14px"><h2>Payments</h2>
+<div class="tw" style="border:0"><table style="min-width:520px"><thead><tr><th>Date</th><th>Plan</th><th class="num">Amount</th><th>Period</th><th>Note</th></tr></thead><tbody>
 {% for p in payments %}<tr><td>{{ p.paid_on|date:"d M Y" }}</td><td>{{ p.get_plan_display }}</td><td class="num">Rs {{ p.amount|floatformat:2 }}</td><td>{{ p.period_from|date:"d M Y" }} to {{ p.period_to|date:"d M Y" }}</td><td>{{ p.note }}</td></tr>
 {% empty %}<tr><td colspan="5" class="mut">No payment yet.</td></tr>{% endfor %}</tbody></table></div></div>
 <div class="card"><h2>Notes</h2>

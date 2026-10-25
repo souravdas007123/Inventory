@@ -7,32 +7,87 @@
 <meta name="robots" content="noindex,nofollow">
 <title>{% block title %}Platform{% endblock %} · MedSync</title>
 <style>
-:root{--bg:#f3f8f7;--card:#fff;--ink:#14302d;--mut:#5d7773;--line:#dcebe8;--pri:#0f9d8a;--pri2:#0b7d6e;--red:#e11d48;--amb:#d97706;--grn:#15803d;--blu:#2563eb}
-@media(prefers-color-scheme:dark){:root{--bg:#0d1d1b;--card:#112624;--ink:#e6f4f1;--mut:#93b1ac;--line:#1d3a37}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,sans-serif}
-header{background:linear-gradient(135deg,#0f2e2b,#0f9d8a);color:#fff;padding:14px 16px}
-header .w{max-width:1200px;margin:auto;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center}
-header b{font-size:18px;margin-right:auto}header a{color:#fff;text-decoration:none;opacity:.9;font-weight:600}header a:hover{opacity:1}
-main{max-width:1200px;margin:auto;padding:16px}
-h1{font-size:22px;margin:4px 0 14px}h2{font-size:16px;margin:0 0 10px}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
-.card small{display:block;color:var(--mut);font-weight:600}.card strong{font-size:22px}
-.tw{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:12px}
-table{border-collapse:collapse;width:100%;min-width:820px}th,td{padding:9px 11px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
-th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut)}tr:last-child td{border-bottom:0}
-.tag{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700;color:#fff}
-.t-trial{background:var(--blu)}.t-active{background:var(--grn)}.t-locked{background:var(--red)}.t-paused{background:var(--amb)}
-.msg{padding:10px 12px;border-radius:10px;margin-bottom:10px;background:#0f9d8a22}.msg.error{background:#e11d4822;color:var(--red)}
-form.inline{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin:0}
-label{font-size:12px;font-weight:600;color:var(--mut);display:block;margin-bottom:3px}
-input,select,textarea{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit}
-button,.btn{padding:9px 14px;border:0;border-radius:8px;background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;font:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block}
-button.gray{background:#64748b}button.warn{background:var(--amb)}
-.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-bottom:12px}
-.mut{color:var(--mut)}.num{text-align:right;white-space:nowrap}
+:root{--ink:#0d2b28;--bg:#f4f7f6;--card:#fff;--text:#14302d;--mut:#5d726f;--line:#dbe5e2;--soft:#eef4f2;--pri:#0f9d8a;--pri-d:#0a6b5f;--amber:#f5a524;--red:#c8203f;--redbg:#fdecef;--okbg:#e4f6ee;--ok:#13683f}
+@media(prefers-color-scheme:dark){:root{--bg:#0c1a18;--card:#122624;--text:#e6f4f1;--mut:#93aaa6;--line:#25423e;--soft:#183230;--pri:#2fbfaa;--pri-d:#2fbfaa;--red:#ff7d93;--redbg:#3a1a21;--okbg:#14382a;--ok:#7be0ae}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 "Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif}
+.app{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh}
+.side{position:sticky;top:0;height:100vh;background:var(--ink);color:#cfe3df;padding:22px 14px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 10px 18px;color:#fff;font-size:19px;font-weight:700;letter-spacing:-.01em;text-decoration:none}
+.brand small{display:block;font-size:12px;font-weight:500;color:#8fb2ac;letter-spacing:0}
+.side a.nav{display:block;padding:9px 12px;border-radius:8px;color:#cfe3df;text-decoration:none;font-weight:600}
+.side a.nav:hover{background:#16403b;color:#fff}
+.side a.nav.on{background:#16403b;color:#fff;box-shadow:inset 3px 0 0 var(--amber)}
+.side .sep{height:1px;background:#1f4a44;margin:12px 6px}
+.side .push{margin-top:auto}
+.content{padding:30px 36px 48px;max-width:1280px;width:100%}
+h1{font-size:26px;line-height:1.2;margin:0 0 4px;letter-spacing:-.02em}
+.sub{margin:0 0 22px;color:var(--mut)}
+h2{font-size:15px;margin:0 0 10px}
+.msg{padding:11px 14px;border-radius:8px;margin-bottom:14px;background:var(--okbg);color:var(--ok);font-weight:600}
+.msg.error{background:var(--redbg);color:var(--red)}
+.warnbar{padding:11px 14px;border-radius:8px;margin-bottom:16px;background:color-mix(in srgb,var(--amber) 18%,var(--card));border-left:4px solid var(--amber)}
+.kpis{display:grid;grid-template-columns:3fr 2fr;gap:16px;margin-bottom:22px}
+.grp{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.grp h2{color:var(--mut);font-weight:600;margin-bottom:12px}
+.grp dl{display:flex;flex-wrap:wrap;margin:0}
+.grp dl div{flex:1 1 90px;padding:0 14px;border-left:1px solid var(--line);display:flex;flex-direction:column;justify-content:space-between}
+.grp dl div:first-child{padding-left:0;border-left:0}
+.grp dt{font-size:13px;color:var(--mut)}.grp dd{margin:2px 0 0;font-size:26px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.grp.money dd{color:var(--pri-d)}
+@media(prefers-color-scheme:dark){.grp.money dd{color:var(--pri)}}
+.bar{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips a{padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--text);text-decoration:none;font-weight:600;font-size:13px}
+.chips a b{color:var(--mut);font-weight:600;margin-left:4px}
+.chips a.on{background:var(--ink);border-color:var(--ink);color:#fff}.chips a.on b{color:#9fc4bd}
+.search{display:flex;gap:8px}
+.search input{width:260px;max-width:100%}
+.tw{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:960px}
+th,td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:13px;font-weight:600;color:var(--mut);background:var(--soft);white-space:nowrap}
+tbody tr:hover{background:color-mix(in srgb,var(--soft) 60%,transparent)}
+tr:last-child td{border-bottom:0}
+td .n{font-weight:700}
+.tag{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:12.5px;font-weight:700}
+.tag:before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.t-trial{background:#e3ebff;color:#1d4ed8}.t-active{background:#dcf5e6;color:#13683f}.t-locked{background:#fde4ea;color:#a3123a}.t-paused{background:#fdeed2;color:#8a4a07}
+@media(prefers-color-scheme:dark){.t-trial{background:#1a2a55;color:#a9c0ff}.t-active{background:#123a28;color:#7be0ae}.t-locked{background:#421a25;color:#ff9db0}.t-paused{background:#41300f;color:#ffcf85}}
+form.inline{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin:0}
+label{font-size:13px;font-weight:600;color:var(--mut);display:block;margin-bottom:4px}
+input,select,textarea{height:38px;padding:0 11px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);font:inherit}
+input:focus,select:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px color-mix(in srgb,var(--pri) 25%,transparent)}
+button,.btn{height:38px;padding:0 16px;border:0;border-radius:8px;background:var(--pri-d);color:#fff;font:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+button:hover,.btn:hover{background:#085a50}button:disabled{opacity:.5;cursor:not-allowed}
+.btn.gray,button.gray{background:#64748b}.btn.line{background:transparent;color:var(--pri-d);box-shadow:inset 0 0 0 1px var(--line)}
+@media(prefers-color-scheme:dark){.btn.line{color:var(--pri)}}
+button.warn{background:#b45309}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:8px 18px;margin:0}
+.kv dt{color:var(--mut)}.kv dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+.mut{color:var(--mut)}.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.back{display:inline-block;margin-bottom:10px;color:var(--pri-d);font-weight:600;text-decoration:none}
+@media(prefers-color-scheme:dark){.back{color:var(--pri)}}
+.back:hover{text-decoration:underline}
 pre{white-space:pre-wrap;margin:0;font:inherit}
+@media(max-width:900px){
+ .app{display:block}
+ .side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;padding:10px 12px;gap:2px 4px}
+ .brand{padding:0 10px 0 4px}.brand small{display:none}
+ .side .sep{display:none}.side .push{margin-top:0}
+ .content{padding:20px 16px 40px}
+ .kpis{grid-template-columns:1fr}
+ h1{font-size:22px}
+}
 </style></head>
-<body><header><div class="w"><b>MedSync platform</b>
-<a href="{% url 'platform' %}">Shops</a><a href="{% url 'platform_site' %}">Website settings</a><a href="/admin/backend/blogpost/">Blog articles</a><a href="/admin/tenants/shop/">Shops (admin)</a><a href="/">My shop</a></div></header>
-<main>{% for m in messages %}<div class="msg {{ m.tags }}">{{ m }}</div>{% endfor %}{% block content %}{% endblock %}</main></body></html>
+<body><div class="app">
+<nav class="side"><a class="brand" href="{% url 'platform' %}">{% include "app/logo.html" with size=34 %}<span>MedSync<small>Platform</small></span></a>
+<a class="nav{% block nav_shops %}{% endblock %}" href="{% url 'platform' %}">Shops</a>
+<a class="nav{% block nav_site %}{% endblock %}" href="{% url 'platform_site' %}">Website settings</a>
+<a class="nav" href="/admin/backend/blogpost/">Blog articles</a>
+<a class="nav" href="/admin/tenants/shop/">Shops (admin)</a>
+<div class="sep"></div><a class="nav push" href="/">My shop</a></nav>
+<main class="content">{% for m in messages %}<div class="msg {{ m.tags }}" role="status">{{ m }}</div>{% endfor %}{% block content %}{% endblock %}</main>
+</div></body></html>
