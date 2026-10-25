@@ -194,3 +194,15 @@ def port_suffix(request):
         return ''
     port = request.get_port()
     return f':{port}' if port not in ('80', '443', '') else ''
+
+
+def platform_panel_url(user):
+    """'/superadmin/' for a platform admin on the main site (so every page can link back to the panel), else ''."""
+    from django.conf import settings
+    if not getattr(settings, 'MULTI_SHOP', False) or not is_platform():
+        return ''
+    try:
+        from tenants.platform import is_platform_admin
+        return '/superadmin/' if is_platform_admin(user) else ''
+    except Exception:
+        return ''

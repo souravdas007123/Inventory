@@ -66,4 +66,5 @@ def template_context(request):
     user = request.user
     from .views import nav_for       # imported here: views imports this module
     from . import tenancy
-    return {'is_owner': is_owner(user), 'nav': nav_for(user), 'shop_note': tenancy.shop_note(request)}
+    return {'is_owner': is_owner(user), 'nav': nav_for(user), 'shop_note': tenancy.shop_note(request),
+            'platform_url': tenancy.platform_panel_url(user)}

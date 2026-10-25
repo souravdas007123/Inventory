@@ -111,6 +111,7 @@ img,video{max-width:100%;height:auto}
 <div id="nprog"></div>
 <aside class="side" id="side">
   <h2 style="display:flex;align-items:center;gap:10px">{% include "app/logo.html" with size=30 %}MedSync</h2>
+  {% if platform_url %}<a href="{{ platform_url }}" class="plat"><span>🏬</span>Platform panel</a>{% endif %}
   {% regroup nav by group as groups %}
   {% for g in groups %}
     {% if g.grouper %}

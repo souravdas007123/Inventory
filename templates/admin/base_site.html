@@ -66,4 +66,4 @@ input[type=time], select, textarea { border-radius:8px; }
 .ms-card span { font-size:12px; color:var(--body-quiet-color); }
 .ms-card.warn { border-left-color:#f59e0b; } .ms-card.bad { border-left-color:#dc2626; } .ms-card.ok { border-left-color:#16a34a; }
 </style>{% endblock %}
-{% block branding %}<h1 id="site-name"><a href="{% url 'admin:index' %}">{% include "app/logo.html" with size=30 %}MedSync Admin</a></h1><a class="ms-back" href="{% url 'dashboard' %}">← Back to MedSync</a>{% endblock %}
+{% block branding %}<h1 id="site-name"><a href="{% url 'admin:index' %}">{% include "app/logo.html" with size=30 %}MedSync Admin</a></h1><a class="ms-back" href="{% url 'dashboard' %}">← Back to MedSync</a>{% if platform_url %}<a class="ms-back" href="{{ platform_url }}">Platform panel</a>{% endif %}{% endblock %}

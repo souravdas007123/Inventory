@@ -328,6 +328,13 @@ class PlatformPanelTests(TransactionTestCase):
         self.assertEqual(self.client.post('/superadmin/shop/99999999/delete/', {'confirm': 'x'}).status_code, 404)
         self.assertEqual(self.client.get(f'/superadmin/shop/{self.shop.pk}/delete/').status_code, 405)
 
+    def test_the_platform_panel_can_be_reached_from_the_shop_pages_and_the_admin(self):
+        for url in ('/', '/admin/', '/admin/tenants/shop/'):
+            self.assertContains(self.client.get(url), 'href="/superadmin/"', msg_prefix=url)
+        with override_settings(PLATFORM_ADMINS=['somebody-else']):                      # an ordinary owner has no such link
+            for url in ('/', '/admin/'):
+                self.assertNotContains(self.client.get(url), 'href="/superadmin/"', msg_prefix=url)
+
     def test_only_a_platform_admin_can_open_the_panel(self):
         from django.contrib.auth import get_user_model
         self.client.logout()
