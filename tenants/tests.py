@@ -821,6 +821,7 @@ class PlanRemindersAndBackupsTests(TransactionTestCase):
             self.assertNotContains(page, 'without a backup in the last 2 days')
 
 
+@skipUnless(settings.MULTI_SHOP, 'many shops is switched off')
 class TicketFormTests(SimpleTestCase):
     def test_a_good_ticket_is_cleaned(self):
         from tenants import support
