@@ -193,6 +193,9 @@ class BlogPagesTests(TestCase):
         self.assertContains(home, 'Health score')
         self.assertNotContains(home, 'Not available for this type of schema')   # shown by django-tenants for grouped apps
         self.assertContains(home, 'Recent actions')
+        side = self.client.get('/admin/backend/supplier/')                       # a page with the side list
+        self.assertContains(side, '04. Supplier')
+        self.assertNotContains(side, 'Not available for')                       # the same text, in django-tenants' side list
 
 
 class ArtTests(SimpleTestCase):

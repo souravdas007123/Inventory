@@ -228,6 +228,8 @@ class SignupFlowTests(TransactionTestCase):
         self.assertEqual(home.status_code, 200)
         self.assertContains(home, 'Recent actions')
         self.assertNotContains(home, 'Blog Articles')
+        side = self.client.get('/admin/backend/supplier/', HTTP_HOST=HOST)
+        self.assertNotContains(side, 'Not available for')
         self.assertEqual(self.client.get('/admin/backend/blogpost/', HTTP_HOST=HOST).status_code, 403)
         self.assertEqual(self.client.get('/admin/backend/blogpost/add/', HTTP_HOST=HOST).status_code, 403)
 
