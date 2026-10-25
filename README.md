@@ -359,3 +359,38 @@ Open the shop in the platform panel (`/superadmin/`, then the shop) and use **De
 - The main shop cannot be deleted. Only platform admins see this button.
 - The last backup of a deleted shop is not cleaned up automatically. Delete the file by hand when you no longer need it.
 - To restore such a shop, see "Restore one shop".
+
+## One command update (`deploy.sh`)
+
+On the server, as the site user:
+
+```
+~/htdocs/medsync.socialflylive.com/deploy.sh
+```
+
+It pulls the latest code, installs packages, runs `check`, updates the database of the main shop and every shop
+(`migrate_schemas`), collects static files, restarts the app and checks `/healthz/`. It stops at the first problem.
+
+To let the site user restart the app without a password, run this once **as root** (change the user name if yours differs):
+
+```
+echo 'socialflylive-medsync ALL=(root) NOPASSWD: /usr/bin/systemctl restart medsync' > /etc/sudoers.d/medsync-restart
+chmod 440 /etc/sudoers.d/medsync-restart
+visudo -c
+```
+
+Without this the script does everything except the restart and tells you to run `systemctl restart medsync` as root.
+
+## Uptime check and crash e-mails
+
+- `https://<your site>/healthz/` answers `{"status": "ok"}` (200) when the app and the database work, and 503 when not. Add it to
+  a free uptime monitor (for example UptimeRobot) so you get a message when the site is down.
+- A crash (HTTP 500) is e-mailed to `DJANGO_ERROR_EMAILS` in `.env` (comma separated). If that is not set, `DJANGO_ALERT_EMAILS` is used.
+  The mail never contains submitted form values or cookies.
+
+## Help page and the "Get your shop ready" card
+
+- Every signed-in user has **Help and support** in the menu (`/help/`): how-to answers, and the WhatsApp or email contact from
+  Website settings (many shops) or `LANDING_WHATSAPP` (one shop).
+- The owner's dashboard shows a four-step card (shop details, products, stock, first bill). It ticks itself from the data, can be
+  hidden for the session, and disappears when all four are done.

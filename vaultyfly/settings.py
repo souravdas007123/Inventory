@@ -224,6 +224,13 @@ DEFAULT_FROM_EMAIL = os.environ.get('DJANGO_FROM_EMAIL', 'MedSync <noreply@local
 # Recipients of the daily alert digest (low stock / expiry). If empty, the Shop Settings email is used.
 ALERT_EMAILS = env_list('DJANGO_ALERT_EMAILS')
 
+# A crash (HTTP 500) is mailed to these addresses (default: the alert addresses above). Needs working email settings.
+ERROR_EMAILS = env_list('DJANGO_ERROR_EMAILS') or ALERT_EMAILS
+ADMINS = [('MedSync', address) for address in ERROR_EMAILS]
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+EMAIL_SUBJECT_PREFIX = '[MedSync error] '
+DEFAULT_EXCEPTION_REPORTER_FILTER = 'backend.errorfilter.HidePrivateRequestData'
+
 # Cache: file-based so it is shared across all workers (needed for the login lock)
 CACHES = {
     'default': {

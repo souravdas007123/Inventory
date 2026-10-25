@@ -42,6 +42,19 @@ def site_context():
         return {}
 
 
+def contact_links():
+    """{'whatsapp': link or '', 'email': address or ''} for the Help page. Never raises."""
+    try:
+        if getattr(settings, 'MULTI_SHOP', False):
+            ctx = site_context()
+            return dict(whatsapp=ctx.get('contact_whatsapp', ''), email=ctx.get('contact_email', ''))
+        number = re.sub(r'\D', '', getattr(settings, 'LANDING_WHATSAPP', '') or '')
+        return dict(whatsapp=f"https://wa.me/{number}?text={quote('Hi, I need help with MedSync')}" if 10 <= len(number) <= 15 else '',
+                    email='')
+    except Exception:
+        return dict(whatsapp='', email='')
+
+
 def cta_context(request):
     """The 'Get a demo' button: a WhatsApp link when a number is configured, otherwise the login."""
     if getattr(settings, 'MULTI_SHOP', False):         # many shops: visitors can open a shop themselves

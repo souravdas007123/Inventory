@@ -1,13 +1,16 @@
 from django.contrib.auth import views as auth_views
 from django.urls import path
 
-from . import blog, landing, legal, passwordreset, security, views, views_extra, views_import
+from . import blog, helpviews, landing, legal, passwordreset, security, views, views_extra, views_import
 
 # NOTE: specific paths must always come BEFORE the generic '<str:key>/...' patterns below.
 urlpatterns = [
     path('', landing.home, name='dashboard'),
     path('blog/', blog.blog_list, name='blog'),
     path('blog/<slug:slug>/', blog.blog_post, name='blog_post'),
+    path('healthz/', helpviews.healthz, name='healthz'),
+    path('help/', helpviews.help_page, name='help'),
+    path('help/hide-setup/', helpviews.hide_setup, name='hide_setup'),
     path('terms/', legal.terms, name='terms'),
     path('privacy/', legal.privacy, name='privacy'),
     path('refund/', legal.refund, name='refund'),

@@ -1,0 +1,19 @@
+{% extends "app/base.html" %}
+{% block title %}Help and support{% endblock %}
+{% block content %}
+<div class="head"><h1>🛟 Help and support</h1></div>
+<div class="card" style="margin-bottom:14px">
+  <h3 style="margin-top:0">Talk to us</h3>
+  <p style="margin:0 0 10px;color:var(--mute)">Stuck on something, or want a feature? Write to us. Please say which page you were on and what you expected to happen.</p>
+  <p style="margin:0">{% if contact.whatsapp %}<a class="btn" href="{{ contact.whatsapp }}" target="_blank" rel="noopener">Message us on WhatsApp</a> {% endif %}{% if contact.email %}<a class="btn ghost" href="mailto:{{ contact.email }}">Email {{ contact.email }}</a>{% endif %}{% if not contact.whatsapp and not contact.email %}Please contact the person who set up MedSync for your shop.{% endif %}</p>
+</div>
+<div class="card" style="margin-bottom:14px">
+  <h3 style="margin-top:0">How do I...</h3>
+  {% for q, a in guides %}<details style="border-bottom:1px solid var(--line);padding:10px 0"><summary style="cursor:pointer;font-weight:600">{{ q }}</summary><p style="margin:8px 0 0;color:var(--mute)">{{ a }}</p></details>{% endfor %}
+</div>
+<div class="card">
+  <h3 style="margin-top:0">Keyboard shortcuts on the bill</h3>
+  <p style="margin:0;color:var(--mute)"><b>F2</b> searches a medicine, <b>Enter</b> moves to the next field and <b>F9</b> saves the bill.</p>
+  <p style="margin:10px 0 0;color:var(--mute)">Read our <a class="link" href="/terms/" target="_blank" rel="noopener">terms of use</a>, <a class="link" href="/privacy/" target="_blank" rel="noopener">privacy policy</a> and <a class="link" href="/refund/" target="_blank" rel="noopener">refund policy</a>.</p>
+</div>
+{% endblock %}

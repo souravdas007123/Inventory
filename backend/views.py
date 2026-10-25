@@ -19,7 +19,7 @@ from django.utils import timezone
 from django.utils.html import format_html, format_html_join
 from django.views.decorators.http import require_POST
 
-from . import access, auditlog, backup, billview, checks, levels, notify, recurring, supplier_prices, tenancy
+from . import access, auditlog, backup, billview, checks, levels, notify, onboarding, recurring, supplier_prices, tenancy
 from .models import (
     AuditLog, HeldBill, Batch, Bill, Brand, Category, Customer, CustomerPayment, Employee, Expense, InvoiceItem, Order, Payment,
     Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, RecurringExpense,
@@ -70,6 +70,7 @@ NAV = [
     {'key': 'users', 'url': '/users/', 'label': 'Users & Sign-ins', 'icon': '👤', 'group': 'Master Data', 'staff': True},
     {'key': 'health', 'url': '/health/', 'label': 'Health Score', 'icon': '🩺', 'group': 'Master Data', 'staff': True},
     {'key': 'backup', 'url': '/backup/', 'label': 'Backup', 'icon': '💾', 'group': 'Master Data', 'staff': True},
+    {'key': 'help', 'url': '/help/', 'label': 'Help and support', 'icon': '🛟', 'group': 'Master Data', 'always': True},
     {'key': 'plan', 'url': '/plan/', 'label': 'Plan & Payments', 'icon': '💳', 'group': 'Master Data', 'staff': True, 'shop_only': True},
     {'key': 'shop', 'url': '/shop/', 'label': 'Shop Settings', 'icon': '🏪', 'group': 'Master Data', 'staff': True},
     {'key': 'reset', 'url': '/reset/', 'label': 'Reset Data', 'icon': '♻️', 'group': 'Master Data', 'staff': True},
@@ -527,6 +528,9 @@ def nav_for(user):
             rule, also_add = ('view', model), ('add', model)       # add-only users still get the entry (opens the form)
         if n.get('staff'):
             rule = 'owner'
+        if n.get('always'):                                          # every signed-in user (like the Help page)
+            out.append(n)
+            continue
         if rule == 'owner':
             ok = access.is_owner(user)
         else:
@@ -587,6 +591,7 @@ def dashboard(request):
         today_sales=total(date=today),
         month_sales=total(date__month=today.month, date__year=today.year),
         backup_note=backup_note,
+        setup=onboarding.checklist(request.user, hidden=bool(request.session.get('hide_setup'))),
         low_count=low.count(), out_count=active.filter(stock_qty=0).count(),
         expired_count=live.filter(expire_date__lt=today).count(), expiring_count=expiring.count(),
         payable=Supplier.objects.aggregate(s=Sum('opening_balance'))['s'] or 0,
