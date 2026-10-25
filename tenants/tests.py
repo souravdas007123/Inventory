@@ -214,6 +214,12 @@ class SignupFlowTests(TransactionTestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('http://' + HOST + '/reset-password/', mail.outbox[0].body)
 
+    def test_back_to_home_page_on_a_shop_login_goes_to_the_main_site(self):
+        self.sign_up()
+        self.confirm()
+        self.assertContains(self.client.get('/login/', HTTP_HOST=HOST), 'href="http://localhost/"')   # not to its own '/'
+        self.assertContains(self.client.get('/login/'), 'href="/"')                                    # the main site: its own home
+
     def test_backups_of_one_shop_stay_inside_that_shop(self):
         from backend import backup
         from django_tenants.utils import schema_context

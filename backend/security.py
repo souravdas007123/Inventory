@@ -30,6 +30,16 @@ class ThrottledLoginView(LoginView):
                 return main_login(request)
         return super().dispatch(request, *args, **kwargs)
 
+    def get_context_data(self, **kwargs):
+        """On a shop's own address 'Back to home page' goes to the main site (the shop's own '/' is its private dashboard)."""
+        ctx = super().get_context_data(**kwargs)
+        from django.conf import settings
+        if getattr(settings, 'MULTI_SHOP', False):
+            from . import tenancy
+            if not tenancy.is_platform():
+                ctx['home_url'] = f"{self.request.scheme}://{settings.SHOP_BASE_DOMAIN}{tenancy.port_suffix(self.request)}/"
+        return ctx
+
     def _key(self):
         user = (self.request.POST.get('username') or '').strip().lower()
         raw = f"{client_ip(self.request)}|{user}"

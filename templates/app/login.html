@@ -28,4 +28,4 @@ button{width:100%;margin-top:20px;padding:12px;border:0;border-radius:10px;backg
 {% else %}<label>Username</label>{{ form.username }}
 <label>Password</label>{{ form.password }}{% endif %}
 <input type="hidden" name="next" value="{{ next }}">
-<button>Login</button><a class="back" href="{% url 'forgot' %}">Forgot your password?</a><a class="back" style="margin-top:8px" href="/">&larr; Back to home page</a></form></body></html>
+<button>Login</button><a class="back" href="{% url 'forgot' %}">Forgot your password?</a><a class="back" style="margin-top:8px" href="{{ home_url|default:'/' }}">&larr; Back to home page</a></form></body></html>
