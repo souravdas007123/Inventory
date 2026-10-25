@@ -70,7 +70,7 @@ class CameraScanTests(TestCase):
         self.client.force_login(self.owner)
 
     def test_the_bill_and_purchase_screens_have_the_camera_scan_code(self):
-        for url, field in (('/bills/add/', 'scan'), ('/purchases/add/', 'pq')):
+        for url, field in (('/bills/new/', 'scan'), ('/purchases/new/', 'pq')):
             page = self.client.get(url)
             self.assertEqual(page.status_code, 200, url)
             self.assertContains(page, 'cam-open', msg_prefix=url)
@@ -78,13 +78,13 @@ class CameraScanTests(TestCase):
             self.assertContains(page, 'BarcodeDetector', msg_prefix=url)
 
     def test_other_screens_do_not_get_it(self):
-        self.assertNotContains(self.client.get('/products/add/'), 'cam-open')
+        self.assertNotContains(self.client.get('/products/new/'), 'cam-open')
 
     def test_the_inline_scripts_are_valid_javascript(self):
         node = shutil.which('node')
         if not node:
             self.skipTest('node is not installed')
-        for url in ('/bills/add/', '/purchases/add/'):
+        for url in ('/bills/new/', '/purchases/new/'):
             html = self.client.get(url).content.decode()
             for i, code in enumerate(re.findall(r'<script>(.*?)</script>', html, re.S)):
                 with tempfile.TemporaryDirectory() as d:
