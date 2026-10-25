@@ -8,6 +8,7 @@ Who may see and do what in the main app (not only in /admin/).
 """
 from functools import wraps
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 
@@ -61,6 +62,19 @@ NAV_RULES = {
 }
 
 
+def _count_tickets(request, user, platform=False):
+    """New replies waiting for this shop, or (platform) tickets waiting for the platform owner. 0 when unreadable."""
+    try:
+        from tenants.models import Ticket
+        if platform:
+            from tenants.platform import is_platform_admin
+            return Ticket.objects.filter(status='open').count() if is_platform_admin(user) else 0
+        shop = getattr(request, 'tenant', None)
+        return Ticket.objects.filter(shop=shop, shop_unread=True).count() if user.is_authenticated and shop is not None else 0
+    except Exception:
+        return 0
+
+
 def template_context(request):
     """Adds `is_owner` and the menu (only what this user may open) to every template."""
     user = request.user
@@ -68,7 +82,11 @@ def template_context(request):
     from . import tenancy
     ctx = {'is_owner': is_owner(user), 'nav': nav_for(user), 'shop_note': tenancy.shop_note(request),
            'platform_url': tenancy.platform_panel_url(user), 'platform_notice': ''}
+    ctx['support_unread'] = ctx['open_tickets'] = 0
     if tenancy.on_shop_site():
         from tenants import site
         ctx['platform_notice'] = site.shop_notice()
+        ctx['support_unread'] = _count_tickets(request, user)
+    elif getattr(settings, 'MULTI_SHOP', False) and tenancy.is_platform() and user.is_authenticated:
+        ctx['open_tickets'] = _count_tickets(request, user, platform=True)
     return ctx

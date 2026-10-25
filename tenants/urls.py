@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import mainlogin, plan, platform, views
+from . import mainlogin, plan, platform, support, supportadmin, views
 
 urlpatterns = [
     path('signup/', views.signup, name='signup'),
@@ -8,6 +8,10 @@ urlpatterns = [
     path('sso/<str:token>/', mainlogin.sso, name='sso'),
     path('plan/', plan.plan, name='plan'),
     path('superadmin/', platform.dashboard, name='platform'),
+    path('support/', support.ticket_list, name='support'),
+    path('support/<int:pk>/', support.ticket_detail, name='support_ticket'),
+    path('superadmin/support/', supportadmin.ticket_list, name='platform_support'),
+    path('superadmin/support/<int:pk>/', supportadmin.ticket_detail, name='platform_ticket'),
     path('superadmin/site/', platform.site_settings, name='platform_site'),
     path('superadmin/shop/<int:pk>/', platform.shop_detail, name='platform_shop'),
     path('superadmin/shop/<int:pk>/delete/', platform.shop_delete, name='platform_shop_delete'),

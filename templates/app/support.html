@@ -1,0 +1,26 @@
+{% extends "app/base.html" %}
+{% block title %}Support tickets{% endblock %}
+{% block content %}
+<div class="head"><h1>🎫 Support tickets</h1></div>
+<div class="card" style="margin-bottom:14px">
+  <h3 style="margin-top:0">Ask us for help</h3>
+  <p style="margin:0 0 12px;color:var(--mute)">Tell us what went wrong or what you need. We reply here, and you also get an e-mail. Please say what you were doing and what you expected to happen.</p>
+  <form method="post" style="display:grid;gap:12px;max-width:640px">{% csrf_token %}
+    <input type="hidden" name="page" value="{{ page }}">
+    <div class="fld"><label for="t-cat">What is it about?</label>
+      <select id="t-cat" name="category">{% for k, v in categories %}<option value="{{ k }}"{% if values.category == k %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+    <div class="fld"><label for="t-subject">Subject</label><input id="t-subject" name="subject" maxlength="120" required value="{{ values.subject }}" placeholder="For example: bill total is wrong"></div>
+    <div class="fld"><label for="t-body">Your message</label><textarea id="t-body" name="body" rows="6" maxlength="4000" required style="width:100%" placeholder="What happened, and on which page?">{{ values.body }}</textarea></div>
+    <div><button class="btn">Send to MedSync support</button></div>
+  </form>
+</div>
+<div class="card">
+  <h3 style="margin-top:0">Your tickets</h3>
+  <div class="tw"><table class="t">
+    <thead><tr><th>No.</th><th>Subject</th><th>Status</th><th>Last update</th></tr></thead>
+    {% for t in tickets %}<tr><td>#{{ t.pk }}</td><td><a href="{% url 'support_ticket' t.pk %}">{{ t.subject }}</a>{% if t.shop_unread %} <b style="color:var(--pri)">New reply</b>{% endif %}</td>
+      <td>{{ t.get_status_display }}</td><td>{{ t.updated_at|date:"d M Y, h:i A" }}</td></tr>
+    {% empty %}<tr><td class="empty" colspan="4">You have not sent any ticket yet.</td></tr>{% endfor %}
+  </table></div>
+</div>
+{% endblock %}

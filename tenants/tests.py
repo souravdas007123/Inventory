@@ -6,7 +6,7 @@ from django.conf import settings
 from django.core import mail
 from django.core.cache import cache
 from django.db import connection
-from django.test import TransactionTestCase, override_settings
+from django.test import SimpleTestCase, TransactionTestCase, override_settings
 from django.utils import timezone
 
 from backend import tenancy
@@ -819,3 +819,192 @@ class PlanRemindersAndBackupsTests(TransactionTestCase):
             (Path(tmp) / f'medsync_{self.SCHEMA}_{timezone.localdate():%Y%m%d}_010101.pgdump').write_bytes(b'PGDMP')
             page = self.client.get('/superadmin/')
             self.assertNotContains(page, 'without a backup in the last 2 days')
+
+
+class TicketFormTests(SimpleTestCase):
+    def test_a_good_ticket_is_cleaned(self):
+        from tenants import support
+        values, errors = support.clean_ticket(dict(subject='  Bill   total wrong ', category='billing', body=' Hello\r\nthere '))
+        self.assertEqual(errors, [])
+        self.assertEqual(values, dict(subject='Bill total wrong', category='billing', body='Hello\nthere'))
+
+    def test_bad_tickets_give_a_message_each(self):
+        from tenants import support
+        for post in (dict(subject='ab', body='x'), dict(subject='x' * 121, body='x'), dict(subject='Fine subject', category='zzz', body='x'),
+                     dict(subject='Fine subject', body='   '), dict(subject='Fine subject', body='x' * 4001)):
+            self.assertEqual(len(support.clean_ticket(post)[1]), 1, post)
+
+    def test_the_page_comes_only_from_the_same_site(self):
+        from django.test import RequestFactory
+        from tenants import support
+        rf = RequestFactory()
+        self.assertEqual(support.page_from(rf.get('/support/', HTTP_REFERER='http://testserver/bills/new/')), '/bills/new/')
+        self.assertEqual(support.page_from(rf.get('/support/', HTTP_REFERER='http://evil.example/bills/')), '')
+        self.assertEqual(support.page_from(rf.get('/support/', HTTP_REFERER='http://testserver/support/3/')), '')
+        self.assertEqual(support.page_from(rf.get('/support/')), '')
+
+
+@skipUnless(settings.MULTI_SHOP, 'many shops is switched off')
+@override_settings(ALLOWED_HOSTS=['.localhost', 'testserver'], SHOP_BASE_DOMAIN='localhost',
+                   SECURE_SSL_REDIRECT=False, SESSION_COOKIE_SECURE=False, CSRF_COOKIE_SECURE=False, PLATFORM_ADMINS=[],
+                   ALERT_EMAILS=['boss@example.com'], EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+class SupportTicketTests(TransactionTestCase):
+    SCHEMAS = {'s_tk_one': 'tk-one.localhost', 's_tk_two': 'tk-two.localhost'}
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from django_tenants.utils import schema_context
+        connection.set_schema_to_public()
+        cache.clear()
+        self.addCleanup(self.drop)
+        today = timezone.localdate()
+        self.shops = {}
+        for schema, host in self.SCHEMAS.items():
+            shop = Shop(schema_name=schema, name='Shop ' + schema[-3:], owner_name='Owner', email=schema + '@example.com',
+                        phone='9876543210', trial_ends=today + timedelta(days=30))
+            shop.save()
+            connection.set_schema_to_public()
+            Domain.objects.create(domain=host, tenant=shop, is_primary=True)
+            with schema_context(schema):
+                get_user_model().objects.create_superuser('owner', 'o@example.com', 'pw-12345-xx')
+            connection.set_schema_to_public()
+            self.shops[schema] = shop
+        self.one, self.two = 's_tk_one', 's_tk_two'
+        self.boss = get_user_model().objects.create_superuser('boss-tk', 'b@example.com', 'pw-12345-xx')
+        self.boss_client = self.client_class()
+        self.boss_client.force_login(self.boss)
+        self.shop_client = self.login(self.one)
+
+    def drop(self):
+        connection.set_schema_to_public()
+        for schema in self.SCHEMAS:
+            Shop.objects.filter(schema_name=schema).delete()
+            with connection.cursor() as cur:
+                cur.execute(f'DROP SCHEMA IF EXISTS {schema} CASCADE')
+
+    def login(self, schema):
+        c = self.client_class()
+        r = c.post('/login/', {'username': 'owner', 'password': 'pw-12345-xx'}, HTTP_HOST=self.SCHEMAS[schema])
+        self.assertEqual(r.status_code, 302)
+        return c
+
+    def host(self, schema=None):
+        return self.SCHEMAS[schema or self.one]
+
+    def send(self, client=None, schema=None, **over):
+        data = dict(category='billing', subject='Bill total is wrong', body='The GST is added twice.')
+        data.update(over)
+        resp = (client or self.shop_client).post('/support/', data, HTTP_HOST=self.host(schema), follow=True)
+        connection.set_schema_to_public()
+        return resp
+
+    def test_a_shop_sends_a_ticket_and_the_platform_owner_gets_it_by_mail_and_in_the_panel(self):
+        from tenants.models import Ticket
+        resp = self.send()
+        self.assertContains(resp, 'Your ticket #')
+        t = Ticket.objects.get()
+        self.assertEqual((t.shop.schema_name, t.status, t.created_by, t.category), (self.one, 'open', 'owner', 'billing'))
+        self.assertEqual(t.messages.get().body, 'The GST is added twice.')
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['boss@example.com'])
+        self.assertIn('Bill total is wrong', mail.outbox[0].subject)
+        self.assertIn(f'/superadmin/support/{t.pk}/', mail.outbox[0].body)
+        page = self.boss_client.get('/superadmin/support/')
+        self.assertContains(page, 'Bill total is wrong')
+        self.assertContains(page, 'Shop ' + self.one[-3:])
+        self.assertContains(self.boss_client.get('/superadmin/'), '1 support ticket waiting')
+
+    def test_mistakes_are_explained_and_no_ticket_is_made(self):
+        from tenants.models import Ticket
+        for over in (dict(subject='ab'), dict(body=''), dict(category='zzz')):
+            self.send(**over)
+        self.assertEqual(Ticket.objects.count(), 0)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_the_platform_reply_reaches_the_shop_with_a_banner_and_a_mail(self):
+        from tenants.models import Ticket
+        self.send()
+        t = Ticket.objects.get()
+        r = self.boss_client.post(f'/superadmin/support/{t.pk}/', {'action': 'reply', 'body': 'Fixed, please check.'}, follow=True)
+        self.assertContains(r, 'Your reply was sent')
+        t.refresh_from_db()
+        self.assertEqual((t.status, t.shop_unread), ('answered', True))
+        self.assertEqual(mail.outbox[-1].to, [self.one + '@example.com'])
+        self.assertIn('Fixed, please check.', mail.outbox[-1].body)
+        page = self.shop_client.get('/help/', HTTP_HOST=self.host())
+        self.assertContains(page, '1 new reply from MedSync support')
+        detail = self.shop_client.get(f'/support/{t.pk}/', HTTP_HOST=self.host())
+        self.assertContains(detail, 'Fixed, please check.')
+        self.assertContains(detail, 'MedSync support')
+        self.assertNotContains(self.shop_client.get('/help/', HTTP_HOST=self.host()), 'new reply from MedSync support')
+        self.assertContains(self.shop_client.get('/help/', HTTP_HOST=self.host()), 'Open a support ticket')
+
+    def test_a_shop_reply_reopens_and_the_platform_can_close_and_reopen(self):
+        from tenants.models import Ticket
+        self.send()
+        t = Ticket.objects.get()
+        self.boss_client.post(f'/superadmin/support/{t.pk}/', {'action': 'close'})
+        t.refresh_from_db()
+        self.assertEqual(t.status, 'closed')
+        self.shop_client.post(f'/support/{t.pk}/', {'body': 'It happened again.'}, HTTP_HOST=self.host())
+        connection.set_schema_to_public()
+        t.refresh_from_db()
+        self.assertEqual((t.status, t.messages.count()), ('open', 2))
+        self.boss_client.post(f'/superadmin/support/{t.pk}/', {'action': 'close'})
+        self.boss_client.post(f'/superadmin/support/{t.pk}/', {'action': 'reopen'})
+        t.refresh_from_db()
+        self.assertEqual(t.status, 'open')
+
+    def test_a_shop_cannot_see_or_answer_the_tickets_of_another_shop(self):
+        from tenants.models import Ticket
+        self.send()
+        t = Ticket.objects.get()
+        other = self.login(self.two)
+        self.assertEqual(other.get(f'/support/{t.pk}/', HTTP_HOST=self.host(self.two)).status_code, 404)
+        self.assertEqual(other.post(f'/support/{t.pk}/', {'body': 'hi'}, HTTP_HOST=self.host(self.two)).status_code, 404)
+        connection.set_schema_to_public()
+        self.assertNotContains(other.get('/support/', HTTP_HOST=self.host(self.two)), 'Bill total is wrong')
+        connection.set_schema_to_public()
+        self.assertEqual(t.messages.count(), 1)
+
+    def test_only_signed_in_shops_can_use_support_and_only_the_platform_owner_can_read_it(self):
+        anon = self.client_class()
+        r = anon.get('/support/', HTTP_HOST=self.host())
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/login/', r['Location'])
+        self.assertEqual(self.shop_client.get('/superadmin/support/', HTTP_HOST=self.host()).status_code, 404)
+        connection.set_schema_to_public()
+        self.assertIn(self.client_class().get('/support/').status_code, (302, 404))         # the main site has no shop tickets
+        self.assertIn(self.client_class().get('/superadmin/support/').status_code, (302, 404))
+
+    def test_too_many_new_tickets_in_an_hour_are_refused(self):
+        from tenants.models import Ticket
+        for i in range(5):
+            self.send(subject=f'Problem number {i}')
+        r = self.send(subject='One more problem')
+        self.assertContains(r, 'several tickets in the last hour')
+        self.assertEqual(Ticket.objects.count(), 5)
+
+    def test_a_shop_with_an_ended_plan_can_still_write_to_support(self):
+        from tenants.models import Ticket
+        shop = self.shops[self.one]
+        shop.trial_ends = timezone.localdate() - timedelta(days=40)
+        shop.save()
+        connection.set_schema_to_public()
+        self.send()
+        self.assertEqual(Ticket.objects.count(), 1)
+
+    def test_messages_are_shown_as_plain_text(self):
+        from tenants.models import Ticket
+        self.send(body='<script>alert(1)</script>')
+        t = Ticket.objects.get()
+        shop_page = self.shop_client.get(f'/support/{t.pk}/', HTTP_HOST=self.host())
+        self.assertNotContains(shop_page, '<script>alert(1)</script>')
+        connection.set_schema_to_public()
+        self.assertNotContains(self.boss_client.get(f'/superadmin/support/{t.pk}/'), '<script>alert(1)</script>')
+
+    def test_the_shop_page_of_the_platform_lists_its_tickets_and_the_menu_has_the_entry(self):
+        self.send()
+        t = self.shops[self.one]
+        self.assertContains(self.boss_client.get(f'/superadmin/shop/{t.pk}/'), 'Bill total is wrong')
+        self.assertContains(self.shop_client.get('/help/', HTTP_HOST=self.host()), 'href="/support/"')

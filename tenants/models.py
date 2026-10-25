@@ -108,3 +108,38 @@ class SiteSetting(models.Model):
 
     def __str__(self):
         return 'Website settings'
+
+
+class Ticket(models.Model):
+    """A question or problem that a shop sends to the platform owner from inside the app.
+    open = waiting for MedSync, answered = waiting for the shop, closed = done."""
+    CATEGORIES = [('billing', 'Billing'), ('stock', 'Stock and batches'), ('login', 'Sign-in and users'),
+                  ('reports', 'Reports and GST'), ('idea', 'Idea or feature request'), ('other', 'Something else')]
+    STATUSES = [('open', 'Open'), ('answered', 'Answered'), ('closed', 'Closed')]
+
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='tickets')
+    subject = models.CharField(max_length=120)
+    category = models.CharField(max_length=10, choices=CATEGORIES, default='other')
+    status = models.CharField(max_length=10, choices=STATUSES, default='open')
+    created_by = models.CharField(max_length=150, blank=True, default='')
+    shop_unread = models.BooleanField(default=False)          # MedSync wrote and the shop has not read it yet
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f'#{self.pk} {self.subject}'
+
+
+class TicketMessage(models.Model):
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='messages')
+    from_shop = models.BooleanField(default=True)
+    author = models.CharField(max_length=150, blank=True, default='')
+    body = models.TextField(max_length=4000)
+    page = models.CharField(max_length=200, blank=True, default='')       # the page the shop was on when it wrote
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']

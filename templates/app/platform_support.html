@@ -1,0 +1,26 @@
+{% extends "app/platform_base.html" %}
+{% block title %}Support{% endblock %}
+{% block nav_support %} on{% endblock %}
+{% block content %}
+<h1>Support</h1>
+<p class="sub">Tickets that shops send from inside the app. Open tickets are waiting for your reply.</p>
+<div class="bar">
+<nav class="chips" aria-label="Filter by status">
+<a href="?{% if q %}q={{ q|urlencode }}{% endif %}"{% if not want %} class="on"{% endif %}>All<b>{{ total }}</b></a>
+{% for k, v in states.items %}<a href="?status={{ k }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}"{% if k == want %} class="on"{% endif %}>{{ v }}</a>{% endfor %}
+</nav>
+<form class="search" method="get">{% if want %}<input type="hidden" name="status" value="{{ want }}">{% endif %}
+<input name="q" value="{{ q }}" placeholder="Search tickets" aria-label="Search tickets"><button>Search</button>{% if q or want %}<a class="btn line" href="{% url 'platform_support' %}">Clear</a>{% endif %}</form>
+</div>
+<div class="tw"><table>
+<thead><tr><th>No.</th><th>Shop</th><th>Subject</th><th>Status</th><th>Last update</th><th></th></tr></thead>
+<tbody>{% for t in rows %}<tr>
+<td>#{{ t.pk }}</td>
+<td><span class="n">{{ t.shop.name }}</span><br><span class="mut">{{ t.created_by }}</span></td>
+<td>{{ t.subject }}<br><span class="mut">{{ t.get_category_display }}</span></td>
+<td><span class="tag {% if t.status == 'open' %}t-locked{% elif t.status == 'answered' %}t-trial{% else %}t-active{% endif %}">{{ t.get_status_display }}</span></td>
+<td>{{ t.updated_at|date:"d M Y, H:i" }}</td>
+<td class="num"><a class="btn" href="{% url 'platform_ticket' t.pk %}">Open</a></td>
+</tr>{% empty %}<tr><td colspan="6" class="mut">{% if q or want %}No ticket matches.{% else %}No shop has sent a ticket yet.{% endif %}</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

@@ -6,7 +6,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
-from . import access
+from . import access, tenancy
 from .landing import contact_links
 
 GUIDES = [
@@ -23,7 +23,7 @@ GUIDES = [
 
 @login_required
 def help_page(request):
-    return render(request, 'app/help.html', dict(active='help', guides=GUIDES, contact=contact_links(), is_owner_user=access.is_owner(request.user)))
+    return render(request, 'app/help.html', dict(active='help', guides=GUIDES, contact=contact_links(), tickets_on=tenancy.on_shop_site(), is_owner_user=access.is_owner(request.user)))
 
 
 @login_required

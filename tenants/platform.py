@@ -166,7 +166,7 @@ def shop_detail(request, pk):
     row = _row(shop, today, fresh=True)
     row['url'] = _shop_link(request, row['domain'], '/login/')
     return render(request, 'app/platform_shop.html', dict(
-        row=row, shop=shop, payments=shop.payments.all()[:50], prices=prices(), today=today, confirm_word=shop_name_to_type(shop),
+        row=row, shop=shop, tickets=shop.tickets.all()[:10], payments=shop.payments.all()[:50], prices=prices(), today=today, confirm_word=shop_name_to_type(shop),
         paid_total=shop.payments.aggregate(s=Sum('amount'))['s'] or Decimal('0')))
 
 

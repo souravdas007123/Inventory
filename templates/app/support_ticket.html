@@ -1,0 +1,16 @@
+{% extends "app/base.html" %}
+{% block title %}Ticket #{{ ticket.pk }}{% endblock %}
+{% block content %}
+<div class="head"><h1>🎫 #{{ ticket.pk }} {{ ticket.subject }}</h1><a class="btn ghost" href="{% url 'support' %}">All tickets</a></div>
+<p style="color:var(--mute);margin-top:-8px">{{ ticket.get_category_display }} &middot; {{ ticket.get_status_display }} &middot; opened {{ ticket.created_at|date:"d M Y, h:i A" }}</p>
+{% for m in thread %}<div class="card" style="margin-bottom:10px;{% if not m.from_shop %}border-left:4px solid var(--pri){% endif %}">
+  <div style="color:var(--mute);margin-bottom:6px"><b>{% if m.from_shop %}{{ m.author|default:"You" }}{% else %}MedSync support{% endif %}</b> &middot; {{ m.created_at|date:"d M Y, h:i A" }}{% if m.page %} &middot; page {{ m.page }}{% endif %}</div>
+  <div>{{ m.body|linebreaksbr }}</div></div>{% endfor %}
+<div class="card" style="margin-top:14px">
+  <h3 style="margin-top:0">{% if ticket.status == 'closed' %}Reopen with a message{% else %}Add a message{% endif %}</h3>
+  <form method="post" style="display:grid;gap:12px;max-width:640px">{% csrf_token %}
+    <div class="fld"><label for="r-body" class="sr">Message</label><textarea id="r-body" name="body" rows="4" maxlength="4000" required style="width:100%"></textarea></div>
+    <div><button class="btn">Send</button></div>
+  </form>
+</div>
+{% endblock %}

@@ -11,8 +11,11 @@ ALWAYS_OPEN = ('/login/', '/logout/', '/forgot/')       # a locked shop's owner 
 ALWAYS_OPEN_PREFIX = '/reset-password/'                  # and to choose a new password
 
 
+ALWAYS_OPEN_SUPPORT = '/support/'                          # a shop whose plan ended must still be able to write to us
+
+
 def is_always_open(path):
-    return path in ALWAYS_OPEN or path.startswith(ALWAYS_OPEN_PREFIX)
+    return path in ALWAYS_OPEN or path.startswith(ALWAYS_OPEN_PREFIX) or path.startswith(ALWAYS_OPEN_SUPPORT)
 
 
 class ShopAccessMiddleware:

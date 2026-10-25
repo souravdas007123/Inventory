@@ -402,3 +402,9 @@ Without this the script does everything except the restart and tells you to run 
 * **Growth** numbers on the Shops page: new shops in 30 days, trials ending in 7 days, share of shops that have paid, shops with no sign-in for 14 days.
 * **Notice inside every shop**: `/superadmin/site/` has a "Notice inside every shop" box (200 characters). It appears at the top of every page of every shop (cached up to one minute). Leave it blank to hide it.
 * There is deliberately **no** way for the platform owner to sign in to a shop's panel: a shop's data is private to the shop. To help a shop, ask its owner to share his screen, or use the shop's own backup file. (An earlier "sign in for support" button was removed; migration `tenants 0008` drops its column.)
+
+## Support tickets (shop to platform owner, no WhatsApp needed)
+* A shop opens **Support tickets** in its menu (or the button on the Help page), picks a category and writes a subject and message (up to 4000 characters). Only what the shop types is sent, plus the page it was on (from the Referer header, same site only). A shop can send 5 new tickets and 20 messages per hour. A shop whose plan has ended can still write to support.
+* The platform owner sees every ticket at `/superadmin/support/` (filters Open / Answered / Closed, search by subject, shop or text; the menu shows how many are open) and on each shop's page. Reply, Close and Reopen are on the ticket page. A reply sets the ticket to *Answered*; a message from the shop sets it back to *Open*.
+* E-mails: a new ticket or reply goes to `DJANGO_ALERT_EMAILS` (or the contact e-mail in Website settings); a platform reply goes to the shop's e-mail. The shop also sees a "new reply" bar inside the app until it opens the ticket.
+* A shop can open only its own tickets. Texts are shown as plain text. Needs `migrate_schemas --shared` (migration `tenants 0009`). Tickets exist only while many shops is on.
