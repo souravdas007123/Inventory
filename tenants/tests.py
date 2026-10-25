@@ -220,6 +220,17 @@ class SignupFlowTests(TransactionTestCase):
         self.assertContains(self.client.get('/login/', HTTP_HOST=HOST), 'href="http://localhost/"')   # not to its own '/'
         self.assertContains(self.client.get('/login/'), 'href="/"')                                    # the main site: its own home
 
+    def test_a_shops_admin_panel_has_no_blog_articles(self):
+        self.sign_up()
+        self.confirm()
+        self.client.post('/login/', {'username': 'raj@example.com', 'password': GOOD['password']}, HTTP_HOST=HOST)
+        home = self.client.get('/admin/', HTTP_HOST=HOST)
+        self.assertEqual(home.status_code, 200)
+        self.assertContains(home, 'Recent actions')
+        self.assertNotContains(home, 'Blog Articles')
+        self.assertEqual(self.client.get('/admin/backend/blogpost/', HTTP_HOST=HOST).status_code, 403)
+        self.assertEqual(self.client.get('/admin/backend/blogpost/add/', HTTP_HOST=HOST).status_code, 403)
+
     def test_backups_of_one_shop_stay_inside_that_shop(self):
         from backend import backup
         from django_tenants.utils import schema_context

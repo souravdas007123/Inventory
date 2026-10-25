@@ -553,6 +553,26 @@ class BlogPostAdmin(admin.ModelAdmin):
     date_hierarchy = 'published_at'
     fields = ('title', 'slug', 'summary', 'body', 'cover', 'image_url', 'image_alt', 'published', 'published_at')
 
+    # The blog belongs to the main site. A shop's own admin panel must not show it (or open its addresses).
+    def _main_site_only(self):
+        from . import tenancy
+        return tenancy.is_platform()
+
+    def has_module_permission(self, request):
+        return self._main_site_only() and super().has_module_permission(request)
+
+    def has_view_permission(self, request, obj=None):
+        return self._main_site_only() and super().has_view_permission(request, obj)
+
+    def has_add_permission(self, request):
+        return self._main_site_only() and super().has_add_permission(request)
+
+    def has_change_permission(self, request, obj=None):
+        return self._main_site_only() and super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return self._main_site_only() and super().has_delete_permission(request, obj)
+
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
         form.base_fields['body'].widget.attrs.update(rows=28, style='width:100%;font-family:system-ui,sans-serif;font-size:15px')
