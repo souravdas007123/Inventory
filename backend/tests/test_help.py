@@ -119,7 +119,12 @@ class UpdateScriptTests(SimpleTestCase):
 
     def test_the_script_exists_is_executable_and_valid(self):
         self.assertTrue(self.SCRIPT.exists())
-        self.assertTrue(self.SCRIPT.stat().st_mode & 0o111, 'deploy.sh must be executable')
+        git = shutil.which('git')                      # Windows files have no executable bit, so ask git what the server will get
+        if git:
+            out = subprocess.run([git, 'ls-files', '--stage', '--', self.SCRIPT.name], capture_output=True, text=True,
+                                 cwd=str(self.SCRIPT.parent)).stdout
+            if out.strip():
+                self.assertTrue(out.startswith('100755'), 'deploy.sh must be committed as executable: ' + out)
         bash = shutil.which('bash')
         if bash:
             done = subprocess.run([bash, '-n', str(self.SCRIPT)], capture_output=True, text=True)
