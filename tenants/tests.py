@@ -460,6 +460,14 @@ class WebsiteSettingsTests(TransactionTestCase):
         self.assertIn('Rs 8000', page)
         self.assertIn('save Rs 400', page)
         self.assertNotIn('class="ann"', page)
+        self.assertIn('about Rs 667 a month', page)
+        self.assertIn('Everything in both plans', page)
+        self.assertIn('GSTR-1, GSTR-3B and HSN reports', page)
+        import json
+        import re
+        ld = json.loads(re.search(r'<script type="application/ld\+json">(.*?)</script>', page, re.S).group(1))
+        offers = ld['@graph'][0]['offers']
+        self.assertEqual([o['price'] for o in offers], ['700', '8000'])
 
     def test_saved_settings_appear_on_the_home_page_and_the_sign_up_page(self):
         resp = self.save()
@@ -470,6 +478,7 @@ class WebsiteSettingsTests(TransactionTestCase):
         self.assertIn('Rs 600', page)
         self.assertIn('Rs 6500', page)
         self.assertIn('save Rs 700', page)
+        self.assertIn('about Rs 542 a month', page)
         self.assertIn('wa.me/919876543210', page)
         self.assertIn('mailto:hello@example.com', page)
         self.assertIn('Rs 600 a month', self.client.get('/signup/').content.decode())

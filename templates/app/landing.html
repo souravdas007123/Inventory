@@ -22,7 +22,7 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
-{"@type":"SoftwareApplication","name":"MedSync","applicationCategory":"BusinessApplication","operatingSystem":"Web browser","url":"{{ site_url }}/","description":"Pharmacy inventory, GST billing, batch and expiry management software for medical stores in India.","featureList":["GST billing with barcode scan","Batch and expiry (FEFO) tracking","Alternative medicine suggestion","Supplier price comparison","Reorder suggestions","Schedule H/H1/X drug register","GSTR-1, GSTR-3B and HSN reports","Accountant Excel export","Customer credit ledger","Sales and purchase returns","Import from Excel","Daily automatic backup","Measured health score"],"offers":{"@type":"Offer","description":"Free trial for every new shop","price":"0","priceCurrency":"INR"}},
+{"@type":"SoftwareApplication","name":"MedSync","applicationCategory":"BusinessApplication","operatingSystem":"Web browser","url":"{{ site_url }}/","description":"Pharmacy inventory, GST billing, batch and expiry management software for medical stores in India.","featureList":["GST billing with barcode scan","Batch and expiry (FEFO) tracking","Alternative medicine suggestion","Supplier price comparison","Reorder suggestions","Schedule H/H1/X drug register","GSTR-1, GSTR-3B and HSN reports","Accountant Excel export","Customer credit ledger","Sales and purchase returns","Import from Excel","Daily automatic backup","Measured health score"],"offers":{% if pricing %}[{"@type":"Offer","name":"Monthly plan","price":"{{ price_monthly }}","priceCurrency":"INR"},{"@type":"Offer","name":"Yearly plan","price":"{{ price_yearly }}","priceCurrency":"INR"}]{% else %}{"@type":"Offer","description":"Free trial for every new shop","price":"0","priceCurrency":"INR"}{% endif %}},
 {"@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"Where is my data stored?","acceptedAnswer":{"@type":"Answer","text":"In a private space made only for your shop. Other shops cannot see it, nothing is sold or shared, and a compressed backup is taken every day."}},
 {"@type":"Question","name":"Do I need special hardware?","acceptedAnswer":{"@type":"Answer","text":"No. MedSync runs in a web browser on any computer, tablet or phone. A barcode scanner works like a keyboard."}},
@@ -137,15 +137,23 @@ details[open] summary::after{content:"–"}
 summary::-webkit-details-marker{display:none}
 details p{margin:10px 0 0;color:var(--mut);max-width:44em}
 .ann{background:var(--amber);color:#2b1d00;text-align:center;padding:9px 16px;font-weight:700;font-size:15px}
-.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;max-width:760px}
+.plans{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin-top:6px}
 .plans>div{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:22px}
 .plans .pn{display:block;font-weight:700;color:var(--mut);font-size:15px}
-.plans .pr{display:block;font:700 34px Georgia,serif;margin:6px 0 2px;color:var(--ink)}
+.plans .pr{display:block;font:700 38px Georgia,serif;margin:6px 0 2px;color:var(--ink)}
+.plans .pr small{font:600 15px system-ui,sans-serif;color:var(--mut)}
+.plans>div{position:relative}
+.plans .flag{position:absolute;top:-12px;right:18px;background:var(--amber);color:#1b1305;font-weight:700;font-size:13px;padding:3px 12px;border-radius:99px}
 .plans p{margin:0 0 14px;color:var(--mut);font-size:14.5px}
 .plans .best{border-color:var(--amber);box-shadow:0 0 0 2px var(--amber) inset}
-.incl{list-style:none;margin:22px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:8px 22px;color:var(--mut);font-size:15px}
-.incl li{padding-left:24px;position:relative}
-.incl li::before{content:"";position:absolute;left:2px;top:6px;width:12px;height:7px;border-left:3px solid var(--green);border-bottom:3px solid var(--green);transform:rotate(-45deg)}
+.incl2{margin-top:30px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:26px 26px 20px}
+.incl2 h3{font-size:20px;margin:0 0 18px}
+.incl2 .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:22px}
+.incl2 .gt{display:block;font-weight:700;color:var(--amber-d);margin-bottom:8px;font-size:15px}
+.incl2 ul{list-style:none;margin:0;padding:0;font-size:15px;color:var(--mut)}
+.incl2 li{position:relative;padding:0 0 8px 24px;line-height:1.4}
+.incl2 li::before{content:"";position:absolute;left:2px;top:5px;width:12px;height:7px;border-left:3px solid var(--green);border-bottom:3px solid var(--green);transform:rotate(-45deg)}
+.incl2 .fine{margin:12px 0 0;padding-top:14px;border-top:1px solid var(--line);font-size:14.5px;color:var(--mut)}
 .pnote{margin-top:16px;color:var(--mut);font-size:15px}
 .final{background:var(--deep);color:var(--on-deep);padding:72px 0}
 .final .w{display:grid;grid-template-columns:1.2fr .8fr;gap:30px;align-items:center}
@@ -160,6 +168,7 @@ footer .sh{grid-column:1/-1;padding-top:20px;border-top:1px solid #16443d;displa
 footer .legal{grid-column:1/-1;font-size:14px}
 :focus-visible{outline:3px solid var(--amber);outline-offset:3px}
 @media(max-width:900px){.chip{left:8px}.hero .w,.row,.final .w{grid-template-columns:1fr}.row.rev .txt{order:0}.row{gap:26px}.slipwrap{margin:0 auto}.slip{margin:0 auto}.facts .w{grid-template-columns:1fr 1fr}.day{grid-template-columns:1fr 1fr}.day li{padding-bottom:20px}.steps,.roles{grid-template-columns:1fr}.guard{columns:1}nav a.h{display:none}section{padding:48px 0}.hero{padding:40px 0 52px}footer .fcols{grid-template-columns:1fr 1fr}footer .fb{grid-column:1/-1}}
+@media(max-width:700px){.plans{grid-template-columns:1fr}}
 @media(max-width:480px){footer .fcols{grid-template-columns:1fr}.day{grid-template-columns:1fr}.facts .w{grid-template-columns:1fr}.hs{flex-direction:column;align-items:stretch}.ring{margin:0 auto}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 </style>
@@ -362,10 +371,20 @@ footer .legal{grid-column:1/-1;font-size:14px}
 {% if pricing %}<section id="pricing" class="p"><div class="w">
 <div class="head"><h2>Simple pricing for every shop</h2><p>Try everything free for {{ trial_days }} days. No card is needed. Then pick a plan. Each plan has every feature, so you never pay extra for a report.</p></div>
 <div class="plans">
-<div><span class="pn">Monthly</span><span class="pr">Rs {{ price_monthly }}</span><p>a month. Stop whenever you like. Your data stays with you.</p><a class="btn" href="/signup/">Try the monthly plan free</a></div>
-<div class="best"><span class="pn">Yearly{% if price_saving %}, save Rs {{ price_saving }}{% endif %}</span><span class="pr">Rs {{ price_yearly }}</span><p>a year. The best value for a shop that is here to stay.</p><a class="btn" href="/signup/">Try the yearly plan free</a></div>
+<div><span class="pn">Monthly</span><span class="pr">Rs {{ price_monthly }}<small> a month</small></span><p>Stop whenever you like. Your data stays with you.</p><a class="btn" href="/signup/">Try the monthly plan free</a></div>
+<div class="best"><span class="flag">Best value</span><span class="pn">Yearly{% if price_saving %}, save Rs {{ price_saving }}{% endif %}</span><span class="pr">Rs {{ price_yearly }}<small> a year</small></span><p>That is about Rs {{ price_yearly_month }} a month, for a shop that is here to stay.</p><a class="btn" href="/signup/">Try the yearly plan free</a></div>
 </div>
-<ul class="incl"><li>Billing, stock, batch and expiry</li><li>GST reports and the accountant Excel</li><li>Staff logins with roles</li><li>A daily backup of your shop</li><li>Help to set up</li></ul>
+<div class="incl2">
+<h3>Everything in both plans</h3>
+<div class="cols">
+<div><span class="gt">Billing</span><ul><li>Fast GST bills with barcode scan</li><li>Oldest batch sold first</li><li>Same-composition medicine when out of stock</li><li>Hold and resume bills</li><li>Customer credit and ledger</li></ul></div>
+<div><span class="gt">Stock and expiry</span><ul><li>Batch-wise stock with expiry dates</li><li>Expiry page, returns and write-offs</li><li>Stock count against the shelf</li><li>Low stock and reorder suggestions</li><li>Rack and location for each product</li></ul></div>
+<div><span class="gt">Purchasing</span><ul><li>Supplier price comparison</li><li>Alerts when a price rises</li><li>Purchase orders by print, email or WhatsApp</li><li>Warnings for duplicate or odd entries</li><li>Import from Excel</li></ul></div>
+<div><span class="gt">Accounts and GST</span><ul><li>One Excel file for your accountant</li><li>GSTR-1, GSTR-3B and HSN reports</li><li>Schedule H, H1 and X register</li><li>Profit and loss with expenses and salary</li><li>Daily summary by email or WhatsApp</li></ul></div>
+<div><span class="gt">Safety and staff</span><ul><li>Staff logins with roles</li><li>Daily backup, checked</li><li>A measured health score</li><li>Audit log of important changes</li><li>Secure sign-in</li></ul></div>
+</div>
+<p class="fine">No setup fee, and no extra charge for reports or staff logins. When a plan ends, your shop becomes read-only and nothing is deleted.</p>
+</div>
 <p class="pnote">Questions before you start?{% if contact_whatsapp %} <a href="{{ contact_whatsapp }}" rel="noopener nofollow">Ask us on WhatsApp</a>{% endif %}{% if contact_email %} <a href="mailto:{{ contact_email }}">Write to {{ contact_email }}</a>{% endif %}{% if not contact_whatsapp and not contact_email %} Sign up and we will help you set up.{% endif %}</p>
 </div></section>{% endif %}
 

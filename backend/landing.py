@@ -34,7 +34,7 @@ def site_context():
         number = re.sub(r'\D', '', data.get('whatsapp') or getattr(settings, 'LANDING_WHATSAPP', '') or '')
         saving = price['monthly'] * 12 - price['yearly']
         return dict(pricing=True, price_monthly=price['monthly'], price_yearly=price['yearly'],
-                    price_saving=saving if saving > 0 else 0, trial_days=settings.TRIAL_DAYS,
+                    price_saving=saving if saving > 0 else 0, price_yearly_month=round(price['yearly'] / 12), trial_days=settings.TRIAL_DAYS,
                     site_notice=data.get('announcement') or '', contact_email=data.get('contact_email') or '',
                     contact_whatsapp=f"https://wa.me/{number}?text={quote('Hi, I have a question about MedSync')}"
                     if 10 <= len(number) <= 15 else '')
