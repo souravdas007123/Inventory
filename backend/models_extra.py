@@ -7,6 +7,7 @@ All stock/ledger effects live in the model's save()/delete(), so the UI and admi
 """
 from decimal import Decimal
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
@@ -611,6 +612,21 @@ class AuditLog(models.Model):
         ordering = ['-id']
         verbose_name = 'Audit Log'
         verbose_name_plural = 'Audit Logs'
+
+
+class TwoFactor(models.Model):
+    """A user who asked for 2-step sign-in (a code by e-mail after the password). The row existing means 'on'.
+    `recovery` holds hashes of the recovery codes that are still unused (a code is shown once and never saved)."""
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='two_factor')
+    enabled_at = models.DateTimeField(auto_now_add=True)
+    recovery = models.JSONField(default=list, blank=True)
+
+    def __str__(self):
+        return f"2-step sign-in: {self.user}"
+
+    class Meta:
+        verbose_name = '2-step sign-in'
+        verbose_name_plural = '2-step sign-in users'
 
 
 # ======================================================

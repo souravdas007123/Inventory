@@ -1,7 +1,8 @@
 from django.contrib.auth import views as auth_views
+from django.contrib.auth.decorators import login_required
 from django.urls import path
 
-from . import blog, helpviews, landing, legal, passwordreset, pwa, security, views, views_extra, views_import
+from . import blog, helpviews, landing, legal, passwordreset, pwa, security, twofactor, views, views_extra, views_import
 
 # NOTE: specific paths must always come BEFORE the generic '<str:key>/...' patterns below.
 urlpatterns = [
@@ -26,6 +27,8 @@ urlpatterns = [
     path('icon-512.png', landing.asset, {'name': 'icon-512.png'}, name='icon_512'),
     path('icon-maskable-512.png', landing.asset, {'name': 'icon-maskable-512.png'}, name='icon_maskable'),
     path('login/', security.ThrottledLoginView.as_view(), name='login'),
+    path('login/verify/', twofactor.verify, name='login_verify'),
+    path('security/', login_required(twofactor.security_page), name='security'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('forgot/', passwordreset.ForgotView.as_view(), name='forgot'),
     path('forgot/sent/', passwordreset.sent, name='forgot_sent'),

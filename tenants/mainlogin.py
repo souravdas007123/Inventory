@@ -99,8 +99,12 @@ def main_login(request):
     cache.delete(key)
     kind, value = found
     if kind == 'main':
-        auth_login(request, value, backend=BACKEND)
         dest = next_url or settings.LOGIN_REDIRECT_URL
+        from backend import twofactor
+        step = twofactor.begin(request, value, BACKEND, dest)
+        if step is not None:
+            return step
+        auth_login(request, value, backend=BACKEND)
         return redirect(dest)
     shop, uid = value
     LoginToken.objects.filter(created_at__lt=timezone.now() - timedelta(days=1)).delete()
@@ -128,8 +132,12 @@ def sso(request, token):
     user = get_user_model().objects.filter(pk=t.user_id, is_active=True).first()
     if user is None:
         return redirect('/login/')
-    auth_login(request, user, backend=BACKEND)
     dest = t.next_url if url_has_allowed_host_and_scheme(t.next_url, {request.get_host()}) and _safe_next(t.next_url) else '/'
+    from backend import twofactor
+    step = twofactor.begin(request, user, BACKEND, dest)         # the password was checked on the main site; a code may still be needed
+    if step is not None:
+        return step
+    auth_login(request, user, backend=BACKEND)
     return redirect(dest)
 
 

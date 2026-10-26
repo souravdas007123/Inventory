@@ -12,7 +12,7 @@ from import_export.widgets import ForeignKeyWidget
 
 from .reports import profit_and_loss
 from .models import (
-    BlogPost,
+    BlogPost, TwoFactor,
     Batch, Bill, Brand, Category, Customer, CustomerPayment, Employee, Expense, RecurringExpense, ShopProfile, FinancialReport,
     InvoiceItem, Order, Payment, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
     PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, Sale, SalesReturn, SalesReturnItem,
@@ -537,6 +537,20 @@ class ImportLayoutAdmin(admin.ModelAdmin):
     """Remembered column matching of import files; delete a row to match that file layout again."""
     list_display = ('kind', 'headers', 'updated')
     list_filter = ('kind',)
+
+
+@admin.register(TwoFactor)
+class TwoFactorAdmin(admin.ModelAdmin):
+    """Who has 2-step sign-in. The owner can delete a row to switch it off for a user who is locked out (rows cannot be added
+    or changed here: the person turns it on himself)."""
+    list_display = ('user', 'enabled_at')
+    exclude = ('recovery',)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
 
 # Look and feel of the admin panel (names, sections, summary cards)

@@ -1,0 +1,13 @@
+{% extends "app/auth_base.html" %}
+{% block title %}Enter your code{% endblock %}
+{% block heading %}Enter your code{% endblock %}
+{% block lead %}{% if email_hint %}We sent a 6-digit code to {{ email_hint }}. It works for {{ minutes }} minutes.{% else %}Enter one of your recovery codes.{% endif %}{% endblock %}
+{% block content %}<form method="post">{% csrf_token %}
+{% if error %}<div class="alert" role="alert">{{ error }}{% if left < 3 and left > 0 %} You have {{ left }} tr{{ left|pluralize:"y,ies" }} left.{% endif %}</div>{% endif %}
+{% if info %}<p class="fine" role="status">{{ info }}</p>{% endif %}
+<label for="id_code">Code or recovery code</label>
+<input type="text" name="code" id="id_code" inputmode="text" autocomplete="one-time-code" maxlength="12" required autofocus placeholder="123456">
+<label style="display:flex;gap:8px;align-items:center;margin:12px 0;font-weight:500"><input type="checkbox" name="remember" value="1" style="width:auto"> Remember this browser for 30 days</label>
+<button class="go" name="action" value="verify">Sign in</button></form>
+<form method="post" style="margin-top:10px">{% csrf_token %}<button class="quiet" name="action" value="resend" style="background:none;border:0;padding:0;cursor:pointer;text-decoration:underline">Send a new code</button></form>
+<div class="links"><a class="quiet" href="{% url 'login' %}">&larr; Back to sign in</a></div>{% endblock %}

@@ -60,4 +60,8 @@ class ThrottledLoginView(LoginView):
 
     def form_valid(self, form):
         cache.delete(self._key())
-        return super().form_valid(form)
+        from . import twofactor
+        user = form.get_user()
+        step = twofactor.begin(self.request, user, getattr(user, 'backend', 'django.contrib.auth.backends.ModelBackend'),
+                               self.get_success_url())
+        return step if step is not None else super().form_valid(form)

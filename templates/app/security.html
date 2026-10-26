@@ -1,0 +1,36 @@
+{% extends "app/base.html" %}
+{% block title %}Sign-in security{% endblock %}
+{% block content %}
+<div class="head"><h1>🔐 Sign-in security</h1></div>
+{% if new_codes %}
+<div class="card" style="margin-bottom:14px;border:2px solid var(--amber)">
+  <h3 style="margin-top:0">Your recovery codes</h3>
+  <p style="margin:0 0 10px">Save these codes now. <b>They are shown only once.</b> If you cannot get your e-mail, each code lets you sign in one time. Keep them somewhere safe, for example in a photo on your phone or on paper.</p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;font:600 16px/1.4 ui-monospace,Consolas,monospace;margin-bottom:12px">{% for c in new_codes %}<span class="card" style="padding:8px;text-align:center">{{ c }}</span>{% endfor %}</div>
+  <button type="button" class="btn ghost" onclick="window.print()">🖨️ Print</button>
+</div>
+{% endif %}
+<div class="card" style="margin-bottom:14px">
+  <h3 style="margin-top:0">2-step sign-in: {% if on %}<span class="badge green">On</span>{% else %}<span class="badge grey">Off</span>{% endif %}</h3>
+  {% if on %}
+  <p style="margin:0 0 12px;color:var(--mute)">After your password, we e-mail a 6-digit code to {{ email_hint|default:"your e-mail" }}. You have {{ left }} unused recovery code{{ left|pluralize }}.</p>
+  <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;max-width:560px;margin-bottom:10px">{% csrf_token %}
+    <div class="fld" style="flex:1 1 220px"><label for="pw1">Your password</label><input id="pw1" type="password" name="password" autocomplete="current-password" required></div>
+    <button class="btn ghost" name="action" value="codes" data-confirm="Make new recovery codes? The old ones will stop working." data-confirm-yes="Make new codes">Make new recovery codes</button>
+    <button class="btn red" name="action" value="disable" data-confirm="Turn off 2-step sign-in?" data-confirm-yes="Turn it off">Turn off</button>
+  </form>
+  {% elif confirming %}
+  <p style="margin:0 0 12px;color:var(--mute)">We sent a 6-digit code to {{ email_hint }}. Enter it to turn 2-step sign-in on. It works for {{ minutes }} minutes.</p>
+  <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;max-width:460px">{% csrf_token %}
+    <div class="fld" style="flex:1 1 160px"><label for="code1">Code</label><input id="code1" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required autofocus></div>
+    <button class="btn" name="action" value="confirm">Turn on</button>
+    <button class="btn ghost" name="action" value="send" formnovalidate>Send a new code</button>
+  </form>
+  {% else %}
+  <p style="margin:0 0 12px;color:var(--mute)">Add a second step to protect your shop: after the password, you type a 6-digit code that we e-mail you. If somebody learns your password, they still cannot get in.</p>
+  {% if has_email %}<form method="post">{% csrf_token %}<button class="btn" name="action" value="send">Turn on 2-step sign-in</button></form>
+  <p style="margin:10px 0 0;color:var(--mute)">We will send a test code to {{ email_hint }} first, so we know that the e-mail works. You also get recovery codes, in case you ever cannot read that e-mail.</p>
+  {% else %}<div class="msg info">Your account has no e-mail address, so 2-step sign-in cannot be turned on. Ask the owner to add your e-mail in Users.</div>{% endif %}
+  {% endif %}
+</div>
+{% endblock %}

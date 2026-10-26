@@ -7,7 +7,7 @@ from django.template.loader import render_to_string
 
 from backend import tenancy
 
-ALWAYS_OPEN = ('/login/', '/logout/', '/forgot/')       # a locked shop's owner must still be able to sign in and out
+ALWAYS_OPEN = ('/login/', '/login/verify/', '/logout/', '/forgot/')       # a locked shop's owner must still be able to sign in and out
 ALWAYS_OPEN_PREFIX = '/reset-password/'                  # and to choose a new password
 
 

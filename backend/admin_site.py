@@ -13,6 +13,20 @@ admin.site.site_header = 'MedSync Admin'
 admin.site.site_title = 'MedSync Admin'
 admin.site.index_title = 'Admin home'
 
+_original_admin_login = admin.site.login
+
+
+def _admin_login(request, extra_context=None):
+    """The admin panel has no sign-in form of its own: people sign in on the normal page (which asks for the 2-step code when it is on)."""
+    if request.user.is_authenticated:
+        return _original_admin_login(request, extra_context)       # signed in but not allowed: Django explains
+    from django.contrib.auth.views import redirect_to_login
+    nxt = request.GET.get('next') or reverse('admin:index')
+    return redirect_to_login(nxt)
+
+
+admin.site.login = _admin_login
+
 # Sections of the home page: (title, key, models by class name). Models that are not listed (Users, Groups) go to the last section.
 GROUPS = [
     ('Master data', 'ms_master', ['Category', 'Brand', 'Unit', 'Supplier', 'Product']),

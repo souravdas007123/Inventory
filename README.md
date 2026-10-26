@@ -414,3 +414,9 @@ Each supplier has a 📒 Ledger page: every purchase (+), purchase return (−) 
 
 ## WhatsApp bill sharing
 The 💬 WhatsApp button on every Final bill (in the Billing list, and on the invoice page) opens WhatsApp with the bill written out: shop name, bill number and date, a greeting for a named customer, up to 12 item lines (the rest are summed in one line), GST included, the total, how it was paid, and for a credit bill what was paid now and what is due. It is addressed to the customer's saved number (10 digits get +91); a cash bill opens WhatsApp so a contact can be picked. No WhatsApp API or cost: it uses a `wa.me` link, so the staff member presses Send. Cancelled bills cannot be shared.
+
+## 2-step sign-in (optional)
+
+Each person can turn it on under **Sign-in security** in the menu. After the password, a 6-digit code is e-mailed (valid 10 minutes, 5 tries, resend every 30 s). Turning it on needs a test code first, so it can never be switched on with a broken e-mail. 8 one-time **recovery codes** are shown once (only hashes are stored). "Remember this browser" skips the code for 30 days and stops working when the password changes.
+
+If someone is locked out: the shop owner deletes the row under *Admin → Two factors*; the platform owner uses **Switch off 2-step** on the shop page (owner of that shop); on the server run `python manage.py two_step_off <username>`. The Django admin login goes through the normal login, so it cannot skip the code. Migration `backend 0020` is needed (`migrate_schemas --shared`).

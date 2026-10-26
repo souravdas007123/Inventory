@@ -242,6 +242,34 @@ def shop_action(request, pk):
     return redirect('platform_shop', pk=shop.pk)
 
 
+@platform_admin_required
+@require_POST
+def shop_two_step_off(request, pk):
+    """For an owner who is locked out (lost his e-mail and his recovery codes): switches 2-step sign-in off for the shop's
+    owner accounts. It does not sign anybody in and shows nothing of the shop; the change is written to the shop's Audit log."""
+    from django_tenants.utils import schema_context
+    from backend import auditlog
+    from backend.models import TwoFactor
+    shop = get_object_or_404(Shop.objects.exclude(schema_name=settings.PUBLIC_SCHEMA_NAME), pk=pk)
+    if not request.POST.get('sure'):
+        messages.error(request, 'Please tick the box to confirm that you checked it is really the owner.')
+        return redirect('platform_shop', pk=shop.pk)
+    with schema_context(shop.schema_name):
+        owners = TwoFactor.objects.filter(user__is_superuser=True)
+        count = owners.count()
+        owners.delete()
+        if count:
+            auditlog.record(request.user.get_username(), 'SECURITY', '2-step', 'Turned off for the owner by MedSync support')
+    connection.set_schema_to_public()
+    if count:
+        _log(shop, f'2-step sign-in switched off for the owner by {request.user.get_username()}')
+        shop.save()
+        messages.success(request, '2-step sign-in was switched off for the owner of this shop.')
+    else:
+        messages.error(request, 'The owner of this shop does not use 2-step sign-in.')
+    return redirect('platform_shop', pk=shop.pk)
+
+
 def shop_name_to_type(shop):
     """What the platform owner must type to confirm a delete: the first part of the shop's web address."""
     domain = shop.domains.filter(is_primary=True).first() or shop.domains.first()

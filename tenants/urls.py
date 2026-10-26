@@ -15,5 +15,6 @@ urlpatterns = [
     path('superadmin/site/', platform.site_settings, name='platform_site'),
     path('superadmin/shop/<int:pk>/', platform.shop_detail, name='platform_shop'),
     path('superadmin/shop/<int:pk>/delete/', platform.shop_delete, name='platform_shop_delete'),
+    path('superadmin/shop/<int:pk>/two-step-off/', platform.shop_two_step_off, name='platform_shop_two_step_off'),
     path('superadmin/shop/<int:pk>/action/', platform.shop_action, name='platform_shop_action'),
 ]
