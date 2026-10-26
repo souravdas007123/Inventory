@@ -28,6 +28,7 @@
         {% if key == 'bills' %}
           <button type="button" class="btn ghost sm" data-pk="{{ r.pk }}" data-preview="{% url 'bill_preview' r.pk %}" data-invoice="{% url 'invoice' r.pk %}" title="See the items of this bill">👁 Preview</button>
           <a class="btn sm" href="{% url 'invoice' r.pk %}">🖨️ Invoice</a>
+          {% if r.obj.status == 'FINAL' %}<a class="btn ghost sm" href="{% url 'bill_whatsapp' r.pk %}" target="_blank" rel="noopener" title="Send this bill to the customer on WhatsApp">💬 WhatsApp</a>{% endif %}
           {% if r.obj.status == 'FINAL' and can_return %}<a class="btn ghost sm" href="{% url 'sales_return_new' r.pk %}">↩ Return</a>{% endif %}
           {% if r.obj.status == 'FINAL' and is_owner %}<form method="post" action="{% url 'bill_cancel' r.pk %}" style="display:inline" data-confirm="Cancel this bill? The stock will be added back." data-confirm-yes="Yes, cancel the bill">{% csrf_token %}<button class="btn red sm">Cancel</button></form>{% endif %}
         {% else %}

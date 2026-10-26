@@ -53,7 +53,7 @@ table{width:100%;border-collapse:collapse}
 <div class="bar">
   <button onclick="window.print()">🖨️ Print</button>
   {% if fmt == 'thermal' %}<a class="g" href="?fmt=a4">A4 format</a>{% else %}<a class="g" href="?fmt=thermal">Thermal (80mm)</a>{% endif %}
-  <a class="g" href="{{ wa_link }}" target="_blank" rel="noopener">💬 WhatsApp</a>
+  {% if bill.status != 'CANCELLED' %}<a class="g" href="{{ wa_link }}" target="_blank" rel="noopener">💬 WhatsApp</a>{% endif %}
   <a class="g" href="/bills/">← Billing</a>
 </div>
 

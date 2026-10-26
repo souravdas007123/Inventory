@@ -1060,6 +1060,18 @@ def po_email(request, pk):
     return redirect('list', key='purchase_orders')
 
 
+@access.perm_required(('view', 'bill'), ('add', 'bill'))
+def bill_whatsapp(request, pk):
+    """Opens WhatsApp with the bill's details, addressed to the customer's number (or lets the user pick a contact)."""
+    bill = get_object_or_404(Bill.objects.select_related('customer'), pk=pk)
+    if bill.status != 'FINAL':
+        messages.error(request, 'A cancelled bill cannot be shared.')
+        return redirect('list', key='bills')
+    items = list(bill.items.select_related('product'))
+    text = notify.bill_text(bill, ShopProfile.get().name, items, bill.grand_total)
+    return redirect(notify.whatsapp_link(text, bill.customer.phone if bill.customer_id else ''))
+
+
 @access.perm_required(('change', 'purchaseorder'))
 def po_whatsapp(request, pk):
     po = get_object_or_404(PurchaseOrder.objects.select_related('supplier'), pk=pk)
