@@ -118,6 +118,13 @@ class SignInTests(TwoStepBase):
         self.recovery = self.turn_on()
         mail.outbox.clear()
 
+    def sign_out_keep_cookie(self):
+        """client.logout() wipes every cookie; a real browser keeps the remember-me cookie."""
+        keep = self.client.cookies.get('ms_td')
+        self.client.logout()
+        if keep is not None:
+            self.client.cookies['ms_td'] = keep.value
+
     def test_the_right_password_alone_does_not_sign_in(self):
         resp = self.sign_in()
         self.assertEqual((resp.status_code, resp['Location']), (302, '/login/verify/'))
@@ -214,7 +221,7 @@ class SignInTests(TwoStepBase):
         resp = self.client.post('/login/verify/', {'code': last_code(), 'action': 'verify', 'remember': '1'})
         self.assertIn('ms_td', resp.cookies)
         self.assertTrue(resp.cookies['ms_td']['httponly'])
-        self.client.logout()
+        self.sign_out_keep_cookie()
         mail.outbox.clear()
         resp = self.sign_in()
         self.assertEqual(resp['Location'], '/')
@@ -222,7 +229,7 @@ class SignInTests(TwoStepBase):
         self.assertEqual(len(mail.outbox), 0)
         self.owner.set_password('Another-pass-91')
         self.owner.save()
-        self.client.logout()
+        self.sign_out_keep_cookie()
         resp = self.client.post('/login/', dict(username='boss', password='Another-pass-91'))
         self.assertEqual(resp['Location'], '/login/verify/')
 
@@ -231,7 +238,7 @@ class SignInTests(TwoStepBase):
         self.turn_on(other)
         self.sign_in()
         resp = self.client.post('/login/verify/', {'code': last_code(), 'action': 'verify', 'remember': '1'})
-        self.client.logout()
+        self.sign_out_keep_cookie()
         resp = self.client.post('/login/', dict(username='other', password=PW))
         self.assertEqual(resp['Location'], '/login/verify/')
 
