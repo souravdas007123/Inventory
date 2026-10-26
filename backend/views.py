@@ -276,6 +276,8 @@ CONFIG = {
               ('Balance (due)', lambda o: rs(o.opening_balance)), ('Created', lambda o: d(o.created_at)),
               ('Active', lambda o: badge('Active', 'green') if o.is_active else badge('Inactive', 'grey'))],
         fields=['company', 'person', 'phone', 'email', 'address', 'city', 'gstin', 'is_active'],
+        actions=lambda o: [dict(label='\U0001F4D2 Ledger', url=f"/suppliers/{o.pk}/ledger/"),
+                           dict(label='+ Payment', url=f"/payments/new/?supplier={o.pk}")],
     ),
     'purchases': dict(
         title='Purchases', one='Purchase Invoice', model=Purchase, order=['-invoice_date', '-id'],
@@ -801,6 +803,8 @@ def edit(request, key, pk=None):
         if emp:
             initial = {**(initial or {}), 'name': 'SALARY', 'employee': emp.pk, 'amount': emp.monthly_salary,
                        'note': f"Salary {timezone.localdate():%b %Y}"}
+    if key == 'payments' and not obj and request.GET.get('supplier', '').isdecimal():
+        initial = {**(initial or {}), 'supplier': int(request.GET['supplier'])}       # "+ Payment" on the Suppliers list
     if key == 'customer_payments' and not obj and request.GET.get('customer', '').isdecimal():
         initial = {**(initial or {}), 'customer': int(request.GET['customer'])}   # Customers list se "+ Receipt"
     if po:

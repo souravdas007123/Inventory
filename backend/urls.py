@@ -38,6 +38,7 @@ urlpatterns = [
     path('bills/hold/<int:pk>/discard/', views_extra.bill_hold_discard, name='bill_hold_discard'),
     path('bills/<int:pk>/cancel/', views.bill_cancel, name='bill_cancel'),
 
+    path('suppliers/<int:pk>/ledger/', views_extra.supplier_ledger, name='supplier_ledger'),
     # Customer ledger / returns / write-off
     path('customers/<int:pk>/ledger/', views_extra.customer_ledger, name='customer_ledger'),
     path('bills/<int:pk>/return/', views_extra.sales_return_new, name='sales_return_new'),

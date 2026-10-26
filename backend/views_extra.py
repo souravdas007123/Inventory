@@ -97,6 +97,47 @@ def customer_ledger(request, pk):
                 wa_link=wa_link)
 
 
+def _supplier_statement(supplier):
+    """Every purchase, return and payment of a supplier with a running balance, built from the records themselves.
+    Returns (rows, balance). The balance stored on the supplier must equal this; the ledger page checks it."""
+    zero = Decimal('0')
+    entries = []
+    for p in supplier.purchases.prefetch_related('items'):
+        total = sum((i.purchase_price or zero for i in p.items.all()), zero)
+        entries.append((p.invoice_date, 0, f"Purchase {p.invoice_number}", total, zero))
+    for r in PurchaseReturn.objects.filter(purchase__supplier=supplier).select_related('purchase').prefetch_related('items'):
+        entries.append((r.date, 1, f"Return {r.note_number} (invoice {r.purchase.invoice_number})", zero, r.total))
+    for pay in supplier.payments.all():
+        entries.append((pay.payment_date, 2, f"Payment ({pay.payment_mode or '-'})", zero, pay.amount))
+    entries.sort(key=lambda e: (e[0] or date_cls.min, e[1]))
+    rows, running = [], zero
+    for dt, _, text, owed, paid in entries:
+        running += owed - paid
+        rows.append(dict(date=dt, text=text, owed=owed, paid=paid, balance=running))
+    return rows, running
+
+
+@access.perm_required(('view', 'supplier'))
+def supplier_ledger(request, pk):
+    supplier = get_object_or_404(Supplier, pk=pk)
+    if request.method == 'POST':
+        if not access.is_owner(request.user):
+            raise PermissionDenied
+        rows, calc = _supplier_statement(supplier)
+        with transaction.atomic():
+            locked = Supplier.objects.select_for_update().get(pk=pk)
+            old = locked.opening_balance or Decimal('0')
+            locked.opening_balance = calc
+            locked.save(update_fields=['opening_balance'])
+        auditlog.record(request, 'FIX', 'Supplier balance', f'{supplier.company}: {old} -> {calc}')
+        messages.success(request, f'The balance of {supplier.company} was corrected to \u20b9{calc:.2f}.')
+        return redirect('supplier_ledger', pk=pk)
+    rows, calc = _supplier_statement(supplier)
+    stored = supplier.opening_balance or Decimal('0')
+    return page(request, 'app/supplier_ledger.html', active='suppliers', supplier=supplier, rows=rows, balance=calc,
+                stored=stored, mismatch=calc != stored, can_fix=access.is_owner(request.user))
+
+
 # ======================================================
 # SALES RETURN / PURCHASE RETURN (credit note / debit note)
 # ======================================================

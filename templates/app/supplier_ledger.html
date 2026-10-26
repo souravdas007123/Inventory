@@ -1,0 +1,26 @@
+{% extends "app/base.html" %}
+{% block title %}Ledger · {{ supplier.company }}{% endblock %}
+{% block content %}
+<div class="head">
+  <div><h1>📒 {{ supplier.company }}</h1>
+    <small style="color:var(--mute)">{% if supplier.phone %}Ph: {{ supplier.phone }}{% endif %}{% if supplier.gstin %} · GSTIN: {{ supplier.gstin }}{% endif %}</small></div>
+  <div style="display:flex;gap:8px"><a class="btn" href="/payments/new/?supplier={{ supplier.pk }}">+ Payment</a><a class="btn ghost" href="/suppliers/">← Back</a></div>
+</div>
+<div class="stats">
+  <div class="card stat"><small>You owe this supplier</small>
+    <b style="color:{% if balance > 0 %}var(--red){% else %}var(--green){% endif %}">₹{{ balance|floatformat:2 }}</b></div>
+</div>
+{% if mismatch %}<div class="msg error">The balance saved on the Suppliers page (₹{{ stored|floatformat:2 }}) is different from what the purchases, returns and payments below add up to (₹{{ balance|floatformat:2 }}).
+  {% if can_fix %}<form method="post" style="display:inline">{% csrf_token %}<button class="btn sm" data-confirm="Set the saved balance to ₹{{ balance|floatformat:2 }}?">Correct the saved balance</button></form>{% else %}Please ask the owner to correct it.{% endif %}</div>{% endif %}
+<div class="card"><div class="tw"><table class="t">
+  <thead><tr><th>Date</th><th>Detail</th><th style="text-align:right">Purchase (+)</th><th style="text-align:right">Paid / returned (−)</th><th style="text-align:right">You owe</th></tr></thead>
+  <tbody>
+  {% for r in rows %}<tr>
+    <td>{{ r.date|date:"d M Y" }}</td><td>{{ r.text }}</td>
+    <td style="text-align:right">{% if r.owed %}₹{{ r.owed|floatformat:2 }}{% endif %}</td>
+    <td style="text-align:right">{% if r.paid %}₹{{ r.paid|floatformat:2 }}{% endif %}</td>
+    <td style="text-align:right"><b>₹{{ r.balance|floatformat:2 }}</b></td>
+  </tr>{% empty %}<tr><td class="empty" colspan="5">No purchases or payments yet.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}
