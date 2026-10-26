@@ -296,7 +296,6 @@ CONFIG = {
         title='Billing', one='Bill', model=Bill, order=['-id'],
         related=['order'], prefetch=[models.Prefetch('items', queryset=InvoiceItem.objects.select_related('product', 'unit'))],
         search=['customer_name', 'invoice_number'],
-        actions=lambda o: [dict(label='\U0001F4AC WhatsApp', url=f'/bills/{o.pk}/whatsapp/', target='_blank')] if o.status == 'FINAL' else [],
         initial=lambda: {'date': timezone.localdate()},
         cols=[('Invoice No.', lambda o: o.display_number), ('Customer', lambda o: o.customer_name),
               ('Mode', lambda o: badge(o.invoice_mode.title(), 'green' if o.invoice_mode == 'online' else 'grey')),
