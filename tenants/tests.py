@@ -1058,6 +1058,7 @@ class SupportTicketTests(TransactionTestCase):
         self.assertContains(self.shop_client.get('/help/', HTTP_HOST=self.host()), 'href="/support/"')
 
 
+@skipUnless(settings.MULTI_SHOP, 'many shops is switched off')
 class SignupMailTextTests(SimpleTestCase):
     """The wording and the safety of the two sign-up e-mails (no database needed)."""
 
