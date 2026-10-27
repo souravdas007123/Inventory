@@ -420,3 +420,9 @@ The 💬 WhatsApp button on every Final bill (in the Billing list, and on the in
 Each person can turn it on under **Sign-in security** in the menu. After the password, a 6-digit code is e-mailed (valid 10 minutes, 5 tries, resend every 30 s). Turning it on needs a test code first, so it can never be switched on with a broken e-mail. 8 one-time **recovery codes** are shown once (only hashes are stored). "Remember this browser" skips the code for 30 days and stops working when the password changes.
 
 If someone is locked out: the shop owner deletes the row under *Admin → Two factors*; the platform owner uses **Switch off 2-step** on the shop page (owner of that shop); on the server run `python manage.py two_step_off <username>`. The Django admin login goes through the normal login, so it cannot skip the code. Migration `backend 0020` is needed (`migrate_schemas --shared`).
+
+## Sign-up e-mails
+
+Two e-mails, both plain text + a neat HTML version (`tenants/mails.py`):
+- **Confirmation** (at sign-up): a button and the link on its own line, valid 24 hours, "ignore this if it was not you".
+- **Welcome letter** (right after the owner confirms and the shop is made): shop name, web address, sign-in e-mail, free-trial end date, four first steps, how to get help, a 2-step and phone tip. It never contains the password. If it cannot be sent, the shop is still created. Everything a person typed is escaped in the HTML. Nothing to migrate.

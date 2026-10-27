@@ -133,6 +133,53 @@ class SignupFlowTests(TransactionTestCase):
         Shop.objects.filter(pk=shop.pk).update(is_paused=True)
         self.assertEqual(self.client.get('/', HTTP_HOST=HOST).status_code, 403)
 
+    def test_the_confirmation_mail_is_a_proper_html_mail_with_the_link_on_its_own_line(self):
+        self.sign_up()
+        msg = mail.outbox[0]
+        self.assertEqual(msg.subject, 'Confirm your MedSync account')
+        self.assertEqual(msg.alternatives[0][1], 'text/html')
+        html = msg.alternatives[0][0]
+        link = [line for line in msg.body.splitlines() if '/signup/confirm/' in line]
+        self.assertEqual(len(link), 1)
+        self.assertTrue(link[0].startswith('http'))
+        self.assertIn(link[0].strip(), html)
+        self.assertIn('Confirm my e-mail', html)
+        self.assertIn('Sharma Medical', msg.body)
+
+    def test_a_welcome_letter_goes_out_once_after_the_shop_is_made(self):
+        self.sign_up()
+        self.assertEqual(len(mail.outbox), 1)
+        self.confirm()
+        self.assertEqual(len(mail.outbox), 2)
+        welcome = mail.outbox[1]
+        self.assertEqual(welcome.to, ['raj@example.com'])
+        self.assertIn('Welcome to MedSync', welcome.subject)
+        self.assertIn('Sharma Medical', welcome.body)
+        self.assertIn('http://' + HOST + '/', welcome.body)
+        self.assertIn('raj@example.com', welcome.body)
+        self.assertNotIn('Str0ng-pass-77', welcome.body)
+        self.assertNotIn('Str0ng-pass-77', welcome.alternatives[0][0])
+        self.assertIn(f'{timezone.localdate() + timedelta(days=30):%d %b %Y}', welcome.body)
+        link = [line for line in mail.outbox[0].body.splitlines() if '/signup/confirm/' in line][0].strip()
+        self.client.post('/' + link.split('/', 3)[3])                       # the link again: no second shop, no second letter
+        self.assertEqual(len(mail.outbox), 2)
+
+    def test_a_failing_welcome_mail_never_stops_the_shop(self):
+        from unittest import mock
+        self.sign_up()
+        with mock.patch('tenants.mails.send', side_effect=OSError('smtp down')):
+            resp = self.confirm()
+        self.assertContains(resp, 'Your shop is ready')
+        self.assertTrue(Shop.objects.filter(schema_name=SCHEMA).exists())
+
+    def test_no_welcome_letter_when_the_email_check_is_skipped_for_testing(self):
+        with override_settings(SIGNUP_SKIP_EMAIL=True):
+            resp = self.sign_up()
+            self.assertEqual(resp.status_code, 302)
+            self.client.post(resp['Location'])
+        self.assertTrue(Shop.objects.filter(schema_name=SCHEMA).exists())
+        self.assertEqual(len(mail.outbox), 0)
+
     def test_forgot_password_works_for_a_shop_and_even_when_its_plan_has_ended(self):
         from django.core import mail
         self.sign_up()
@@ -1009,3 +1056,52 @@ class SupportTicketTests(TransactionTestCase):
         t = self.shops[self.one]
         self.assertContains(self.boss_client.get(f'/superadmin/shop/{t.pk}/'), 'Bill total is wrong')
         self.assertContains(self.shop_client.get('/help/', HTTP_HOST=self.host()), 'href="/support/"')
+
+
+class SignupMailTextTests(SimpleTestCase):
+    """The wording and the safety of the two sign-up e-mails (no database needed)."""
+
+    def fake_shop(self, name='Sharma <b>Medical</b>', owner='Raj "R" <i>Sharma</i>'):
+        from datetime import date
+        from types import SimpleNamespace
+        return SimpleNamespace(name=name, owner_name=owner, schema_name='s_x', trial_ends=date(2026, 12, 1))
+
+    def test_what_people_typed_is_escaped_in_the_html_but_plain_in_the_text(self):
+        from unittest import mock
+
+        from tenants import mails
+        with mock.patch('tenants.mails.shop_address', return_value='http://x.localhost/'), \
+                mock.patch('tenants.mails._contact_lines', return_value=['Email: help@example.com']):
+            subject, text, html = mails.welcome_message(self.fake_shop(), 'raj@example.com')
+        self.assertNotIn('<b>Medical</b>', html)
+        self.assertNotIn('<i>Sharma</i>', html)
+        self.assertIn('&lt;b&gt;Medical&lt;/b&gt;', html)
+        self.assertIn('Sharma <b>Medical</b>', text)
+        self.assertIn('01 Dec 2026', text)
+        self.assertIn('help@example.com', text)
+        self.assertIn('http://x.localhost/login/', html)
+        self.assertIn('2-step', text)
+        self.assertNotIn('\n', subject)
+
+    def test_the_welcome_letter_still_reads_well_without_an_address_or_contact_details(self):
+        from unittest import mock
+
+        from tenants import mails
+        with mock.patch('tenants.mails.shop_address', return_value=''), \
+                mock.patch('tenants.mails._contact_lines', return_value=['Please contact MedSync to continue.']):
+            subject, text, html = mails.welcome_message(self.fake_shop('Plain Shop', 'Asha'), 'a@example.com')
+        self.assertIn('Hello Asha', text)
+        self.assertNotIn('Open my shop', html)
+        self.assertNotIn('Please contact', text)
+        self.assertNotIn('None', text)
+
+    def test_the_confirmation_text_names_the_shop_the_trial_and_the_validity(self):
+        from types import SimpleNamespace
+
+        from tenants import mails
+        pending = SimpleNamespace(owner_name='Raj', shop_name='Sharma <Medical>')
+        subject, text, html = mails.confirm_message(pending, 'http://h/signup/confirm/abc/', 24)
+        self.assertIn('24 hours', text)
+        self.assertIn('http://h/signup/confirm/abc/', text.splitlines())
+        self.assertIn('Sharma &lt;Medical&gt;', html)
+        self.assertIn('ignore this e-mail', text)

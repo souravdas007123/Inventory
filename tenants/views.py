@@ -9,7 +9,6 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
-from django.core.mail import send_mail
 from django.core.validators import validate_email
 from django.http import Http404
 from django.shortcuts import redirect, render
@@ -19,7 +18,7 @@ from django.views.decorators.http import require_http_methods
 from backend import tenancy
 from backend import validators as vcheck
 
-from . import site
+from . import mails, site
 from .models import Domain, PendingSignup, Shop
 
 log = logging.getLogger(__name__)
@@ -119,12 +118,8 @@ def signup(request):
             if getattr(settings, 'SIGNUP_SKIP_EMAIL', False):
                 return redirect(link)
             try:
-                send_mail('Confirm your MedSync account',
-                          f"Hello {pending.owner_name},\n\nPlease confirm your email to create your shop "
-                          f"\"{pending.shop_name}\" on MedSync. Your {settings.TRIAL_DAYS}-day free trial starts then.\n\n"
-                          f"{link}\n\nThe link works for {PendingSignup.VALID_HOURS} hours. "
-                          f"If you did not sign up, ignore this email.\n\nMedSync",
-                          None, [pending.email], fail_silently=False)
+                subject, text, html = mails.confirm_message(pending, link, PendingSignup.VALID_HOURS)
+                mails.send(subject, text, html, pending.email)
             except Exception:
                 log.exception('Could not send the sign-up email')
                 pending.delete()
@@ -179,12 +174,13 @@ def confirm(request, token):
     if not PendingSignup.objects.filter(pk=pending.pk, used=False).update(used=True):    # a double click: only one wins
         return _notice(request, 'Your shop is being created', 'Please wait a moment and refresh this page.')
     try:
-        _create_shop(pending)
+        shop = _create_shop(pending)
     except Exception:
         PendingSignup.objects.filter(pk=pending.pk).update(used=False)
         return _notice(request, 'We could not create your shop',
                        'Nothing was charged. Please try the link again in a minute, or contact us.',
                        request.path, 'Try again', 500)
+    mails.send_welcome(shop, pending.email)                   # best effort, never blocks the shop
     return _notice(request, 'Your shop is ready',
                    f'Sign in with {pending.email} and the password you chose. Your {settings.TRIAL_DAYS}-day free trial has started.',
                    shop_url(request, pending.subdomain, '/login/'), 'Go to my shop')
