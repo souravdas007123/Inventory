@@ -431,3 +431,7 @@ Two e-mails, both plain text + a neat HTML version (`tenants/mails.py`):
 
 A new shop now starts with the usual Units (Tablet, Strip, Box, Bottle ...) and Categories (Tablet, Syrup, Injection ...). One list lives in `backend/defaults.py` and is shared by new shops, the data reset and `seed_master` (matched by name, no duplicates, nothing is changed or removed).
 For shops made earlier, run once on the server: `python manage.py seed_shop_defaults --dry-run` to look, then `python manage.py seed_shop_defaults`. By default it fills only shops that have no units and no categories at all; `--all` adds the missing ones to every shop. No migration.
+
+## Expenses and Fixed Expenses dropdowns
+
+The **Expenses** form (by hand) now offers only **Other** (the default) and **Salary** (used by "Add salary" on the Employees list). Rent, Electricity, Water and Maintenance are set up once in **Fixed Expenses**, and their entries arrive in Expenses by themselves. An old or automatic entry keeps its own type and can still be opened and corrected. The Fixed Expenses dropdown is unchanged. The data model is unchanged (no migration), so reports and the dashboard split by type work as before.
