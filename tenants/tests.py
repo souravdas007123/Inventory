@@ -133,6 +133,48 @@ class SignupFlowTests(TransactionTestCase):
         Shop.objects.filter(pk=shop.pk).update(is_paused=True)
         self.assertEqual(self.client.get('/', HTTP_HOST=HOST).status_code, 403)
 
+    def test_a_new_shop_starts_with_the_usual_units_and_categories(self):
+        from django_tenants.utils import schema_context
+
+        from backend import defaults
+        from backend.models import Category, Unit
+        self.sign_up()
+        self.confirm()
+        with schema_context(SCHEMA):
+            self.assertEqual(set(Unit.objects.values_list('name', flat=True)), set(defaults.UNITS))
+            self.assertEqual(set(Category.objects.values_list('name', flat=True)), set(defaults.CATEGORIES))
+
+    def test_the_command_fills_only_shops_that_have_none(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+        from django_tenants.utils import schema_context
+
+        from backend import defaults
+        from backend.models import Category, Unit
+        self.sign_up()
+        self.confirm()
+        with schema_context(SCHEMA):
+            Unit.objects.all().delete()
+            Category.objects.all().delete()
+        out = StringIO()
+        call_command('seed_shop_defaults', '--dry-run', stdout=out)
+        self.assertIn(f'{SCHEMA}: would be filled', out.getvalue())
+        with schema_context(SCHEMA):
+            self.assertEqual(Unit.objects.count(), 0)
+        call_command('seed_shop_defaults', stdout=StringIO())
+        with schema_context(SCHEMA):
+            self.assertEqual(Unit.objects.count(), len(defaults.UNITS))
+            Unit.objects.exclude(name='Strip').delete()                 # the shop keeps its own choice
+        out = StringIO()
+        call_command('seed_shop_defaults', stdout=out)
+        self.assertIn('left alone', out.getvalue())
+        with schema_context(SCHEMA):
+            self.assertEqual(Unit.objects.count(), 1)
+        call_command('seed_shop_defaults', '--all', stdout=StringIO())
+        with schema_context(SCHEMA):
+            self.assertEqual(Unit.objects.count(), len(defaults.UNITS))
+
     def test_the_confirmation_mail_is_a_proper_html_mail_with_the_link_on_its_own_line(self):
         self.sign_up()
         msg = mail.outbox[0]

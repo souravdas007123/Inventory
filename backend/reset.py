@@ -12,13 +12,14 @@ from decimal import Decimal
 
 from django.db import transaction
 
+from . import defaults
 from .models import (Batch, Bill, Brand, Category, Customer, CustomerPayment, DocCounter, Employee, Expense,
                      HealthSnapshot, HeldBill, InvoiceCounter, Order, Payment, Product, Purchase,
                      PurchaseOrder, PurchaseReturn, RecurringExpense, Sale, SalesReturn, StockAudit, StockWriteOff,
                      Supplier, Transaction, Unit)
 
-DEFAULT_CATEGORIES = ('Tablet', 'Capsule', 'Syrup', 'Injection', 'Ointment / Cream', 'Drops', 'Powder', 'Surgical', 'General')
-DEFAULT_UNITS = ('Tablet', 'Capsule', 'Strip', 'Bottle', 'Tube', 'Box', 'Piece')
+DEFAULT_CATEGORIES = defaults.CATEGORIES
+DEFAULT_UNITS = defaults.UNITS
 
 GROUPS = (
     ('transactions', 'Bills, purchases and money records',
@@ -74,10 +75,7 @@ def _medicines():
     Product.objects.all().delete()          # unit conversions go with the products
     for model in (Brand, Category, Unit):
         model.objects.all().delete()
-    for name in DEFAULT_UNITS:
-        Unit.objects.create(name=name)
-    for name in DEFAULT_CATEGORIES:
-        Category.objects.create(name=name)
+    defaults.add_missing()
 
 
 def _parties():

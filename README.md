@@ -426,3 +426,8 @@ If someone is locked out: the shop owner deletes the row under *Admin → Two fa
 Two e-mails, both plain text + a neat HTML version (`tenants/mails.py`):
 - **Confirmation** (at sign-up): a button and the link on its own line, valid 24 hours, "ignore this if it was not you".
 - **Welcome letter** (right after the owner confirms and the shop is made): shop name, web address, sign-in e-mail, free-trial end date, four first steps, how to get help, a 2-step and phone tip. It never contains the password. If it cannot be sent, the shop is still created. Everything a person typed is escaped in the HTML. Nothing to migrate.
+
+## Starting Units and Categories
+
+A new shop now starts with the usual Units (Tablet, Strip, Box, Bottle ...) and Categories (Tablet, Syrup, Injection ...). One list lives in `backend/defaults.py` and is shared by new shops, the data reset and `seed_master` (matched by name, no duplicates, nothing is changed or removed).
+For shops made earlier, run once on the server: `python manage.py seed_shop_defaults --dry-run` to look, then `python manage.py seed_shop_defaults`. By default it fills only shops that have no units and no categories at all; `--all` adds the missing ones to every shop. No migration.

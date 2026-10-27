@@ -15,7 +15,7 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from backend import tenancy
+from backend import defaults, tenancy
 from backend import validators as vcheck
 
 from . import mails, site
@@ -147,6 +147,10 @@ def _create_shop(pending):
                 username=pending.email, email=pending.email, first_name=pending.owner_name[:150],
                 password=pending.password_hash, is_staff=True, is_superuser=True)
             ShopProfile.objects.create(name=pending.shop_name, email=pending.email, phone=pending.phone)
+            try:                                              # the usual units and categories, so the shop can start at once
+                defaults.add_missing()
+            except Exception:
+                log.exception('Could not add the starting units and categories for %s', schema)
     except Exception:
         log.exception('Could not create the shop %s', schema)
         if shop.pk:
