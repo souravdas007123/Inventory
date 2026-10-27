@@ -1,4 +1,4 @@
-"""By hand the Expenses form offers Salary and Other; Rent, Electricity ... belong to Fixed Expenses."""
+"""By hand the Expenses form offers only Other. Rent, Electricity, Salary ... belong to Fixed Expenses (Salary also opens from the Salary Sheet)."""
 import re
 from datetime import date
 from decimal import Decimal
@@ -21,14 +21,14 @@ class ExpenseTypeTests(TestCase):
     def setUp(self):
         self.client.force_login(get_user_model().objects.create_superuser('owner', 'o@example.com', 'pw-12345-x'))
 
-    def test_a_new_expense_offers_only_other_and_salary_and_starts_on_other(self):
+    def test_a_new_expense_offers_only_other(self):
         opts, chosen = options(self.client.get('/expenses/new/').content.decode(), 'name')
-        self.assertEqual(sorted(opts), ['OTHER', 'SALARY'])
+        self.assertEqual(opts, ['OTHER'])
         self.assertEqual(chosen, ['OTHER'])
 
     def test_fixed_expenses_keep_the_whole_list(self):
         opts, _ = options(self.client.get('/fixed_expenses/new/').content.decode(), 'name')
-        for k in ('RENT', 'ELECTRICITY', 'WATER', 'MAINTENANCE', 'OTHER'):
+        for k in ('RENT', 'SALARY', 'ELECTRICITY', 'WATER', 'MAINTENANCE', 'OTHER'):
             self.assertIn(k, opts)
 
     def test_a_one_time_expense_can_be_saved_as_other(self):
@@ -36,9 +36,10 @@ class ExpenseTypeTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(Expense.objects.get().name, 'OTHER')
 
-    def test_rent_cannot_be_typed_in_by_hand_any_more(self):
-        resp = self.client.post('/expenses/new/', dict(name='RENT', amount='250', date='2026-10-01'))
-        self.assertEqual(resp.status_code, 200)
+    def test_rent_and_salary_cannot_be_typed_in_by_hand(self):
+        for name in ('RENT', 'SALARY'):
+            resp = self.client.post('/expenses/new/', dict(name=name, amount='250', date='2026-10-01'))
+            self.assertEqual(resp.status_code, 200)
         self.assertFalse(Expense.objects.exists())
 
     def test_an_automatic_rent_entry_can_still_be_opened_and_corrected(self):
@@ -46,7 +47,7 @@ class ExpenseTypeTests(TestCase):
         e = Expense.objects.create(name='RENT', amount=Decimal('1000'), date=date(2026, 10, 5), recurring=rent,
                                    period=date(2026, 10, 1), auto=True)
         opts, chosen = options(self.client.get(f'/expenses/{e.pk}/').content.decode(), 'name')
-        self.assertEqual(sorted(opts), ['OTHER', 'RENT', 'SALARY'])
+        self.assertEqual(opts, ['OTHER', 'RENT'])
         self.assertEqual(chosen, ['RENT'])
         resp = self.client.post(f'/expenses/{e.pk}/', dict(name='RENT', amount='1100', date='2026-10-05', note='Raised'))
         self.assertEqual(resp.status_code, 302)
@@ -56,10 +57,17 @@ class ExpenseTypeTests(TestCase):
     def test_add_salary_from_the_employee_list_still_works(self):
         emp = Employee.objects.create(name='Asha', monthly_salary=Decimal('12000'))
         html = self.client.get(f'/expenses/new/?employee={emp.pk}').content.decode()
-        self.assertEqual(options(html, 'name')[1], ['SALARY'])
-        resp = self.client.post('/expenses/new/', dict(name='SALARY', employee=emp.pk, amount='12000', date='2026-10-30'))
+        opts, chosen = options(html, 'name')
+        self.assertEqual((sorted(opts), chosen), (['OTHER', 'SALARY'], ['SALARY']))
+        resp = self.client.post(f'/expenses/new/?employee={emp.pk}', dict(name='SALARY', employee=emp.pk, amount='12000', date='2026-10-30'))
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(Expense.objects.get().employee_id, emp.pk)
+
+    def test_an_old_salary_entry_can_still_be_opened(self):
+        emp = Employee.objects.create(name='Asha', monthly_salary=Decimal('12000'))
+        e = Expense.objects.create(name='SALARY', employee=emp, amount=Decimal('12000'), date=date(2026, 10, 30))
+        opts, chosen = options(self.client.get(f'/expenses/{e.pk}/').content.decode(), 'name')
+        self.assertEqual((sorted(opts), chosen), (['OTHER', 'SALARY'], ['SALARY']))
 
     def test_the_list_explains_where_fixed_costs_go(self):
         self.assertContains(self.client.get('/expenses/'), 'Fixed Expenses')

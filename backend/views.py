@@ -330,7 +330,7 @@ CONFIG = {
     'expenses': dict(
         title='Expenses', one='Expense', model=Expense, order=['-date', '-id'], related=['employee'],
         hint='Add one-time costs here: choose Other and write what it was in the note. Costs that repeat every month '
-             '(rent, electricity, water ...) are made once in Fixed Expenses and appear here by themselves.',
+             '(rent, electricity, water, salary ...) are made once in Fixed Expenses and appear here by themselves.',
         search=['name', 'note', 'employee__name', 'employee__code'],
         cols=[('Date', lambda o: d(o.date)), ('Type', lambda o: o.get_name_display()),
               ('Employee', lambda o: str(o.employee) if o.employee_id else '-'),
@@ -836,10 +836,15 @@ def edit(request, key, pk=None):
     if key == 'expenses':   # only working employees (plus the one already on this entry)
         form.fields['employee'].queryset = Employee.objects.filter(
             Q(is_active=True) | Q(pk=obj.employee_id if obj else None)).order_by('name')
-        # Rent, electricity, water ... are fixed costs: they are made in Fixed Expenses and arrive here by themselves.
-        # By hand only Salary (from Employees) and Other (write what it was in the note) are offered. An old entry keeps its own type.
+        # Rent, electricity, water, salary ... are fixed costs: they are made in Fixed Expenses (or by the Salary Sheet) and arrive here
+        # by themselves. By hand only Other is offered (write what it was in the note). Salary appears only when the Salary Sheet's
+        # "Add salary" button opened this form, and an old entry keeps its own type so it can still be corrected.
         types = dict(Expense.EXPENSES_TYPES)
-        keep = ['OTHER', 'SALARY'] + ([obj.name] if obj and obj.name not in ('OTHER', 'SALARY') else [])
+        salary_flow = (request.GET.get('employee', '').isdecimal() or
+                       bool(post and post.get('name') == 'SALARY' and post.get('employee')))
+        keep = ['OTHER'] + (['SALARY'] if salary_flow else [])
+        if obj and obj.name not in keep:
+            keep.append(obj.name)
         form.fields['name'].choices = [(k, types.get(k, k)) for k in keep]
         form.fields['name'].label = 'Type'
         if not obj and not post and not (initial or {}).get('name'):
