@@ -6,7 +6,8 @@
 # (it also ends by itself when its minutes run out). Plan it earlier from the platform panel (Maintenance) so shops get a notice first.
 # It pulls the latest code, installs packages, updates the database of the main shop and of every shop, collects static
 # files, restarts the app and checks that it answers. It stops at the first problem and says what failed.
-set -Eeuo pipefail
+set -euo pipefail
+set -E          # the error handler below must also work inside the function
 
 cd "$(dirname "$0")"
 PY=./venv/bin/python
