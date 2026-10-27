@@ -18,7 +18,7 @@ from django.views.decorators.http import require_http_methods
 from backend import defaults, tenancy
 from backend import validators as vcheck
 
-from . import mails, site
+from . import mails, maintenance, site
 from .models import Domain, PendingSignup, Shop
 
 log = logging.getLogger(__name__)
@@ -28,6 +28,13 @@ MAX_SIGNUPS_PER_HOUR = 5
 def _notice(request, title, message, link_url='', link_text='', status=200):
     return render(request, 'app/notice.html', dict(title=title, message=message, link_url=link_url, link_text=link_text),
                   status=status)
+
+
+def _paused(request):
+    """New shops are not made while MedSync is being updated. The e-mail link stays valid for later."""
+    return _notice(request, 'Sign-up is paused for a few minutes',
+                   'We are updating MedSync. Please try again in a few minutes. Your confirmation link stays valid.',
+                   request.path, 'Try again', 503)
 
 
 def _client_ip(request):
@@ -99,6 +106,8 @@ def signup(request):
     if request.user.is_authenticated:
         return redirect('/')
     values, errors = {}, {}
+    if request.method == 'POST' and maintenance.is_active():
+        return _paused(request)
     if request.method == 'POST':
         values = request.POST
         if request.POST.get('website'):                       # hidden field that only robots fill in
@@ -173,6 +182,8 @@ def confirm(request, token):
     if pending.used:
         return _notice(request, 'Your shop is ready', 'This link was already used. You can sign in to your shop.',
                        shop_url(request, pending.subdomain, '/login/'), 'Go to my shop')
+    if request.method == 'POST' and maintenance.is_active():
+        return _paused(request)
     if request.method == 'GET':                               # a button, so mail scanners that open links create nothing
         return render(request, 'app/signup_confirm.html', dict(pending=pending, trial_days=settings.TRIAL_DAYS))
     if not PendingSignup.objects.filter(pk=pending.pk, used=False).update(used=True):    # a double click: only one wins

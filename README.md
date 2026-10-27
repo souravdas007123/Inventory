@@ -435,3 +435,16 @@ For shops made earlier, run once on the server: `python manage.py seed_shop_defa
 ## Expenses and Fixed Expenses dropdowns
 
 The **Expenses** form (by hand) offers only **Other** (the default): write what it was in the note. Rent, Electricity, Water, Maintenance and Salary are set up once in **Fixed Expenses** (the dropdown there is unchanged), and their entries arrive in Expenses by themselves. **Salary** shows in the Expenses form only when it is opened from the Salary Sheet's "+ Add salary" button. An old or automatic entry keeps its own type and can still be opened and corrected. The data model is unchanged (no migration), so reports and the dashboard split by type work as before.
+
+## Maintenance mode (many-shop setup)
+
+For updates that need a short break. Platform panel, **Maintenance** (`/superadmin/maintenance/`):
+- **Plan it for later** (date, time, minutes, optional message, optional one-time e-mail to every shop owner). From that moment every shop shows a banner: "Planned maintenance: ... save your work before".
+- **Start right now** (needs a tick) and **End maintenance now**, **Extend**, **Cancel the plan**.
+- Inside the window every shop answers with a plain "We are updating MedSync" page (HTTP 503, refreshes itself every 30 seconds, shows your WhatsApp/e-mail). New sign-ups are paused with a polite message and their e-mail links stay valid. `/healthz/` keeps answering, so uptime monitors do not raise a false alarm.
+- **The platform panel keeps working the whole time** (you are not locked out and can check the update). No shop's panel is ever opened for you.
+- The window ends by itself at its end time. It is kept in `maintenance.json` next to `manage.py` (not in the database, so it also works while the database is being updated). A missing or damaged file means "no maintenance".
+- Server commands: `python manage.py maintenance status | on --minutes 20 --message "..." | schedule --start "2026-10-28 23:00" --minutes 30 | extend --minutes 15 | off`. `off` always works.
+- One click with the update: `~/htdocs/medsync.socialflylive.com/deploy.sh --maintenance` (or `--maintenance=30`). It switches maintenance on after pulling the code, updates, restarts, and switches it off only when the site answers. If a step fails it stays on and says how to switch it off. (The first deploy of this feature cannot switch it on yet, because the command does not exist before that deploy.)
+- `deploy.sh` now reads itself completely before it starts, so `git pull` replacing the script in the middle of a run can no longer confuse it.
+- For the few seconds while the app itself restarts, nginx cannot ask the app for a page. `deploy/maintenance.html` is a ready page for that: copy it to the server and let nginx show it for 502/503/504 (see the comment at the top of that file).

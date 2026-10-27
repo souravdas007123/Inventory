@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import mainlogin, plan, platform, support, supportadmin, views
+from . import mainlogin, maintenance_admin, plan, platform, support, supportadmin, views
 
 urlpatterns = [
     path('signup/', views.signup, name='signup'),
@@ -13,6 +13,7 @@ urlpatterns = [
     path('superadmin/support/', supportadmin.ticket_list, name='platform_support'),
     path('superadmin/support/<int:pk>/', supportadmin.ticket_detail, name='platform_ticket'),
     path('superadmin/site/', platform.site_settings, name='platform_site'),
+    path('superadmin/maintenance/', maintenance_admin.maintenance_page, name='platform_maintenance'),
     path('superadmin/shop/<int:pk>/', platform.shop_detail, name='platform_shop'),
     path('superadmin/shop/<int:pk>/delete/', platform.shop_delete, name='platform_shop_delete'),
     path('superadmin/shop/<int:pk>/two-step-off/', platform.shop_two_step_off, name='platform_shop_two_step_off'),

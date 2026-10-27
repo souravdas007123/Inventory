@@ -1,0 +1,20 @@
+<!doctype html>
+<!--
+  Shown by nginx while the app itself restarts (a few seconds), when the app cannot answer at all.
+  Optional, set up once on the server:
+    1. Copy this file to a folder nginx can read, for example  /var/www/maintenance/maintenance.html
+    2. In the nginx config of the site (CloudPanel: the site's Vhost editor), inside the "server { ... }" block add:
+         error_page 502 503 504 /maintenance.html;
+         location = /maintenance.html { root /var/www/maintenance; internal; }
+    3. Test the config and reload nginx:  nginx -t && systemctl reload nginx
+  The page refreshes itself every 15 seconds, so shops open again as soon as the app is back.
+-->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="refresh" content="15"><title>We are updating MedSync</title>
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f6f8f7;color:#14302d;font:16px/1.6 "Segoe UI",system-ui,Arial,sans-serif}
+.box{max-width:440px;margin:20px;padding:32px 28px;background:#fff;border:1px solid #d3e0dd;border-radius:12px;text-align:center}
+h1{margin:0 0 10px;font-size:22px}p{margin:0 0 10px;color:#5d726f}b{color:#0a6b5f}
+@media(prefers-color-scheme:dark){body{background:#0f1f1d;color:#e6f4f1}.box{background:#142927;border-color:#26433f}p{color:#93aaa6}b{color:#2fbfaa}}</style></head>
+<body><div class="box"><h1>We are updating <b>MedSync</b></h1>
+<p>Your shop and all its data are safe. We will be back in a minute.</p>
+<p>This page checks again by itself.</p></div></body></html>

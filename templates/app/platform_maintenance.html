@@ -1,0 +1,51 @@
+{% extends "app/platform_base.html" %}
+{% block title %}Maintenance{% endblock %}
+{% block nav_maint %} on{% endblock %}
+{% block content %}
+<h1>Maintenance</h1>
+<p class="sub">Plan an update so that no shop is surprised. Shops see a banner before it, and an update page during it. These platform pages keep working the whole time, so you can check everything after the update. Maintenance ends by itself at its end time.</p>
+
+<div class="card" style="max-width:640px;margin-bottom:16px">
+  <h3 style="margin:0 0 8px">Now</h3>
+  {% if kind == 'active' %}
+    <p style="margin:0 0 10px"><b>Maintenance is ON.</b> Shops see the update page until <b>{{ end_text }}</b>.{% if data.message %} Message: {{ data.message }}{% endif %}</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+      <form method="post" style="display:flex;gap:8px;align-items:flex-end">{% csrf_token %}<input type="hidden" name="action" value="end"><button>End maintenance now</button></form>
+      <form method="post" style="display:flex;gap:8px;align-items:flex-end">{% csrf_token %}<input type="hidden" name="action" value="extend">
+        <div><label for="ext">Need more time? Add minutes</label><input id="ext" name="minutes" type="number" value="15" min="{{ min_minutes }}" max="{{ max_minutes }}" style="width:110px"></div>
+        <button class="gray">Extend</button></form>
+    </div>
+  {% elif kind == 'scheduled' %}
+    <p style="margin:0 0 10px"><b>Planned:</b> {{ start_text }} to {{ end_text }}. Shops see a banner now.{% if data.message %} Message: {{ data.message }}{% endif %}</p>
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="end"><button class="gray">Cancel the plan</button></form>
+  {% else %}
+    <p style="margin:0">No maintenance planned. All {{ shops }} shop{{ shops|pluralize }} work normally.</p>
+  {% endif %}
+</div>
+
+<form class="card" method="post" style="max-width:640px;display:grid;gap:14px;margin-bottom:16px">{% csrf_token %}
+  <input type="hidden" name="action" value="schedule">
+  <h3 style="margin:0">Plan it for later</h3>
+  <div style="display:flex;gap:12px;flex-wrap:wrap">
+    <div><label for="d">Date</label><input id="d" name="date" type="date" value="{{ default_date }}" required></div>
+    <div><label for="t">Start time</label><input id="t" name="time" type="time" value="{{ default_time }}" required></div>
+    <div><label for="m">Length (minutes)</label><input id="m" name="minutes" type="number" value="30" min="{{ min_minutes }}" max="{{ max_minutes }}" required style="width:120px"></div>
+  </div>
+  <div><label for="msg">Message for shops (optional)</label><input id="msg" name="message" maxlength="200" style="width:100%" placeholder="We are adding new features."></div>
+  <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" name="email" value="1" style="height:auto"> Also e-mail the shop owners once ({{ shops }} shop{{ shops|pluralize }})</label>
+  <div><button>Plan maintenance</button></div>
+  <p class="mut" style="margin:0">Shops see a banner from now. Giving 30 to 60 minutes of notice, at a time when shops are closed, works best. Saving again replaces the old plan.</p>
+</form>
+
+<form class="card" method="post" style="max-width:640px;display:grid;gap:14px">{% csrf_token %}
+  <input type="hidden" name="action" value="start">
+  <h3 style="margin:0">Start right now</h3>
+  <div style="display:flex;gap:12px;flex-wrap:wrap">
+    <div><label for="m2">Length (minutes)</label><input id="m2" name="minutes" type="number" value="15" min="{{ min_minutes }}" max="{{ max_minutes }}" required style="width:120px"></div>
+    <div style="flex:1;min-width:220px"><label for="msg2">Message for shops (optional)</label><input id="msg2" name="message" maxlength="200" style="width:100%"></div>
+  </div>
+  <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" name="email" value="1" style="height:auto"> Also e-mail the shop owners</label>
+  <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" name="sure" value="1" required style="height:auto"> Yes, show the update page to all shops now</label>
+  <div><button>Start maintenance now</button></div>
+</form>
+{% endblock %}

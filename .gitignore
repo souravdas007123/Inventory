@@ -15,3 +15,6 @@ staticfiles/
 
 backups/
 landing/dist/
+
+# Maintenance window (written by the app / deploy script)
+maintenance.json

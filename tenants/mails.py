@@ -141,3 +141,28 @@ def send_welcome(shop, login_email):
     except Exception:
         log.exception('Could not send the welcome e-mail for %s', shop.schema_name)
         return False
+
+
+def maintenance_message(shop, window, now=None):
+    """(subject, text, html): the shop owner is told about a planned or a running maintenance. No password, no links to act on."""
+    from django.utils import timezone
+
+    from . import maintenance
+    now = now or timezone.now()
+    running = window['start'] <= now
+    name = shop.owner_name or 'there'
+    box = [('Until', maintenance.fmt(window['end']))] if running else [('From', maintenance.fmt(window['start'])), ('Until', maintenance.fmt(window['end']))]
+    blocks = [('box', box), ('p', 'Your data is safe and nothing needs to be done on your side. During this time your shop shows a short update page. '
+                                  'It opens again by itself when we are done.')]
+    if not running:
+        blocks.append(('p', 'Please finish your bills and save your work before it starts.'))
+    if window.get('message'):
+        blocks.append(('p', window['message']))
+    if running:
+        subject, title = 'MedSync is being updated', 'MedSync is being updated right now'
+        intro = f'Hello {name}, we are updating MedSync. Your shop "{shop.name}" will be back by {maintenance.fmt(window["end"])}.'
+    else:
+        subject, title = f'Planned maintenance: {maintenance.fmt(window["start"])}', 'Planned maintenance'
+        intro = f'Hello {name}, we will update MedSync soon, to make it better and safer. Your shop "{shop.name}" will be briefly unavailable.'
+    text, html = build(f'{subject}.', title, intro, blocks)
+    return subject, text, html

@@ -1,0 +1,10 @@
+{% extends "app/auth_base.html" %}
+{% block title %}We are updating MedSync{% endblock %}
+{% block heading %}We are updating MedSync{% endblock %}
+{% block lead %}Your shop and all its data are safe. We are making MedSync better and will be back{% if until %} by {{ until }}{% else %} in a few minutes{% endif %}.{% endblock %}
+{% block content %}
+{% if note %}<p style="margin:0 0 14px">{{ note }}</p>{% endif %}
+<p style="margin:0 0 14px;color:var(--mute)">This page checks again by itself every 30 seconds. You do not need to do anything.</p>
+{% if contact %}<p style="margin:0">Need us? {% for c in contact %}{{ c }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</p>{% endif %}
+{% endblock %}
+{% block script %}<script>setTimeout(function () { location.reload(); }, 30000);</script>{% endblock %}

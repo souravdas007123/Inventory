@@ -88,9 +88,10 @@ pre{white-space:pre-wrap;margin:0;font:inherit}
 <nav class="side"><a class="brand" href="{% url 'platform' %}">{% include "app/logo.html" with size=34 %}<span>MedSync<small>Platform</small></span></a>
 <a class="nav{% block nav_shops %}{% endblock %}" href="{% url 'platform' %}">Shops</a>
 <a class="nav{% block nav_support %}{% endblock %}" href="{% url 'platform_support' %}">Support{% if open_tickets %} <b style="background:var(--amber);color:#0d2b28;border-radius:99px;padding:1px 8px;margin-left:4px">{{ open_tickets }}</b>{% endif %}</a>
+<a class="nav{% block nav_maint %}{% endblock %}" href="{% url 'platform_maintenance' %}">Maintenance{% if maintenance_bar %} <b style="background:var(--amber);color:#0d2b28;border-radius:99px;padding:1px 8px;margin-left:4px">!</b>{% endif %}</a>
 <a class="nav{% block nav_site %}{% endblock %}" href="{% url 'platform_site' %}">Website settings</a>
 <a class="nav" href="/admin/backend/blogpost/">Blog articles</a>
 <a class="nav" href="/admin/tenants/shop/">Shops (admin)</a>
 <div class="sep"></div><a class="nav push" href="/">My shop</a></nav>
-<main class="content">{% for m in messages %}<div class="msg {{ m.tags }}" role="status">{{ m }}</div>{% endfor %}{% block content %}{% endblock %}</main>
+<main class="content">{% if maintenance_bar %}<div class="warnbar"><b>🛠️ {{ maintenance_bar }}</b> <a href="{% url 'platform_maintenance' %}">Manage</a></div>{% endif %}{% for m in messages %}<div class="msg {{ m.tags }}" role="status">{{ m }}</div>{% endfor %}{% block content %}{% endblock %}</main>
 </div></body></html>

@@ -83,10 +83,14 @@ def template_context(request):
     ctx = {'is_owner': is_owner(user), 'nav': nav_for(user), 'shop_note': tenancy.shop_note(request),
            'platform_url': tenancy.platform_panel_url(user), 'platform_notice': ''}
     ctx['support_unread'] = ctx['open_tickets'] = 0
+    ctx['maintenance_banner'] = ctx['maintenance_bar'] = ''
     if tenancy.on_shop_site():
-        from tenants import site
+        from tenants import maintenance, site
         ctx['platform_notice'] = site.shop_notice()
+        ctx['maintenance_banner'] = maintenance.banner()
         ctx['support_unread'] = _count_tickets(request, user)
     elif getattr(settings, 'MULTI_SHOP', False) and tenancy.is_platform() and user.is_authenticated:
         ctx['open_tickets'] = _count_tickets(request, user, platform=True)
+        from tenants import maintenance
+        ctx['maintenance_bar'] = maintenance.platform_bar()
     return ctx
