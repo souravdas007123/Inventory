@@ -244,6 +244,16 @@ Public articles for SEO, written in the admin under **Website → Blog Articles*
 * Migration `0015` creates the table; `0016` adds 6 first articles once (an article that already exists is never overwritten, so your edits are safe). Files: `backend/blog.py`, `backend/blog_seed.py`, `templates/app/blog_*.html`, tests in `backend/tests/test_blog.py`.
 
 
+## Server health (platform panel)
+
+`/superadmin/server/` ("Server health" in the platform menu) shows how busy the server is: CPU load (as `load 0.8 of 4 CPUs`), memory, disk, database size (total and per shop), database connections, how long the application has been running (since the last restart), the server's own uptime and the age of the last backup. Each figure has a plain status (OK / Busy / Low / Almost full ...) and the page lists what needs attention. The shop list (`/superadmin/`) shows a short warning when something does.
+
+* Read-only, and cheap: it reads Linux's `/proc` files, `shutil.disk_usage` and two small PostgreSQL queries. The figures are cached for 30 seconds (the per-shop sizes for 10 minutes) in the shared cache, so refreshing the page costs the server nothing, and no other page of the app is touched. "Measure again now" re-reads everything.
+* A figure that cannot be read (for example on a server without `/proc`) shows "Not available" and never breaks the page.
+* Warning limits (in `tenants/serverstats.py`): disk 85% / 95% used, memory 15% / 7% available, load per CPU 1.0 / 2.0, database connections 80% / 95%, backup 36 / 72 hours old.
+* It looks at the server from the inside, so it cannot warn you when the whole server is down: also put an outside monitor (for example UptimeRobot) on `/healthz/`.
+* Files: `tenants/serverstats.py`, `tenants/server_admin.py`, `templates/app/platform_server.html`, tests in `tenants/test_serverstats.py`.
+
 ## Website content (FAQ, policy pages, home page text)
 
 Like the blog, these are edited in the admin (`/admin/`, section **Website**), on the main site only. A shop's own admin does not show them.

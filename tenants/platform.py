@@ -148,10 +148,16 @@ def dashboard(request):
                                                        r['shop'].phone, r['domain']]).lower()]
     for r in rows:
         r['url'] = _shop_link(request, r['domain'], '/login/')
+    try:                                        # a short warning when the server needs attention (cached, never breaks the page)
+        from . import serverstats
+        server_data = serverstats.collect()
+        server_warn = [w for w in server_data['warnings'] if w['level'] in ('warn', 'bad')]
+    except Exception:
+        server_warn = []
     total = Payment.objects.aggregate(s=Sum('amount'))['s'] or Decimal('0')
     month_total = Payment.objects.filter(paid_on__year=today.year, paid_on__month=today.month).aggregate(s=Sum('amount'))['s'] or Decimal('0')
     return render(request, 'app/platform.html', dict(
-        rows=rows, counts=counts, total_shops=len(all_rows),
+        rows=rows, counts=counts, total_shops=len(all_rows), server_warn=server_warn,
         no_backup=sum(1 for r in all_rows if r['state'] != 'paused' and r['backup']['stale']), q=q, want=want, states=STATE_LABELS,
         new_week=sum(1 for r in all_rows if r['shop'].created_on.date() >= today - timedelta(days=7)),
         growth=_growth(all_rows, today),

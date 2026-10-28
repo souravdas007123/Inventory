@@ -24,6 +24,7 @@
 </section>
 {% if open_tickets %}<div class="warnbar"><b>{{ open_tickets }} support ticket{{ open_tickets|pluralize }} waiting for your reply.</b> <a href="{% url 'platform_support' %}">Open Support</a></div>{% endif %}
 {% if no_backup %}<div class="warnbar"><b>{{ no_backup }} shop{{ no_backup|pluralize }} without a backup in the last 2 days.</b> Check that the nightly job (<code>shops_daily</code>) is running.</div>{% endif %}
+{% if server_warn %}<div class="warnbar"><b>Server needs attention:</b> {{ server_warn.0.text }}{% if server_warn|length > 1 %} (and {{ server_warn|length|add:"-1" }} more){% endif %} <a href="{% url 'platform_server' %}">Open Server health</a></div>{% endif %}
 <div class="bar">
 <nav class="chips" aria-label="Filter by status">
 <a href="?{% if q %}q={{ q|urlencode }}{% endif %}"{% if not want %} class="on"{% endif %}>All<b>{{ total_shops }}</b></a>

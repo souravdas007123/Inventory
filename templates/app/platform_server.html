@@ -1,0 +1,69 @@
+{% extends "app/platform_base.html" %}
+{% block title %}Server health{% endblock %}
+{% block nav_server %} on{% endblock %}
+{% block content %}
+<style>
+.meter{height:10px;border-radius:99px;background:var(--soft);overflow:hidden;margin:10px 0 8px}
+.meter i{display:block;height:100%;border-radius:99px;background:var(--ok)}
+.meter.warn i{background:var(--amber)}.meter.bad i{background:var(--red)}
+.big{font-size:28px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:0}
+.lv{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700;margin-left:8px;vertical-align:middle;background:var(--okbg);color:var(--ok)}
+.lv.warn{background:#fdeed2;color:#8a4a07}.lv.bad{background:var(--redbg);color:var(--red)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:18px}
+.cards h3{margin:0 0 6px;font-size:14px;color:var(--mut);font-weight:600}
+.na{color:var(--mut);margin:6px 0 0}
+.alerts{margin:0 0 18px;display:grid;gap:8px}
+.alerts div{padding:11px 14px;border-radius:8px;border-left:4px solid var(--amber);background:color-mix(in srgb,var(--amber) 16%,var(--card))}
+.alerts div.bad{border-left-color:var(--red);background:var(--redbg)}
+</style>
+<h1>Server health</h1>
+<p class="sub">How busy the server is, right now. Nothing here changes anything. The figures are measured at most every 30 seconds, so opening this page often costs the server nothing.</p>
+
+{% if d.warnings %}<div class="alerts" role="alert">{% for w in d.warnings %}<div class="{{ w.level }}"><b>{% if w.level == 'bad' %}Problem:{% else %}Watch:{% endif %}</b> {{ w.text }}</div>{% endfor %}</div>
+{% else %}<div class="msg">Everything looks fine.</div>{% endif %}
+
+<div class="cards">
+ <div class="card"><h3>CPU</h3>
+  {% if d.cpu.ok %}<p class="big">{{ d.cpu.percent }}%<span class="lv {{ d.cpu.level }}">{% if d.cpu.level == 'ok' %}OK{% elif d.cpu.level == 'warn' %}Busy{% else %}Overloaded{% endif %}</span></p>
+  <div class="meter {{ d.cpu.level }}" role="img" aria-label="CPU load {{ d.cpu.percent }} per cent"><i style="width:{{ d.cpu.percent }}%"></i></div>
+  <div class="mut">{{ d.cpu.text }}. Last 5 min {{ d.cpu.load5 }}, last 15 min {{ d.cpu.load15 }}.</div>
+  {% else %}<p class="na">Not available</p>{% endif %}</div>
+ <div class="card"><h3>Memory</h3>
+  {% if d.memory.ok %}<p class="big">{{ d.memory.percent }}%<span class="lv {{ d.memory.level }}">{% if d.memory.level == 'ok' %}OK{% elif d.memory.level == 'warn' %}Low{% else %}Very low{% endif %}</span></p>
+  <div class="meter {{ d.memory.level }}" role="img" aria-label="Memory used {{ d.memory.percent }} per cent"><i style="width:{{ d.memory.percent }}%"></i></div>
+  <div class="mut">{{ d.memory.text }}.{% if d.memory.swap_used %} Swap in use.{% endif %}</div>
+  {% else %}<p class="na">Not available</p>{% endif %}</div>
+ <div class="card"><h3>Disk</h3>
+  {% if d.disk.ok %}<p class="big">{{ d.disk.percent }}%<span class="lv {{ d.disk.level }}">{% if d.disk.level == 'ok' %}OK{% elif d.disk.level == 'warn' %}Filling up{% else %}Almost full{% endif %}</span></p>
+  <div class="meter {{ d.disk.level }}" role="img" aria-label="Disk used {{ d.disk.percent }} per cent"><i style="width:{{ d.disk.percent }}%"></i></div>
+  <div class="mut">{{ d.disk.text }}.</div>
+  {% else %}<p class="na">Not available</p>{% endif %}</div>
+ <div class="card"><h3>Database connections</h3>
+  {% if d.connections.ok %}<p class="big">{{ d.connections.used }}<small class="mut" style="font-size:15px"> of {{ d.connections.limit }}</small><span class="lv {{ d.connections.level }}">{% if d.connections.level == 'ok' %}OK{% elif d.connections.level == 'warn' %}Many{% else %}Nearly all used{% endif %}</span></p>
+  <div class="meter {{ d.connections.level }}" role="img" aria-label="Connections used {{ d.connections.percent }} per cent"><i style="width:{{ d.connections.percent }}%"></i></div>
+  <div class="mut">{{ d.connections.text }}.</div>
+  {% else %}<p class="na">Not available{% if d.connections.error %} ({{ d.connections.error }}){% endif %}</p>{% endif %}</div>
+</div>
+
+<div class="grid2">
+ <div class="card"><h2>Application</h2>
+  <dl class="kv">
+   <dt>Running for</dt><dd>{% if d.uptime.ok %}{{ d.uptime.app_text }} <span class="mut" style="font-weight:400">(since the last restart)</span>{% else %}Not available{% endif %}</dd>
+   <dt>Server up for</dt><dd>{% if d.uptime.ok %}{{ d.uptime.server_text }}{% else %}Not available{% endif %}</dd>
+   <dt>Last backup</dt><dd>{% if d.backup.ok %}{{ d.backup.text }}{% if d.backup.found %}, {{ d.backup.size }}{% endif %}<span class="lv {{ d.backup.level }}">{% if d.backup.level == 'ok' %}OK{% elif d.backup.level == 'warn' %}Old{% else %}{% if d.backup.found %}Too old{% else %}None{% endif %}{% endif %}</span>{% else %}Not available{% endif %}</dd>
+   <dt>Measured</dt><dd>{{ d.taken_at }} <span class="mut" style="font-weight:400">({{ d.took_ms }} ms)</span></dd>
+  </dl>
+  <form method="post" style="margin-top:14px">{% csrf_token %}<button class="gray">Measure again now</button></form>
+ </div>
+ <div class="card"><h2>Database size</h2>
+  {% if d.database.ok %}<p class="big">{{ d.database.text }}</p>
+  {% if d.database.shops %}<p class="mut" style="margin:4px 0 10px">Biggest first. Updated every 10 minutes.</p>
+  <div class="tw" style="max-height:300px;overflow:auto"><table style="min-width:0"><thead><tr><th>Shop</th><th class="num">Size</th><th class="num">Share</th></tr></thead><tbody>
+  {% for s in d.database.shops %}<tr><td>{{ s.name }}</td><td class="num">{{ s.text }}</td><td class="num">{{ s.percent }}%</td></tr>{% endfor %}
+  </tbody></table></div>{% if d.database.shops_hidden %}<p class="mut">And {{ d.database.shops_hidden }} smaller ones.</p>{% endif %}
+  {% elif d.database.engine == 'sqlite' %}<p class="mut">One database file. Sizes per shop are shown when PostgreSQL is used.</p>{% endif %}
+  {% else %}<p class="na">Not available</p>{% endif %}
+ </div>
+</div>
+<p class="mut">This page looks at the server from the inside. If the whole server is down it cannot warn you, so also use an outside monitor such as UptimeRobot on <code>/healthz/</code>.</p>
+{% endblock %}
