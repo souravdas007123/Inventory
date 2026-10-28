@@ -29,6 +29,18 @@ class ListSpeedTests(StockMixin, TestCase):
         self.owner = get_user_model().objects.create_superuser('owner', 'o@example.com', 'pw-12345')
         self.client.force_login(self.owner)
 
+    def queries(self, url):
+        with CaptureQueriesContext(connection) as ctx:
+            self.assertEqual(self.client.get(url, {'per': 100}).status_code, 200)
+        return len(ctx.captured_queries)
+
+    def queries_after_more(self, url):
+        """More customers and bills must not mean more queries (the number itself differs between set-ups)."""
+        for i in range(12, 22):
+            c = Customer.objects.create(name=f'Cust {i}', phone=f'98765432{i:02d}')
+            self.sell(qty=2, bill=self.new_bill(customer=c, payment_mode='CREDIT', amount_paid=Decimal('1.00')))
+        return self.queries(url)
+
     def test_bulk_balances_equal_the_single_balance(self):
         fresh = list(Customer.objects.order_by('pk'))
         Customer.bulk_balances(fresh)
@@ -40,15 +52,12 @@ class ListSpeedTests(StockMixin, TestCase):
         Customer.bulk_balances([])
 
     def test_customers_page_shows_the_same_balances_with_few_queries(self):
-        with CaptureQueriesContext(connection) as ctx:
-            html = self.client.get('/customers/', {'per': 100}).content.decode()
-        self.assertLess(len(ctx.captured_queries), 14)
+        html = self.client.get('/customers/', {'per': 100}).content.decode()
+        self.assertEqual(self.queries('/customers/'), self.queries_after_more('/customers/'))
         for c in self.customers:
             self.assertIn(c.name, html)
         csv = self.client.get('/customers/', {'export': 'csv'}).content.decode()
         self.assertIn('Cust 1,9876543201,\'-,No limit,%s,Active' % float(Customer.objects.get(pk=self.customers[1].pk).balance()), csv)
 
     def test_billing_page_has_a_fixed_number_of_queries(self):
-        with CaptureQueriesContext(connection) as ctx:
-            self.assertEqual(self.client.get('/bills/', {'per': 100}).status_code, 200)
-        self.assertLess(len(ctx.captured_queries), 12)
+        self.assertEqual(self.queries('/bills/'), self.queries_after_more('/bills/'))
