@@ -141,7 +141,7 @@ def expiry_badge(b):
 
 
 def balance_cell(c):
-    bal = c.balance()
+    bal = c._balance if hasattr(c, '_balance') else c.balance()
     return badge(rs(bal), 'red') if bal > 0 else rs(bal)
 
 
@@ -298,7 +298,7 @@ CONFIG = {
     ),
     'bills': dict(
         title='Billing', one='Bill', model=Bill, order=['-id'],
-        related=['order'], prefetch=[models.Prefetch('items', queryset=InvoiceItem.objects.select_related('product', 'unit'))],
+        related=['order', 'customer'], prefetch=[models.Prefetch('items', queryset=InvoiceItem.objects.select_related('product', 'unit'))],
         search=['customer_name', 'invoice_number'],
         initial=lambda: {'date': timezone.localdate()},
         cols=[('Invoice No.', lambda o: o.display_number), ('Customer', lambda o: o.customer_name),
@@ -438,6 +438,7 @@ CONFIG = {
     # ---------------- Customers / credit ----------------
     'customers': dict(
         title='Customers (Credit)', one='Customer', model=Customer, order=['name'], search=['name', 'phone', 'gstin'],
+        prepare=Customer.bulk_balances,
         cols=[('Name', lambda o: o.name), ('Phone', lambda o: o.phone or '-'), ('GSTIN', lambda o: o.gstin or '-'),
               ('Credit limit', lambda o: rs(o.credit_limit) if o.credit_limit else 'No limit'),
               ('Credit due', balance_cell),
@@ -666,7 +667,11 @@ def listing(request, key):
         per = 10
     fmt = request.GET.get('export')
     if fmt in ('xlsx', 'csv'):   # the whole list (filtered by search) as Excel/CSV
-        rows = [[export_value(fn(o)) for _, fn in cfg['cols']] for o in qs.order_by(*cfg['order'])[:20000]]
+        objs = list(qs.order_by(*cfg['order'])[:20000])
+        if cfg.get('prepare'):
+            for i in range(0, len(objs), 500):      # in chunks, so the query never has thousands of ids
+                cfg['prepare'](objs[i:i + 500])
+        rows = [[export_value(fn(o)) for _, fn in cfg['cols']] for o in objs]
         return table_download(f"medsync_{key}_{timezone.localdate():%Y%m%d}", [h for h, _ in cfg['cols']], rows, fmt)
     pg = Paginator(qs.order_by(*cfg['order']), per).get_page(request.GET.get('page'))
     summary_line = ''

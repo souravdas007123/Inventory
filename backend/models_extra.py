@@ -97,6 +97,25 @@ class Customer(models.Model):
         ).aggregate(s=Sum('total'))['s'] or Decimal('0')
         return due - paid - adjusted
 
+    @staticmethod
+    def bulk_balances(customers):
+        """The same figure as balance(), for many customers at once (a few queries instead of three per customer).
+        Sets customer._balance on each one, which balance_cell() on the list page then uses."""
+        ids = [c.pk for c in customers]
+        due = {i: Decimal('0') for i in ids}
+        if ids:
+            from .models import Bill
+            for b in Bill.objects.filter(customer_id__in=ids, status='FINAL', payment_mode='CREDIT').prefetch_related('items'):
+                due[b.customer_id] += b.credit_due
+            paid = dict(CustomerPayment.objects.filter(customer_id__in=ids).values_list('customer_id').annotate(s=Sum('amount')))
+            adjusted = dict(SalesReturnItem.objects.filter(
+                sales_return__bill__customer_id__in=ids, sales_return__refund_mode='ADJUST'
+            ).values_list('sales_return__bill__customer_id').annotate(s=Sum('total')))
+        else:
+            paid = adjusted = {}
+        for c in customers:
+            c._balance = due[c.pk] - (paid.get(c.pk) or Decimal('0')) - (adjusted.get(c.pk) or Decimal('0'))
+
     def __str__(self):
         return self.name + (f" ({self.phone})" if self.phone else "")
 
