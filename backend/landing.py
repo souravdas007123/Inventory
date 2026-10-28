@@ -14,7 +14,7 @@ from django.utils.html import escape
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET
 
-from . import tenancy, views
+from . import sitecontent, tenancy, views
 from .blog_art import post_image
 from .models import BlogPost
 
@@ -77,7 +77,9 @@ def home(request):
                   for p in BlogPost.live()[:3]]
     except Exception:
         latest = []
-    return render(request, 'app/landing.html', dict(site_url=_site_url(request), latest_posts=latest, **cta_context(request),
+    faq = sitecontent.faqs()
+    return render(request, 'app/landing.html', dict(site_url=_site_url(request), latest_posts=latest, faqs=faq,
+                                                         faq_ld=sitecontent.faq_jsonld(faq), home=sitecontent.home_text(), **cta_context(request),
                                                          **(site_context() if getattr(settings, 'MULTI_SHOP', False) else {})))
 
 

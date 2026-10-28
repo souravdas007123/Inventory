@@ -8,7 +8,7 @@ import zipfile
 from django.apps import apps
 from django.utils import timezone
 
-SKIP = {'BlogPost', 'ImportLayout', 'AuditLog', 'LoginAudit', 'TwoFactor'}
+SKIP = {'BlogPost', 'FaqItem', 'LegalPage', 'HomeText', 'ImportLayout', 'AuditLog', 'LoginAudit', 'TwoFactor'}
 DANGEROUS = ('=', '+', '-', '@', '\t', '\r')
 
 

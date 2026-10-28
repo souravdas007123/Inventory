@@ -23,15 +23,7 @@
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
 {"@type":"SoftwareApplication","name":"MedSync","applicationCategory":"BusinessApplication","operatingSystem":"Web browser","url":"{{ site_url }}/","description":"Pharmacy inventory, GST billing, batch and expiry management software for medical stores in India.","featureList":["GST billing with barcode scan","Batch and expiry (FEFO) tracking","Alternative medicine suggestion","Supplier price comparison","Reorder suggestions","Schedule H/H1/X drug register","GSTR-1, GSTR-3B and HSN reports","Accountant Excel export","Customer credit ledger","Sales and purchase returns","Import from Excel","Daily automatic backup","Measured health score"],"offers":{% if pricing %}[{"@type":"Offer","name":"Monthly plan","price":"{{ price_monthly }}","priceCurrency":"INR"},{"@type":"Offer","name":"Yearly plan","price":"{{ price_yearly }}","priceCurrency":"INR"}]{% else %}{"@type":"Offer","description":"Free trial for every new shop","price":"0","priceCurrency":"INR"}{% endif %}},
-{"@type":"FAQPage","mainEntity":[
-{"@type":"Question","name":"Where is my data stored?","acceptedAnswer":{"@type":"Answer","text":"In a private space made only for your shop. Other shops cannot see it, nothing is sold or shared, and a compressed backup is taken every day."}},
-{"@type":"Question","name":"Do I need special hardware?","acceptedAnswer":{"@type":"Answer","text":"No. MedSync runs in a web browser on any computer, tablet or phone. A barcode scanner works like a keyboard."}},
-{"@type":"Question","name":"Can my accountant use it?","acceptedAnswer":{"@type":"Answer","text":"Yes. One Excel export has the sales and purchase registers, credit and debit notes, GST by rate, expenses and payments. The GST page also gives GSTR-1, GSTR-3B and HSN summaries."}},
-{"@type":"Question","name":"Is Schedule H and H1 selling tracked?","acceptedAnswer":{"@type":"Answer","text":"Yes. Billing asks for the doctor and patient details for scheduled drugs, and the drug register exports to Excel."}},
-{"@type":"Question","name":"Can I move my existing stock into MedSync?","acceptedAnswer":{"@type":"Answer","text":"Yes. Products, stock and purchases can be imported from Excel or CSV. You see a preview and any problems before anything is saved."}},
-{"@type":"Question","name":"What happens to expired medicines?","acceptedAnswer":{"@type":"Answer","text":"Expired batches are never billed. They are listed on the expiry page, and you can return them to the supplier or write them off, and stock and accounts adjust automatically."}},
-{"@type":"Question","name":"Can several staff use it at once?","acceptedAnswer":{"@type":"Answer","text":"Yes. Each person has a login with a role, so billing staff, purchase staff and the owner each see only what they need."}},
-{"@type":"Question","name":"How do I know the numbers are right?","acceptedAnswer":{"@type":"Answer","text":"The owner's health score compares stock with batches, opens the latest backup to check it, times the pages on the server and lists every problem with its reason."}}]}]}
+{% if faq_ld %}{"@type":"FAQPage","mainEntity":{{ faq_ld }}}{% else %}{"@type":"WebSite","name":"MedSync","url":"{{ site_url }}/"}{% endif %}]}
 </script>
 <style>
 :root{--bg:#f2f7f4;--paper:#fff;--ink:#0a2f2a;--mut:#3f5a54;--line:#cfdcd6;--deep:#0a2f2a;--on-deep:#e9f5f1;--amber:#d98324;--amber-d:#9a5a0f;--red:#b42318;--green:#13795b;--foil:#e6ecea}
@@ -184,8 +176,8 @@ footer .legal{grid-column:1/-1;font-size:14px}
 <main>
 <div class="hero"><div class="w">
 <div>
-<h1>Pharmacy billing and GST software for medical stores</h1>
-<p class="lead">MedSync is pharmacy software that bills in seconds, sells the oldest batch first, warns you before medicines expire, and hands your accountant a ready Excel. Medical stores type less because it fills in what it can, so the numbers stay right, without the guesswork.</p>
+<h1>{% if home.hero_title %}{{ home.hero_title }}{% else %}Pharmacy billing and GST software for medical stores{% endif %}</h1>
+<p class="lead">{% if home.hero_lead %}{{ home.hero_lead }}{% else %}MedSync is pharmacy software that bills in seconds, sells the oldest batch first, warns you before medicines expire, and hands your accountant a ready Excel. Medical stores type less because it fills in what it can, so the numbers stay right, without the guesswork.{% endif %}</p>
 <div class="cta"><a class="btn" href="{{ cta_url }}">{{ cta_hero }}</a><a class="btn o" href="#features">See what it does</a></div>
 {% if pricing %}<p class="assure">Free for {{ trial_days }} days. No card needed. Stop any time.</p>{% endif %}
 <div class="keys" aria-label="Billing keys"><span>Billing in three keys:</span><kbd>F2</kbd> search <kbd>Enter</kbd> next field <kbd>F9</kbd> save</div>
@@ -388,17 +380,10 @@ footer .legal{grid-column:1/-1;font-size:14px}
 <p class="pnote">Questions before you start?{% if contact_whatsapp %} <a href="{{ contact_whatsapp }}" rel="noopener nofollow">Ask us on WhatsApp</a>{% endif %}{% if contact_email %} <a href="mailto:{{ contact_email }}">Write to {{ contact_email }}</a>{% endif %}{% if not contact_whatsapp and not contact_email %} Sign up and we will help you set up.{% endif %}</p>
 </div></section>{% endif %}
 
-<section id="faq"><div class="w">
+{% if faqs %}<section id="faq"><div class="w">
 <div class="head"><h2>Questions shop owners ask</h2></div>
-<details><summary>Where is my data stored?</summary><p>In a private space made only for your shop. Other shops cannot see it, nothing is sold or shared, and a compressed backup is taken every day.</p></details>
-<details><summary>Do I need special hardware?</summary><p>No. MedSync runs in a web browser on any computer, tablet or phone. A barcode scanner works like a keyboard.</p></details>
-<details><summary>Can my accountant use it?</summary><p>Yes. One Excel export has the sales and purchase registers, credit and debit notes, GST by rate, expenses and payments. The GST page also gives GSTR-1, GSTR-3B and HSN summaries.</p></details>
-<details><summary>Is Schedule H and H1 selling tracked?</summary><p>Yes. Billing asks for the doctor and patient details for scheduled drugs, and the drug register exports to Excel.</p></details>
-<details><summary>Can I move my existing stock into MedSync?</summary><p>Yes. Products, stock and purchases can be imported from Excel or CSV. You see a preview and any problems before anything is saved.</p></details>
-<details><summary>What happens to expired medicines?</summary><p>Expired batches are never billed. They are listed on the expiry page, and you can return them to the supplier or write them off. Stock and accounts adjust automatically.</p></details>
-<details><summary>Can several staff use it at once?</summary><p>Yes. Each person has a login with a role, so billing staff, purchase staff and the owner each see only what they need.</p></details>
-<details><summary>How do I know the numbers are right?</summary><p>The owner's health score compares stock with batches, opens the latest backup to check it, times the pages on the server and lists every problem with its reason.</p></details>
-</div></section>
+{% for f in faqs %}<details><summary>{{ f.question }}</summary><p>{{ f.answer }}</p></details>
+{% endfor %}</div></section>{% endif %}
 
 {% if latest_posts %}<section class="p"><div class="w">
 <div class="head"><h2>From the blog</h2><p>Practical reading for medical store owners.</p></div>
@@ -407,7 +392,7 @@ footer .legal{grid-column:1/-1;font-size:14px}
 </div></section>{% endif %}
 
 <div class="final"><div class="w">
-{% if pricing %}<div><h2>Try it with your own medicines</h2><p>Create your shop and bill your first customer today. It is free for {{ trial_days }} days, needs no card, and you can stop whenever you like.</p></div>{% else %}<div><h2>See it with your own medicines</h2><p>Send us a message. We will show you a demo with your kind of stock and bills, and answer your questions.</p></div>{% endif %}
+{% if pricing %}<div><h2>{% if home.final_title %}{{ home.final_title }}{% else %}Try it with your own medicines{% endif %}</h2><p>{% if home.final_text %}{{ home.final_text }}{% else %}Create your shop and bill your first customer today. It is free for {{ trial_days }} days, needs no card, and you can stop whenever you like.{% endif %}</p></div>{% else %}<div><h2>{% if home.final_title %}{{ home.final_title }}{% else %}See it with your own medicines{% endif %}</h2><p>{% if home.final_text %}{{ home.final_text }}{% else %}Send us a message. We will show you a demo with your kind of stock and bills, and answer your questions.{% endif %}</p></div>{% endif %}
 <div><a class="btn" href="{{ cta_url }}">{{ cta_final }}</a></div>
 </div></div>
 </main>

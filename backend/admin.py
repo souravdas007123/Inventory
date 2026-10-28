@@ -12,7 +12,7 @@ from import_export.widgets import ForeignKeyWidget
 
 from .reports import profit_and_loss
 from .models import (
-    BlogPost, TwoFactor,
+    BlogPost, FaqItem, HomeText, LegalPage, TwoFactor,
     Batch, Bill, Brand, Category, Customer, CustomerPayment, Employee, Expense, RecurringExpense, ShopProfile, FinancialReport,
     InvoiceItem, Order, Payment, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
     PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, Sale, SalesReturn, SalesReturnItem,
@@ -591,4 +591,80 @@ class BlogPostAdmin(admin.ModelAdmin):
         form = super().get_form(request, obj, **kwargs)
         form.base_fields['body'].widget.attrs.update(rows=28, style='width:100%;font-family:system-ui,sans-serif;font-size:15px')
         form.base_fields['summary'].widget.attrs.update(style='width:100%')
+        return form
+
+
+class MainSiteOnlyAdmin(admin.ModelAdmin):
+    """Website content belongs to the main site. A shop's own admin panel must not show it."""
+
+    def _main_site_only(self):
+        from . import tenancy
+        return tenancy.is_platform()
+
+    def has_module_permission(self, request):
+        return self._main_site_only() and super().has_module_permission(request)
+
+    def has_view_permission(self, request, obj=None):
+        return self._main_site_only() and super().has_view_permission(request, obj)
+
+    def has_add_permission(self, request):
+        return self._main_site_only() and super().has_add_permission(request)
+
+    def has_change_permission(self, request, obj=None):
+        return self._main_site_only() and super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return self._main_site_only() and super().has_delete_permission(request, obj)
+
+
+@admin.register(FaqItem)
+class FaqItemAdmin(MainSiteOnlyAdmin):
+    """The 'Questions shop owners ask' box of the home page. Change the number in Position to move a question."""
+    list_display = ('question', 'position', 'active')
+    list_editable = ('position', 'active')
+    search_fields = ('question', 'answer')
+    fields = ('question', 'answer', 'position', 'active')
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.base_fields['question'].widget.attrs.update(style='width:100%')
+        form.base_fields['answer'].widget.attrs.update(rows=5, style='width:100%;font-size:15px')
+        return form
+
+
+@admin.register(LegalPage)
+class LegalPageAdmin(MainSiteOnlyAdmin):
+    """Terms of use, Privacy policy and Refund policy. The three pages always exist: change their text, never add or delete."""
+    list_display = ('__str__', 'updated_on')
+    fields = ('description', 'body', 'updated_on')
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.base_fields['body'].widget.attrs.update(rows=30, style='width:100%;font-family:system-ui,sans-serif;font-size:15px')
+        form.base_fields['description'].widget.attrs.update(style='width:100%')
+        return form
+
+
+@admin.register(HomeText)
+class HomeTextAdmin(MainSiteOnlyAdmin):
+    """The main texts of the home page. Leave a box empty to keep the standard text. There is only one such record."""
+    list_display = ('__str__', 'hero_title')
+    fields = ('hero_title', 'hero_lead', 'final_title', 'final_text')
+
+    def has_add_permission(self, request):
+        return super().has_add_permission(request) and not HomeText.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        for f in form.base_fields.values():
+            f.widget.attrs.update(style='width:100%')
         return form

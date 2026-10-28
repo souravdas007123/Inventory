@@ -243,6 +243,17 @@ Public articles for SEO, written in the admin under **Website → Blog Articles*
 * **Pictures:** every article can show a ready-made illustration (pick one under *Cover*: Expiry, GST, Drug register, FEFO, Supplier prices, Excel import; drawn in code, so nothing to upload or host) or your own picture: put its address (`https://...` or `/...`) in *Image url* and a short description in *Image alt*. Your picture replaces the illustration and is also used when the article is shared. Inside the text, a line like `![Billing screen](https://...)` adds a picture. Only `https://` and site-relative addresses are accepted. Migration `0017` adds the fields and gives the first 6 articles their illustrations.
 * Migration `0015` creates the table; `0016` adds 6 first articles once (an article that already exists is never overwritten, so your edits are safe). Files: `backend/blog.py`, `backend/blog_seed.py`, `templates/app/blog_*.html`, tests in `backend/tests/test_blog.py`.
 
+
+## Website content (FAQ, policy pages, home page text)
+
+Like the blog, these are edited in the admin (`/admin/`, section **Website**), on the main site only. A shop's own admin does not show them.
+
+* **FAQ Questions** - the "Questions shop owners ask" box on the home page. Add, edit, hide (untick *Active*) or reorder (change *Position*, smaller first). The Google FAQ markup on the page is made from the same questions, so it always matches. If every question is hidden the box disappears; if the table has no rows at all (or cannot be read) the standard questions are shown.
+* **Policy Pages** - Terms of use, Privacy policy, Refund and cancellation. Three fixed pages (they cannot be added or deleted). The text uses the same simple marks as the blog (`## Heading`, `- ` bullets, `**bold**`, `[text](/privacy/)`), is escaped so it cannot inject HTML, and you set the *Last updated* date yourself. An empty page falls back to the built-in text.
+* **Home Page Text** - the main headline, the paragraph under it, and the heading and text of the last box. One record only; an empty box keeps the standard text. In the last box write `{days}` where the number of free-trial days should appear.
+* Prices, WhatsApp, contact e-mail and the notice bar stay where they were (Platform panel, Website settings).
+* Migration `0021` creates the tables; `0022` copies the first FAQ and the three policy texts once, on the main site only (existing rows are never overwritten, so edits are safe). Files: `backend/sitecontent.py`, `backend/site_seed.py`, `templates/app/legal_saved.html`, tests in `backend/tests/test_site_content.py`.
+
 ## Dashboard: expenses and net profit
 
 Owner only (in the **Money** section, with a breakdown below it): expenses today and this month, **net profit this month** and expenses by type. Net profit = gross profit - expenses - stock write-offs, worked out exactly as on the Profit & Loss page (a test checks that both pages agree). If this part ever fails, the rest of the dashboard still opens. Migration `0018` only changes the wording of one write-off reason ("Damaged / broken"); the database is not touched.

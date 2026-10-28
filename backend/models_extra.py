@@ -819,3 +819,64 @@ class BlogPost(models.Model):
     def live(cls):
         """Articles visitors may see: ticked as published and already dated."""
         return cls.objects.filter(published=True, published_at__lte=timezone.now())
+
+
+# ======================================================
+# WEBSITE CONTENT (FAQ, policies and home page text of the public website; edited in the admin)
+# ======================================================
+
+class FaqItem(models.Model):
+    question = models.CharField(max_length=200)
+    answer = models.TextField(max_length=1500, help_text="Plain text. Keep it short: a few sentences.")
+    position = models.PositiveIntegerField(default=10, help_text="Order on the page: the smaller number comes first (10, 20, 30 ...).")
+    active = models.BooleanField(default=True, help_text="Untick to hide the question without deleting it.")
+
+    class Meta:
+        ordering = ['position', 'id']
+        verbose_name = 'FAQ Question'
+        verbose_name_plural = 'FAQ Questions'
+
+    def __str__(self):
+        return self.question
+
+
+class LegalPage(models.Model):
+    KEYS = (('terms', 'Terms of use'), ('privacy', 'Privacy policy'), ('refund', 'Refund and cancellation'))
+    key = models.CharField(max_length=10, unique=True, choices=KEYS, editable=False)
+    description = models.CharField(max_length=300, blank=True, default='', verbose_name='Short description (for Google)',
+                                   help_text="One or two sentences shown in search results. Leave empty to keep the standard one.")
+    body = models.TextField(help_text="Plain text. Blank line = new paragraph. '## Heading', '### Smaller heading', '- ' for a bullet list, "
+                                       "'1. ' for a numbered list, **bold**, [link text](https://...) or [link text](/privacy/).")
+    updated_on = models.DateField(default=timezone.localdate, verbose_name='Last updated',
+                                  help_text="The date shown at the top of the page. Change it when you change the rules.")
+
+    class Meta:
+        ordering = ['key']
+        verbose_name = 'Policy Page'
+        verbose_name_plural = 'Policy Pages'
+
+    def __str__(self):
+        return dict(self.KEYS).get(self.key, self.key)
+
+
+class HomeText(models.Model):
+    """The main texts of the home page. A field left empty keeps the standard text. Only one row is used."""
+    hero_title = models.CharField(max_length=200, blank=True, default='', verbose_name='Main headline',
+                                  help_text="Standard: Pharmacy billing and GST software for medical stores")
+    hero_lead = models.CharField(max_length=400, blank=True, default='', verbose_name='Paragraph under the headline',
+                                 help_text="Two or three sentences saying what MedSync does.")
+    final_title = models.CharField(max_length=120, blank=True, default='', verbose_name='Heading of the last box')
+    final_text = models.CharField(max_length=400, blank=True, default='', verbose_name='Text of the last box',
+                                  help_text="Write {days} where the number of free-trial days should appear.")
+
+    class Meta:
+        verbose_name = 'Home Page Text'
+        verbose_name_plural = 'Home Page Text'
+
+    def clean(self):
+        super().clean()
+        if not self.pk and HomeText.objects.exists():
+            raise ValidationError('The home page text already exists. Please open it and change it.')
+
+    def __str__(self):
+        return 'Home page text'

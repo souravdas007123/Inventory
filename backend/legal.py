@@ -4,7 +4,8 @@ from django.http import Http404
 from django.shortcuts import render
 from django.views.decorators.http import require_GET
 
-from . import tenancy
+from . import sitecontent, tenancy
+from .blog import render_body
 from .landing import site_context
 
 UPDATED = 'October 2026'
@@ -20,6 +21,11 @@ def _page(request, key):
         raise Http404
     title, template = PAGES[key]
     ctx = site_context() if getattr(settings, 'MULTI_SHOP', False) else {}
+    saved = sitecontent.legal_page(key)         # the text the owner edited in the admin; the built-in page is the fallback
+    if saved:
+        description, body, on = saved
+        return render(request, 'app/legal_saved.html', dict(title=title, updated=f'{on:%d %B %Y}'.lstrip('0'), pages=PAGES, key=key,
+                                                            description=description, body=render_body(body), **ctx))
     return render(request, template, dict(title=title, updated=UPDATED, pages=PAGES, key=key, **ctx))
 
 
