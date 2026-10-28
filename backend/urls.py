@@ -12,6 +12,7 @@ urlpatterns = [
     path('healthz/', helpviews.healthz, name='healthz'),
     path('help/', helpviews.help_page, name='help'),
     path('help/hide-setup/', helpviews.hide_setup, name='hide_setup'),
+    path('setup/', helpviews.setup_page, name='setup'),
     path('terms/', legal.terms, name='terms'),
     path('privacy/', legal.privacy, name='privacy'),
     path('refund/', legal.refund, name='refund'),

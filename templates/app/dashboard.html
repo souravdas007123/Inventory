@@ -43,14 +43,36 @@
 </div>
 {% if setup %}<div class="card" style="margin-bottom:14px" id="setup">
 <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><div><h3 style="margin:0">Get your shop ready</h3><span style="color:var(--mute);font-size:13px">{{ setup.done }} of {{ setup.total }} steps done</span></div>
-<form method="post" action="{% url 'hide_setup' %}" style="margin:0">{% csrf_token %}<button class="btn ghost sm">Hide for now</button></form></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm" href="/setup/">Open the setup guide</a>
+<form method="post" action="{% url 'hide_setup' %}" style="margin:0">{% csrf_token %}<button class="btn ghost sm">Hide for now</button></form></div></div>
 <div class="hbar" style="margin:10px 0 12px" role="progressbar" aria-valuenow="{{ setup.percent }}" aria-valuemin="0" aria-valuemax="100"><span style="width:{{ setup.percent }}%"></span></div>
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px">
 {% for i in setup.items %}<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;{% if i.done %}opacity:.65{% endif %}">
 <div style="font-weight:700">{% if i.done %}✅{% else %}⬜{% endif %} {{ i.title }}</div>
 <div style="color:var(--mute);font-size:13px;margin:2px 0 8px">{{ i.text }}</div>
 {% if not i.done %}<a class="btn sm" href="{{ i.url }}">Open</a>{% endif %}</div>{% endfor %}
-</div></div>{% endif %}
+</div></div>
+{% if setup.fresh %}<dialog id="welcome" style="max-width:460px;width:calc(100% - 32px);border:1px solid var(--line);border-radius:12px;padding:22px;background:var(--card);color:var(--ink)">
+<h3 style="margin:0 0 8px">Welcome to MedSync 👋</h3>
+<p style="margin:0 0 8px">Your shop is ready to set up. It takes a few minutes: your shop details, suppliers, medicines and your opening stock.</p>
+<p style="margin:0 0 16px;color:var(--mute)">The setup guide tells you what to enter and import first, and what to avoid, so your data starts clean.</p>
+<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button type="button" class="btn ghost" id="welcome-later">Later</button><a class="btn" href="/setup/" id="welcome-go">Open the setup guide</a></div></dialog>
+<script>
+(function () {
+  try {
+    var d = document.getElementById('welcome');
+    if (!d || typeof d.showModal !== 'function') return;
+    var key = 'ms-welcome-v1', seen = false;
+    try { seen = localStorage.getItem(key) === '1'; } catch (e) { seen = false; }
+    if (seen) return;
+    function mark() { try { localStorage.setItem(key, '1'); } catch (e) { } }
+    d.addEventListener('close', mark);
+    document.getElementById('welcome-later').addEventListener('click', function () { d.close(); });
+    document.getElementById('welcome-go').addEventListener('click', mark);
+    d.showModal();
+  } catch (e) { }
+})();
+</script>{% endif %}{% endif %}
 {% if backup_note %}<div class="msg warning">💾 {{ backup_note }} <a class="link" href="/backup/">Back up now</a></div>{% endif %}
 <div class="sec">📊 Sales</div>
 <div class="stats">

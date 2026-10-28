@@ -1,0 +1,51 @@
+{% extends "app/base.html" %}
+{% block title %}Setup guide{% endblock %}
+{% block content %}
+<div class="head"><h1>🚀 Setup guide</h1></div>
+<div class="msg info">Follow these steps in order and your shop is ready in a short time. Each step ticks itself when the data is there, so you can stop and come back any time. Nothing here changes your data. The buttons open the normal pages.</div>
+{% if g.problem %}<div class="msg warning">We could not check your progress just now. The steps below are still correct. Please try again in a minute.</div>{% endif %}
+
+<div class="card" style="margin-bottom:14px">
+  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h3 style="margin:0">Your progress</h3><span style="color:var(--mute)">{{ g.done }} of {{ g.total }} steps done</span></div>
+  <div class="hbar" style="margin:10px 0 0" role="progressbar" aria-valuenow="{{ g.percent }}" aria-valuemin="0" aria-valuemax="100"><span style="width:{{ g.percent }}%"></span></div>
+  {% if g.total and g.done == g.total %}<p style="margin:10px 0 0">🎉 All the basic steps are done. Your shop is ready. Have a look at the extra steps and the data check below.</p>{% endif %}
+</div>
+
+<div class="sec">Step by step</div>
+{% for s in g.steps %}
+<div class="card" style="margin-bottom:12px;{% if s.done %}opacity:.8{% endif %}">
+  <div style="display:flex;gap:12px;align-items:flex-start">
+    <div style="flex:0 0 auto;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;background:{% if s.done %}var(--green){% else %}var(--pri){% endif %};color:#fff">{% if s.done %}✓{% else %}{{ forloop.counter }}{% endif %}</div>
+    <div style="flex:1;min-width:0">
+      <h3 style="margin:0 0 4px">{{ s.title }}{% if s.done %} <span class="badge green">Done</span>{% endif %}</h3>
+      <p style="margin:0 0 8px;color:var(--mute)">{{ s.why }}</p>
+      <ul style="margin:0 0 10px;padding-left:20px;line-height:1.6">{% for t in s.tips %}<li>{{ t }}</li>{% endfor %}</ul>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">{% for label, url in s.buttons %}<a class="btn{% if s.done or not forloop.first %} ghost{% endif %} sm" href="{{ url }}">{{ label }}</a>{% endfor %}</div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+<div class="sec">Also worth doing</div>
+<div class="card" style="margin-bottom:14px">
+  {% for e in g.extras %}
+  <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 0;{% if not forloop.last %}border-bottom:1px solid var(--line){% endif %}">
+    <div style="flex:1;min-width:220px"><b>{% if e.done %}✅{% else %}⬜{% endif %} {{ e.title }}</b><div style="color:var(--mute);font-size:13px">{{ e.text }}</div></div>
+    <a class="btn ghost sm" href="{{ e.url }}">{{ e.link }}</a>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="sec">Check your data</div>
+<div class="card" style="margin-bottom:14px">
+  <p style="margin:0 0 8px;color:var(--mute)">A quick look for mistakes that cause trouble later. It only reads your data.</p>
+  {% for c in g.checks %}
+  <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 0;{% if not forloop.last %}border-bottom:1px solid var(--line){% endif %}">
+    <div style="flex:1;min-width:220px"><b>{% if c.count is None %}❔{% elif c.count %}⚠️{% else %}✅{% endif %} {{ c.title }}{% if c.count %}: {{ c.count }}{% endif %}</b><div style="color:var(--mute);font-size:13px">{% if c.count is None %}Could not be checked just now.{% elif c.count %}{{ c.text }}{% else %}All good.{% endif %}</div></div>
+    {% if c.count %}<a class="btn ghost sm" href="{{ c.url }}">{{ c.link }}</a>{% endif %}
+  </div>
+  {% endfor %}
+  <p style="margin:10px 0 0;color:var(--mute);font-size:13px">For a fuller check of your shop, open the <a class="link" href="/health/">Health Score</a>.</p>
+</div>
+<p style="color:var(--mute)">Stuck anywhere? Open <a class="link" href="/help/">Help and support</a>. You can also write to us from Support tickets.</p>
+{% endblock %}

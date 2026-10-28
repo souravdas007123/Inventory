@@ -66,11 +66,11 @@ class SetupCardTests(StockMixin, TestCase):
 
     def test_the_steps_tick_themselves(self):
         # StockMixin already made a product
-        self.assertEqual(self.done(), {'shop': False, 'products': True, 'stock': False, 'bill': False})
+        self.assertEqual(self.done(), {'shop': False, 'suppliers': True, 'products': True, 'stock': False, 'bill': False})
         ShopProfile.objects.all().delete()
         ShopProfile.objects.create(name='Shop', address='1 Main Road', phone='9876543210')
         self.buy()
-        self.assertEqual(self.done(), {'shop': True, 'products': True, 'stock': True, 'bill': False})
+        self.assertEqual(self.done(), {'shop': True, 'suppliers': True, 'products': True, 'stock': True, 'bill': False})
         bill = self.new_bill()
         Bill.objects.filter(pk=bill.pk).update(status='FINAL')
         self.assertTrue(self.done()['bill'])
@@ -79,7 +79,7 @@ class SetupCardTests(StockMixin, TestCase):
         self.client.force_login(self.owner)
         page = self.client.get('/')
         self.assertContains(page, 'Get your shop ready')
-        self.assertContains(page, '1 of 4 steps done')
+        self.assertContains(page, '2 of 5 steps done')
         ShopProfile.objects.all().delete()
         ShopProfile.objects.create(name='Shop', address='1 Main Road', phone='9876543210')
         self.buy()

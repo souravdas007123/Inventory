@@ -425,7 +425,7 @@ If someone is locked out: the shop owner deletes the row under *Admin → Two fa
 
 Two e-mails, both plain text + a neat HTML version (`tenants/mails.py`):
 - **Confirmation** (at sign-up): a button and the link on its own line, valid 24 hours, "ignore this if it was not you".
-- **Welcome letter** (right after the owner confirms and the shop is made): shop name, web address, sign-in e-mail, free-trial end date, four first steps, how to get help, a 2-step and phone tip. It never contains the password. If it cannot be sent, the shop is still created. Everything a person typed is escaped in the HTML. Nothing to migrate.
+- **Welcome letter** (right after the owner confirms and the shop is made): shop name, web address, sign-in e-mail, free-trial end date, five first steps (the first points to the Setup guide), how to get help, a 2-step and phone tip. It never contains the password. If it cannot be sent, the shop is still created. Everything a person typed is escaped in the HTML. Nothing to migrate.
 
 ## Starting Units and Categories
 
@@ -448,3 +448,8 @@ For updates that need a short break. Platform panel, **Maintenance** (`/superadm
 - One click with the update: `~/htdocs/medsync.socialflylive.com/deploy.sh --maintenance` (or `--maintenance=30`). It switches maintenance on after pulling the code, updates, restarts, and switches it off only when the site answers. If a step fails it stays on and says how to switch it off. (The first deploy of this feature cannot switch it on yet, because the command does not exist before that deploy.)
 - `deploy.sh` now reads itself completely before it starts, so `git pull` replacing the script in the middle of a run can no longer confuse it.
 - For the few seconds while the app itself restarts, nginx cannot ask the app for a page. `deploy/maintenance.html` is a ready page for that: copy it to the server and let nginx show it for 502/503/504 (see the comment at the top of that file).
+
+## Setup guide (for new shops)
+
+Menu: **Setup guide** (owner only, `/setup/`). It tells a new shop what to enter and import, in the order that works: shop details, suppliers, medicines, opening stock (with batch and expiry), first bill. Every step has "why it matters", tips, and buttons to the page, the Excel template and the import. Steps tick themselves from the shop's data; nothing is written. Below that: "Also worth doing" (GSTIN and Drug Licence, credit customers, what you owe suppliers, staff logins, 2-step sign-in, a backup copy) and "Check your data" (medicines without a unit or MRP, batches with stock but no expiry date, suppliers without a phone number), each with a link to fix it.
+The dashboard card "Get your shop ready" now has five steps and a button to the guide. A brand new shop (nothing done yet) also gets a one-time welcome note (remembered in the browser). Products cannot be added one by one: they are created by the Products import or by the stock entry/import, and the guide says so. No migration; the code is `backend/onboarding.py`.

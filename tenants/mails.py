@@ -111,8 +111,9 @@ def welcome_message(shop, login_email, today=None):
     box.append(('Sign in with', login_email))
     if ends:
         box.append(('Free trial until', ends))
-    steps = ['Add your medicines under Products (or bring them in at once with Import / Export).',
-             'Add your suppliers and enter your first purchase, so each batch and its expiry date is tracked.',
+    steps = ['After you sign in, open "Setup guide" in the menu. It lists what to enter and import first, in the right order.',
+             'Add your medicines and suppliers (bring them in at once with Import / Export).',
+             'Enter your opening stock as a purchase, so each batch and its expiry date is tracked.',
              'Make your first bill from Billing. Print it or send it to the customer on WhatsApp.',
              'Open Sign-in security and turn on 2-step sign-in to keep your shop safe.']
     contact = [c for c in _contact_lines() if not c.startswith('Please contact')]
@@ -123,7 +124,7 @@ def welcome_message(shop, login_email, today=None):
         'Welcome to MedSync, your shop is ready',
         f'Hello {name}, your shop "{shop.name}" has been created and your free trial has started. Here is everything you need to begin.',
         [('box', box), ('p', 'Your password is the one you chose while signing up. We never e-mail passwords.'),
-         ('p', 'Get going in four steps:'), ('steps', steps), ('p', help_line),
+         ('p', 'Get going in five steps:'), ('steps', steps), ('p', help_line),
          ('p', 'Tip: open your shop on your phone and choose "Add to Home screen" to use it like an app, including the camera barcode scan.')],
         button=('Open my shop', address + 'login/') if address else None,
         small='Your data belongs to you. You can download a full copy any time from the Backup page.')

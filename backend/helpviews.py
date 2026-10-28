@@ -6,7 +6,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
-from . import access, tenancy
+from . import access, onboarding, tenancy
 from .landing import contact_links
 
 GUIDES = [
@@ -24,6 +24,12 @@ GUIDES = [
 @login_required
 def help_page(request):
     return render(request, 'app/help.html', dict(active='help', guides=GUIDES, contact=contact_links(), tickets_on=tenancy.on_shop_site(), is_owner_user=access.is_owner(request.user)))
+
+
+@access.owner_required
+def setup_page(request):
+    """The Setup guide: what to enter and import first, in the right order, with the mistakes to avoid. Owner only."""
+    return render(request, 'app/setup.html', dict(active='setup', g=onboarding.guide(request.user)))
 
 
 @login_required

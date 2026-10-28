@@ -70,6 +70,7 @@ NAV = [
     {'key': 'users', 'url': '/users/', 'label': 'Users & Sign-ins', 'icon': '👤', 'group': 'Master Data', 'staff': True},
     {'key': 'health', 'url': '/health/', 'label': 'Health Score', 'icon': '🩺', 'group': 'Master Data', 'staff': True},
     {'key': 'backup', 'url': '/backup/', 'label': 'Backup', 'icon': '💾', 'group': 'Master Data', 'staff': True},
+    {'key': 'setup', 'url': '/setup/', 'label': 'Setup guide', 'icon': '🚀', 'group': 'Master Data'},
     {'key': 'help', 'url': '/help/', 'label': 'Help and support', 'icon': '🛟', 'group': 'Master Data', 'always': True},
     {'key': 'security', 'url': '/security/', 'label': 'Sign-in security', 'icon': '🔐', 'group': 'Master Data', 'always': True},
     {'key': 'support', 'url': '/support/', 'label': 'Support tickets', 'icon': '🎫', 'group': 'Master Data', 'always': True, 'shop_only': True},
