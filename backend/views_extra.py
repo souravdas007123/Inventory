@@ -944,7 +944,7 @@ def expiry_view(request):
     for g in groups:
         items = [x for inv in g['invoices'] for x in inv['items'] if x['returnable']]
         g['wa'] = notify.whatsapp_link(expiry_returns.whatsapp_text(shop.name, g['supplier'], items), g['phone']) if items else ''
-    return page(request, 'app/expiry.html', active='expiry', groups=groups, days=days, day_choices=expiry_returns.DAY_CHOICES,
+    return page(request, 'app/expiry.html', active='expiry', suppliers=groups, days=days, day_choices=expiry_returns.DAY_CHOICES,
                 grand=sum((g['total'] for g in groups), Decimal('0')), today=today)
 
 

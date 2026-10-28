@@ -9,9 +9,9 @@
   tick near-expiry ones only after the supplier has agreed. Only whole purchase units (full strips / boxes) can go back.
   Use <b>WhatsApp</b> to ask the supplier first.
 </div>
-{% if groups %}
-<div style="margin-bottom:10px;color:var(--mute)">{{ groups|length }} supplier{{ groups|length|pluralize }} · returnable value about <b>₹{{ grand }}</b></div>
-{% for g in groups %}
+{% if suppliers %}
+<div style="margin-bottom:10px;color:var(--mute)">{{ suppliers|length }} supplier{{ suppliers|length|pluralize }} · returnable value about <b>₹{{ grand }}</b></div>
+{% for g in suppliers %}
 <form method="post" class="card" style="margin-bottom:14px">{% csrf_token %}
   <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
     <h3 style="margin:0">{{ g.supplier }} <small style="color:var(--mute);font-weight:400">· {{ g.count }} batch{{ g.count|pluralize:"es" }} · about ₹{{ g.total }}</small></h3>

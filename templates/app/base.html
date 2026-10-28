@@ -113,8 +113,8 @@ img,video{max-width:100%;height:auto}
 <aside class="side" id="side">
   <h2 style="display:flex;align-items:center;gap:10px">{% include "app/logo.html" with size=30 %}MedSync</h2>
   {% if platform_url %}<a href="{{ platform_url }}" class="plat"><span>🏬</span>Platform panel</a>{% endif %}
-  {% regroup nav by group as groups %}
-  {% for g in groups %}
+  {% regroup nav by group as menu_groups %}
+  {% for g in menu_groups %}
     {% if g.grouper %}
     <details{% for n in g.list %}{% if n.key == active %} open{% endif %}{% endfor %}>
       <summary>{{ g.grouper }}</summary>
