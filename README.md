@@ -280,6 +280,10 @@ Like the blog, these are edited in the admin (`/admin/`, section **Website**), o
 * Prices, WhatsApp, contact e-mail and the notice bar stay where they were (Platform panel, Website settings).
 * Migration `0021` creates the tables; `0022` copies the first FAQ and the three policy texts once, on the main site only (existing rows are never overwritten, so edits are safe). Files: `backend/sitecontent.py`, `backend/site_seed.py`, `templates/app/legal_saved.html`, tests in `backend/tests/test_site_content.py`.
 
+## Phone layout
+
+On a phone every list becomes cards. Empty cells ("-") are hidden, the Edit / Delete / Preview buttons sit on one tidy row with a comfortable touch size, the page title no longer gets squeezed by the Back button, and the 14-day chart shows every second date so the dates stay readable. Rules: `templates/app/base.html` (`table.t.stack ...`); helper `stack()` in `backend/views.py` drops a lone `-`. Tests: `backend/tests/test_mobile_lists.py`.
+
 ## Dashboard: expenses and net profit
 
 Owner only (in the **Money** section, with a breakdown below it): expenses today and this month, **net profit this month** and expenses by type. Net profit = gross profit - expenses - stock write-offs, worked out exactly as on the Profit & Loss page (a test checks that both pages agree). If this part ever fails, the rest of the dashboard still opens. Migration `0018` only changes the wording of one write-off reason ("Damaged / broken"); the database is not touched.

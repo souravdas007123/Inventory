@@ -96,6 +96,12 @@ img,video{max-width:100%;height:auto}
   table.t.stack td:last-child{border-bottom:0}
   table.t.stack td::before{content:attr(data-label);float:left;width:38%;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--mute);padding-top:2px}
   table.t.stack td[data-label=""]::before{display:none}
+  table.t.stack td.nil{display:none}                      /* an empty cell ("-") takes no room in the card */
+  table.t.stack td.acts{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center;padding:10px 0 6px}
+  table.t.stack td.acts::before{display:none}
+  table.t.stack td.acts .btn{margin:0;min-height:38px;display:inline-flex;align-items:center;justify-content:center}
+  table.t.stack td.acts form{display:inline-flex;margin:0}
+  .bars .col:nth-child(even) small{visibility:hidden}     /* every second date, so the dates do not run together */
   table.t.stack tr.hintrow{border:0;padding:0 12px;margin:-6px 0 10px;background:transparent}
   table.t.stack tr.hintrow td{text-align:left!important;border-bottom:0;padding:0}
   table.t.stack td.empty{text-align:center!important}
@@ -105,7 +111,7 @@ img,video{max-width:100%;height:auto}
   table.t.stack td form{display:inline}
   .pager{justify-content:center;font-size:13px}
 }
-@media(max-width:480px){.main{padding:10px}.stats{grid-template-columns:1fr 1fr;gap:10px}.stat small{font-size:11px}.head .btn{flex:1 1 auto;text-align:center}}
+@media(max-width:480px){.main{padding:10px}.stats{grid-template-columns:1fr 1fr;gap:10px}.stat small{font-size:11px}.head h1{flex:1 1 auto;min-width:0}.head .btn{flex:0 0 auto;text-align:center}}
 </style>
 </head>
 <body>
@@ -179,6 +185,8 @@ function labelTables(root){
         if(td.tagName!=='TD') return;
         if(!td.hasAttribute('data-label')) td.setAttribute('data-label',labels[i]||'');
         i+=td.colSpan||1;
+        var txt=td.textContent.trim();
+        if((txt===''||txt==='-'||txt==='\u2014'||txt==='\u2013')&&!td.querySelector('a,button,input,select,textarea,form,img'))td.classList.add('nil');
       });
     });
   });

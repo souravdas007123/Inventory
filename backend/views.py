@@ -167,8 +167,9 @@ def batch_actions(o):
 
 def stack(first, *small):
     """A compact multi-line cell for lists: the first line as is, then small grey lines (empty ones are skipped)."""
-    lines = [format_html('<div>{}</div>', first)]
-    lines += [format_html('<small class="sub">{}</small>', x) for x in small if x and x != '-']
+    extra = [x for x in small if x and x != '-']
+    lines = [] if first == '-' and extra else [format_html('<div>{}</div>', first)]   # a lone '-' is dropped when there is something to show
+    lines += [format_html('<small class="sub">{}</small>', x) for x in extra]
     return format_html_join('', '{}', ((x,) for x in lines))
 
 
