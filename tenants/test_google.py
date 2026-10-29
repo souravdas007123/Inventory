@@ -66,9 +66,13 @@ class SwitchTests(SimpleTestCase):
             self.assertTrue(google.configured())
 
     def test_the_pages_are_404_while_it_is_off(self):
-        with override_settings(GOOGLE_CLIENT_ID='', GOOGLE_CLIENT_SECRET='', SECURE_SSL_REDIRECT=False, ALLOWED_HOSTS=['testserver']):
-            for path in ('/auth/google/', '/auth/google/callback/'):
-                self.assertEqual(self.client.get(path).status_code, 404)
+        from django.http import Http404
+        from django.test import RequestFactory
+        for view in (google.start, google.callback):
+            for keys in (dict(GOOGLE_CLIENT_ID='', GOOGLE_CLIENT_SECRET='', MULTI_SHOP=True),
+                         dict(GOOGLE_CLIENT_ID='a', GOOGLE_CLIENT_SECRET='b', MULTI_SHOP=False)):
+                with override_settings(**keys), self.assertRaises(Http404):
+                    view(RequestFactory().get('/auth/google/'))
 
     def test_the_signup_session_data_expires(self):
         class Req:
