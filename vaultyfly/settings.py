@@ -255,6 +255,9 @@ SHOP_BASE_DOMAIN = os.environ.get('SHOP_BASE_DOMAIN', 'localhost')   # shops liv
 TRIAL_DAYS = int(os.environ.get('TRIAL_DAYS', '30') or 30)
 PLATFORM_ADMINS = env_list('PLATFORM_ADMINS')               # usernames allowed in /superadmin/ (empty: every superuser of the main site)
 SIGNUP_SKIP_EMAIL = env_bool('SIGNUP_SKIP_EMAIL', False)   # TESTING ONLY: no email check at sign-up (needs MULTI_SHOP=1)
+# Sign in / sign up with Google (main site only, needs MULTI_SHOP=1). Both values come from Google Cloud Console (see README). Empty = no Google button.
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '').strip()
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '').strip()
 PLAN_PRICES = {'monthly': 700, 'yearly': 8000}                       # rupees
 
 if MULTI_SHOP:

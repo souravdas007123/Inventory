@@ -82,7 +82,8 @@ def _shop_url(request, shop, token):
 def main_login(request):
     """The sign-in page of the main site (only used while many shops is on)."""
     next_url = _safe_next(request.POST.get('next') or request.GET.get('next'))
-    ctx = dict(main_site=True, next=next_url, ident='', shop_text='')
+    from . import google
+    ctx = dict(main_site=True, next=next_url, ident='', shop_text='', google_on=google.configured())
     if request.method != 'POST':
         return render(request, 'app/login.html', ctx)
     ident = (request.POST.get('username') or '').strip()
@@ -107,11 +108,20 @@ def main_login(request):
         auth_login(request, value, backend=BACKEND)
         return redirect(dest)
     shop, uid = value
+    response = pass_to_shop(request, shop, uid, next_url)
+    if response is None:
+        return render(request, 'app/login.html', dict(ctx, failed=True))
+    return response
+
+
+def pass_to_shop(request, shop, uid, next_url=''):
+    """Redirects to the shop's own address with a one-time pass for this user (used by the password and the Google sign-in).
+    None when the shop has no address."""
     LoginToken.objects.filter(created_at__lt=timezone.now() - timedelta(days=1)).delete()
     token = tenancy.new_token()
     url = _shop_url(request, shop, token)
     if url is None:
-        return render(request, 'app/login.html', dict(ctx, failed=True))
+        return None
     LoginToken.objects.create(token=token, schema_name=shop.schema_name, user_id=uid, next_url=next_url)
     return redirect(url)
 

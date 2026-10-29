@@ -3,7 +3,8 @@
 {% block panelclass %} wide{% endblock %}
 {% block heading %}Create your shop{% endblock %}
 {% block lead %}{{ trial_days }}-day free trial, no card needed. After that Rs {{ prices.monthly }} a month or Rs {{ prices.yearly }} a year.{% endblock %}
-{% block content %}<form method="post" novalidate>{% csrf_token %}
+{% block content %}{% if google_on and not google_email %}<a class="gbtn" href="/auth/google/?mode=signup"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.6 5.9c4.4-4.1 7-10.1 7-17.6z"/><path fill="#FBBC05" d="M10.5 28.7a14.5 14.5 0 0 1 0-9.4l-7.9-6.1a24 24 0 0 0 0 21.6l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg><span>Sign up with Google</span></a><p class="hint">Quick: Google confirms your e-mail, so there is no password and no e-mail link.</p><div class="or">or fill in the form</div>{% elif google_email %}<div class="alert ok" role="status">Google confirmed <b>{{ google_email }}</b>. Now tell us about your shop.</div>{% endif %}
+<form method="post" novalidate>{% csrf_token %}
 <div class="hp" aria-hidden="true"><label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
 <fieldset><legend>Your shop</legend>
 <label for="shop_name">Shop name</label><input type="text" id="shop_name" name="shop_name" value="{{ values.shop_name }}" maxlength="120" autocomplete="organization"{% if errors.shop_name %} class="bad"{% endif %}>{% if errors.shop_name %}<div class="err">{{ errors.shop_name }}</div>{% endif %}
@@ -13,13 +14,13 @@
 </fieldset>
 <fieldset><legend>About you</legend>
 <label for="owner_name">Your name</label><input type="text" id="owner_name" name="owner_name" value="{{ values.owner_name }}" maxlength="120" autocomplete="name"{% if errors.owner_name %} class="bad"{% endif %}>{% if errors.owner_name %}<div class="err">{{ errors.owner_name }}</div>{% endif %}
-<label for="email">Email</label><input type="email" id="email" name="email" value="{{ values.email }}" autocomplete="email"{% if errors.email %} class="bad"{% endif %}>{% if errors.email %}<div class="err">{{ errors.email }}</div>{% else %}<p class="hint">You will sign in with this email.</p>{% endif %}
+<label for="email">Email</label><input type="email" id="email" name="email" value="{{ values.email }}" autocomplete="email"{% if google_email %} readonly{% endif %}{% if errors.email %} class="bad"{% endif %}>{% if errors.email %}<div class="err">{{ errors.email }}</div>{% else %}<p class="hint">You will sign in with this email.</p>{% endif %}
 <label for="phone">Mobile number</label><input type="tel" id="phone" name="phone" value="{{ values.phone }}" autocomplete="tel"{% if errors.phone %} class="bad"{% endif %}>{% if errors.phone %}<div class="err">{{ errors.phone }}</div>{% endif %}
 </fieldset>
-<fieldset><legend>Password</legend>
+{% if not google_email %}<fieldset><legend>Password</legend>
 <label for="password">Password</label><div class="pw"><input type="password" id="password" name="password" autocomplete="new-password"{% if errors.password %} class="bad"{% endif %}><button type="button" aria-pressed="false">Show</button></div>{% if errors.password %}<div class="err">{{ errors.password }}</div>{% else %}<p class="hint">At least 8 characters, not only digits.</p>{% endif %}
 <label for="password2">Password again</label><input type="password" id="password2" name="password2" autocomplete="new-password"{% if errors.password2 %} class="bad"{% endif %}>{% if errors.password2 %}<div class="err">{{ errors.password2 }}</div>{% endif %}
-</fieldset>
+</fieldset>{% endif %}
 <label class="chk"><input type="checkbox" name="agree" value="1"{% if values.agree %} checked{% endif %}><span>I agree to the <a href="/terms/" target="_blank" rel="noopener">terms of use</a> and the <a href="/privacy/" target="_blank" rel="noopener">privacy policy</a> of MedSync.</span></label>{% if errors.agree %}<div class="err">{{ errors.agree }}</div>{% endif %}
 <button class="go">Create my shop</button></form>
 <div class="links"><span>Already have a shop?</span><a href="{% url 'login' %}">Sign in</a><a class="quiet" href="/">&larr; Back to home page</a></div>

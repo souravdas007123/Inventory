@@ -280,6 +280,28 @@ Like the blog, these are edited in the admin (`/admin/`, section **Website**), o
 * Prices, WhatsApp, contact e-mail and the notice bar stay where they were (Platform panel, Website settings).
 * Migration `0021` creates the tables; `0022` copies the first FAQ and the three policy texts once, on the main site only (existing rows are never overwritten, so edits are safe). Files: `backend/sitecontent.py`, `backend/site_seed.py`, `templates/app/legal_saved.html`, tests in `backend/tests/test_site_content.py`.
 
+## Sign in / sign up with Google
+
+Only on the main site and only while `MULTI_SHOP=1`. Without the two keys below no Google button is shown and nothing changes.
+
+**One-time setup (Google Cloud Console, free):**
+1. Open https://console.cloud.google.com/ -> create a project (for example *MedSync*).
+2. *APIs & Services* -> *OAuth consent screen* -> User type *External* -> app name *MedSync*, your support e-mail, your logo (optional) -> Save. Scopes: only `openid`, `email`, `profile` (nothing more is asked). Press *Publish app* so that everybody (not only test users) can use it.
+3. *APIs & Services* -> *Credentials* -> *Create credentials* -> *OAuth client ID* -> Application type *Web application*.
+   * *Authorised redirect URIs*: `https://medsync.socialflylive.com/auth/google/callback/` (use your own main address; add `http://localhost:8000/auth/google/callback/` too if you want to test on your PC).
+4. Copy the *Client ID* and *Client secret* into the server `.env` (never into git) and restart:
+   ```
+   GOOGLE_CLIENT_ID=xxxxxxxx.apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=xxxxxxxx
+   ```
+   `sudo systemctl restart medsync` (as root).
+
+**How it behaves**
+* *Sign in*: Google must say the e-mail is verified, and it must be the e-mail of a shop's owner. He is passed to his own shop with the same one-time pass as the password sign-in (so 2-step sign-in still applies). Staff keep using username and password.
+* *Sign up*: Google confirms the e-mail, then the usual shop form opens without e-mail and password boxes (the e-mail cannot be changed). The shop is made at once and he is signed in. His account has no password; he can set one any time with *Forgot your password?*.
+* Safety: random `state` and `nonce` per attempt (used once, valid 10 minutes), the code is exchanged server-to-server with Google, the token's audience, issuer, expiry and nonce are checked, at most 20 attempts per address per 10 minutes. An e-mail Google did not verify is never used.
+* Files: `tenants/google.py` (+ routes in `tenants/urls.py`), `tenants/mainlogin.py` (`pass_to_shop`), `tenants/views.py` (`_signup_with_google`), buttons in `templates/app/login.html` and `signup.html`. Tests: `tenants/test_google.py` (any setup) and `tenants/test_google_flow.py` (needs MULTI_SHOP=1 and PostgreSQL).
+
 ## Phone layout
 
 On a phone every list becomes cards. Empty cells ("-") are hidden, the Edit / Delete / Preview buttons sit on one tidy row with a comfortable touch size, the page title no longer gets squeezed by the Back button, and the 14-day chart shows every second date so the dates stay readable. Rules: `templates/app/base.html` (`table.t.stack ...`); helper `stack()` in `backend/views.py` drops a lone `-`. Tests: `backend/tests/test_mobile_lists.py`.

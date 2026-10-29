@@ -1,10 +1,12 @@
 from django.urls import path
 
-from . import mainlogin, maintenance_admin, plan, platform, server_admin, support, supportadmin, views
+from . import google, mainlogin, maintenance_admin, plan, platform, server_admin, support, supportadmin, views
 
 urlpatterns = [
     path('signup/', views.signup, name='signup'),
     path('signup/confirm/<str:token>/', views.confirm, name='signup_confirm'),
+    path('auth/google/', google.start, name='google_start'),
+    path('auth/google/callback/', google.callback, name='google_callback'),
     path('sso/<str:token>/', mainlogin.sso, name='sso'),
     path('plan/', plan.plan, name='plan'),
     path('superadmin/', platform.dashboard, name='platform'),

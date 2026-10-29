@@ -18,7 +18,7 @@ from django.views.decorators.http import require_http_methods
 from backend import defaults, tenancy
 from backend import validators as vcheck
 
-from . import mails, maintenance, site
+from . import google, mails, maintenance, site
 from .models import Domain, PendingSignup, Shop
 
 log = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ def shop_url(request, subdomain, path='/'):
     return f"{request.scheme}://{subdomain}.{settings.SHOP_BASE_DOMAIN}{':' + port if port else ''}{path}"
 
 
-def validate_signup(data):
+def validate_signup(data, google=False):
     """(clean values, {field: message}). Pure checks plus database look-ups for names already taken."""
     errors = {}
     shop_name = ' '.join((data.get('shop_name') or '').split())
@@ -73,7 +73,9 @@ def validate_signup(data):
         errors['phone'] = vcheck.phone_problem(phone)
     if sub_msg:
         errors['subdomain'] = sub_msg
-    if not password:
+    if google:
+        pass                                                  # Google checked the e-mail; he signs in with Google (or sets a password later)
+    elif not password:
         errors['password'] = 'Choose a password.'
     elif password != again:
         errors['password2'] = 'The two passwords do not match.'
@@ -106,8 +108,13 @@ def signup(request):
     if request.user.is_authenticated:
         return redirect('/')
     values, errors = {}, {}
+    gdata = google.signup_data(request) if google.configured() else None       # a verified Google e-mail waiting for the shop details
     if request.method == 'POST' and maintenance.is_active():
         return _paused(request)
+    if gdata and request.method == 'GET':
+        values = dict(owner_name=gdata.get('name', ''), email=gdata['email'])
+    if gdata and request.method == 'POST':
+        return _signup_with_google(request, gdata)
     if request.method == 'POST':
         values = request.POST
         if request.POST.get('website'):                       # hidden field that only robots fill in
@@ -137,7 +144,45 @@ def signup(request):
             return _notice(request, 'Check your email',
                            f'We sent a link to {pending.email}. Open it to create your shop.')
     return render(request, 'app/signup.html', dict(values=values, errors=errors, trial_days=settings.TRIAL_DAYS,
-                                                    base_domain=settings.SHOP_BASE_DOMAIN, prices=site.prices()))
+                                                    base_domain=settings.SHOP_BASE_DOMAIN, prices=site.prices(),
+                                                    google_on=google.configured(), google_email=gdata['email'] if gdata else ''))
+
+
+def _signup_with_google(request, gdata):
+    """The shop form of someone who already proved his e-mail with Google: no password box, no e-mail link; the shop is made now."""
+    from .mainlogin import pass_to_shop
+    values = request.POST
+    if values.get('website'):
+        return redirect('/')
+    key = 'signup-ip:' + _client_ip(request)
+    if cache.get(key, 0) >= MAX_SIGNUPS_PER_HOUR:
+        return _notice(request, 'Too many attempts', 'Please try again after an hour.', '/', 'Back to home page', 429)
+    data = values.copy()
+    data['email'] = gdata['email']                            # the verified one, whatever the form says
+    clean, errors = validate_signup(data, google=True)
+    if errors:
+        return render(request, 'app/signup.html', dict(
+            values=data, errors=errors, trial_days=settings.TRIAL_DAYS, base_domain=settings.SHOP_BASE_DOMAIN,
+            prices=site.prices(), google_on=True, google_email=gdata['email']))
+    cache.set(key, cache.get(key, 0) + 1, 3600)
+    PendingSignup.objects.filter(email=clean['email'], used=False).delete()
+    pending = PendingSignup.objects.create(
+        token=tenancy.new_token(), subdomain=clean['subdomain'], shop_name=clean['shop_name'], owner_name=clean['owner_name'],
+        email=clean['email'], phone=clean['phone'], password_hash=make_password(None), used=True)
+    try:
+        shop = _create_shop(pending)
+    except Exception:
+        pending.delete()
+        return _notice(request, 'We could not create your shop', 'Nothing was charged. Please try again in a minute, or contact us.',
+                       '/signup/', 'Try again', 500)
+    request.session.pop(google.SIGNUP_SESSION_KEY, None)
+    mails.send_welcome(shop, pending.email, via_google=True)
+    uid = google.owner_of(shop, pending.email)
+    response = pass_to_shop(request, shop, uid, '/') if uid else None
+    if response is None:
+        return _notice(request, 'Your shop is ready', f'Click below and choose Continue with Google on the sign-in page. Your {settings.TRIAL_DAYS}-day free trial has started.',
+                       shop_url(request, pending.subdomain, '/login/'), 'Go to my shop')
+    return response
 
 
 def _create_shop(pending):

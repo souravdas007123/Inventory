@@ -99,7 +99,7 @@ def confirm_message(pending, link, valid_hours):
     return 'Confirm your MedSync account', text, html
 
 
-def welcome_message(shop, login_email, today=None):
+def welcome_message(shop, login_email, today=None, via_google=False):
     """(subject, text, html) of the welcome letter. Never contains the password."""
     today = today or date.today()
     address = shop_address(shop)
@@ -108,7 +108,7 @@ def welcome_message(shop, login_email, today=None):
     box = [('Your shop', shop.name)]
     if address:
         box.append(('Web address', address))
-    box.append(('Sign in with', login_email))
+    box.append(('Sign in with', f'Google ({login_email})' if via_google else login_email))
     if ends:
         box.append(('Free trial until', ends))
     steps = ['After you sign in, open "Setup guide" in the menu. It lists what to enter and import first, in the right order.',
@@ -123,7 +123,9 @@ def welcome_message(shop, login_email, today=None):
         f'Your shop {shop.name} is ready.',
         'Welcome to MedSync, your shop is ready',
         f'Hello {name}, your shop "{shop.name}" has been created and your free trial has started. Here is everything you need to begin.',
-        [('box', box), ('p', 'Your password is the one you chose while signing up. We never e-mail passwords.'),
+        [('box', box), ('p', ('You signed up with Google, so there is no password: choose Continue with Google on the sign-in page. '
+                'You can set a password any time with "Forgot your password?". We never e-mail passwords.') if via_google
+                else 'Your password is the one you chose while signing up. We never e-mail passwords.'),
          ('p', 'Get going in five steps:'), ('steps', steps), ('p', help_line),
          ('p', 'Tip: open your shop on your phone and choose "Add to Home screen" to use it like an app, including the camera barcode scan.')],
         button=('Open my shop', address + 'login/') if address else None,
@@ -131,12 +133,12 @@ def welcome_message(shop, login_email, today=None):
     return f'Welcome to MedSync, {shop.name} is ready', text, html
 
 
-def send_welcome(shop, login_email):
+def send_welcome(shop, login_email, via_google=False):
     """Best effort: a failed welcome letter must never undo or hide a shop that was made. Returns True when it was sent."""
     if getattr(settings, 'SIGNUP_SKIP_EMAIL', False):
         return False
     try:
-        subject, text, html = welcome_message(shop, login_email)
+        subject, text, html = welcome_message(shop, login_email, via_google=via_google)
         send(subject, text, html, login_email)
         return True
     except Exception:
