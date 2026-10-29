@@ -79,7 +79,7 @@ def home(request):
         latest = []
     faq = sitecontent.faqs()
     return render(request, 'app/landing.html', dict(site_url=_site_url(request), latest_posts=latest, faqs=faq,
-                                                         faq_ld=sitecontent.faq_jsonld(faq), home=sitecontent.home_text(), **cta_context(request),
+                                                         faq_ld=sitecontent.faq_jsonld(faq), home=sitecontent.home_text(), socials=sitecontent.social_links(), **cta_context(request),
                                                          **(site_context() if getattr(settings, 'MULTI_SHOP', False) else {})))
 
 

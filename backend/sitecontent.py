@@ -64,3 +64,20 @@ def legal_page(key):
     except Exception:
         log.exception('Could not read the policy page')
     return None
+
+
+def social_links():
+    """[{'label', 'url', 'svg'}] for the footer icons, in the owner's order; [] when there are none (nothing is shown then)."""
+    out = []
+    try:
+        from django.utils.html import format_html
+        from .models import SocialLink
+        from .social_icons import ICONS
+        for r in SocialLink.objects.filter(active=True):
+            box, path = ICONS.get(r.platform) or ICONS['website']
+            svg = format_html('<svg viewBox="{}" width="20" height="20" fill="currentColor" aria-hidden="true" focusable="false"><path d="{}"/></svg>', box, path)
+            out.append(dict(label=r.get_platform_display(), url=r.url, svg=svg))
+    except Exception:
+        log.exception('Could not read the social media links')
+        return []
+    return out

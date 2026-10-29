@@ -12,7 +12,7 @@ from import_export.widgets import ForeignKeyWidget
 
 from .reports import profit_and_loss
 from .models import (
-    BlogPost, FaqItem, HomeText, LegalPage, TwoFactor,
+    BlogPost, FaqItem, HomeText, LegalPage, SocialLink, TwoFactor,
     Batch, Bill, Brand, Category, Customer, CustomerPayment, Employee, Expense, RecurringExpense, ShopProfile, FinancialReport,
     InvoiceItem, Order, Payment, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
     PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, Sale, SalesReturn, SalesReturnItem,
@@ -667,4 +667,17 @@ class HomeTextAdmin(MainSiteOnlyAdmin):
         form = super().get_form(request, obj, **kwargs)
         for f in form.base_fields.values():
             f.widget.attrs.update(style='width:100%')
+        return form
+
+
+@admin.register(SocialLink)
+class SocialLinkAdmin(MainSiteOnlyAdmin):
+    """The icons in the footer of the home page. Add one row per page; change Position to reorder; untick Active to hide."""
+    list_display = ('platform', 'url', 'position', 'active')
+    list_editable = ('position', 'active')
+    fields = ('platform', 'url', 'position', 'active')
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.base_fields['url'].widget.attrs.update(style='width:100%', placeholder='https://')
         return form

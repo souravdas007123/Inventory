@@ -880,3 +880,29 @@ class HomeText(models.Model):
 
     def __str__(self):
         return 'Home page text'
+
+
+class SocialLink(models.Model):
+    """A link to the company's own page (Facebook, Instagram ...) shown with an icon in the footer of the public website."""
+    PLATFORMS = [('facebook', 'Facebook'), ('instagram', 'Instagram'), ('x', 'X (Twitter)'), ('youtube', 'YouTube'),
+                 ('linkedin', 'LinkedIn'), ('whatsapp', 'WhatsApp'), ('telegram', 'Telegram'), ('threads', 'Threads'),
+                 ('pinterest', 'Pinterest'), ('website', 'Other website')]
+    platform = models.CharField(max_length=20, choices=PLATFORMS, verbose_name='Social media')
+    url = models.CharField(max_length=300, verbose_name='Link (URL)',
+                           help_text="The full address of your page, starting with https://  For example https://www.instagram.com/medsync")
+    position = models.PositiveIntegerField(default=100, help_text="Smaller number shows first.")
+    active = models.BooleanField(default=True, help_text="Untick to hide the link without deleting it.")
+
+    class Meta:
+        ordering = ['position', 'id']
+        verbose_name = 'Social Media Link'
+        verbose_name_plural = 'Social Media Links'
+
+    def clean(self):
+        super().clean()
+        self.url = (self.url or '').strip()
+        if not self.url.lower().startswith('https://') or len(self.url) < 12 or any(c.isspace() for c in self.url) or '<' in self.url or '"' in self.url:
+            raise ValidationError({'url': 'Please enter the full link starting with https:// (no spaces).'})
+
+    def __str__(self):
+        return self.get_platform_display()

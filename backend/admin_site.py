@@ -34,7 +34,7 @@ GROUPS = [
     ('Sales', 'ms_sales', ['Order', 'Bill', 'Sale', 'Customer', 'CustomerPayment', 'SalesReturn']),
     ('Stock', 'ms_stock', ['Batch', 'StockWriteOff', 'StockAudit']),
     ('Accounts', 'ms_accounts', ['Payment', 'Transaction', 'Expense', 'RecurringExpense', 'FinancialReport']),
-    ('Website', 'ms_website', ['BlogPost', 'FaqItem', 'LegalPage', 'HomeText']),
+    ('Website', 'ms_website', ['BlogPost', 'FaqItem', 'LegalPage', 'HomeText', 'SocialLink']),
     ('Settings', 'ms_settings', ['ShopProfile', 'Employee', 'ImportLayout']),
 ]
 
