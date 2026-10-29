@@ -14,8 +14,15 @@ from django.core.cache import cache
 from django.db.models import Sum
 from django.utils import timezone
 
-from . import reorder
-from .models import Batch, InvoiceItem, Product, PurchaseOrderItem
+import logging
+
+from django.db import transaction
+from django.db.models import F
+
+from . import reorder, supplier_prices
+from .models import Batch, InvoiceItem, Product, PurchaseItem, PurchaseOrder, PurchaseOrderItem, Supplier
+
+log = logging.getLogger(__name__)
 
 
 def _pack_factor(product):
@@ -62,14 +69,17 @@ def refresh_all(today=None):
 
 
 def refresh_daily(today=None):
-    """refresh_all, but only the first time it is asked on a day. Never raises (a cache problem must not break a page)."""
+    """refresh_all, but only the first time it is asked on a day; and the sweep for low stock (see `sweep`), at most once an hour.
+    Never raises (a cache problem must not break a page)."""
     today = today or timezone.localdate()
+    changed = 0
     try:
-        if not cache.add(f"levels-{today:%Y%m%d}", 1, 60 * 60 * 26):
-            return 0
-        return refresh_all(today)
+        if cache.add(f"levels-{today:%Y%m%d}", 1, 60 * 60 * 26):
+            changed = refresh_all(today)
     except Exception:       # noqa: BLE001
-        return 0
+        log.exception('Reorder levels could not be refreshed')
+    sweep_hourly(today)
+    return changed
 
 
 def order_quantity(product, today=None):
@@ -82,3 +92,64 @@ def order_quantity(product, today=None):
     position = max(product.stock_qty - expired, 0) + on_order
     daily = Decimal(sold) / reorder.LEVEL_WINDOW
     return reorder.order_qty(daily, position, level=product.reorder_level, pack_factor=_pack_factor(product))
+
+
+def maybe_create_order(product, today=None):
+    """The automatic purchase order of ONE product. Called right after a sale, and by `sweep` for products that became low
+    in another way. Returns True when the product was added to a purchase order.
+
+    Nothing is made when: the stock is above the reorder level; no supplier is known; the product is already on a PENDING or SENT
+    order; or nothing is needed."""
+    today = today or timezone.localdate()
+    # The reorder level follows the real sales (it cannot be typed in), then the stock is compared with it.
+    refresh_product(product, today)
+    if product.stock_qty > product.reorder_level:
+        return False
+    # Supplier: the one whose latest price for this product is the lowest; else the product's default supplier;
+    # else the supplier of the last purchase (see supplier_prices.pick_supplier).
+    rows = supplier_prices.rows_from_items(PurchaseItem.objects.filter(product=product))
+    supplier_id = supplier_prices.pick_supplier(rows, product.default_supplier_id, today)
+    supplier = Supplier.objects.filter(pk=supplier_id).first() if supplier_id else None
+    if not supplier:
+        return False
+    # If a PENDING or SENT PO already exists, do not create a new one
+    if PurchaseOrderItem.objects.filter(product=product, purchase_order__status__in=['PENDING', 'SENT']).exists():
+        return False
+    # Quantity: the same rule as the Reorder Suggestions page (30 days of sales, whole packs)
+    qty = order_quantity(product, today)
+    if qty <= 0:
+        return False
+    po = PurchaseOrder.objects.filter(supplier=supplier, status='PENDING').first() or PurchaseOrder.objects.create(supplier=supplier)
+    PurchaseOrderItem.objects.create(purchase_order=po, product=product, order_qty=qty)
+    return True
+
+
+def sweep(today=None, limit=200):
+    """Adds every product that is low right now to a purchase order, the same way a sale does. A sale only checks the product it
+    sold, so a product that became low another way (a write-off, an expiry or purchase return, a stock count, an edited purchase)
+    would wait for its next sale. Only products that SOLD in the last 30 days are looked at, so a new shop whose imported
+    products have no stock yet does not get a flood of orders. Returns how many products were added."""
+    today = today or timezone.localdate()
+    sold = _sold(today - timedelta(days=reorder.LEVEL_WINDOW))
+    low = (Product.objects.exclude(is_active=False).filter(pk__in=list(sold), stock_qty__lte=F('reorder_level'))
+           .exclude(pk__in=PurchaseOrderItem.objects.filter(purchase_order__status__in=['PENDING', 'SENT']).values('product_id'))
+           .prefetch_related('unit_conversions').order_by('stock_qty', 'pk')[:limit])
+    made = 0
+    for product in low:
+        try:
+            with transaction.atomic():            # one product that fails must not stop the others
+                made += 1 if maybe_create_order(product, today) else 0
+        except Exception:                          # noqa: BLE001
+            log.exception('Automatic purchase order failed for product %s', product.pk)
+    return made
+
+
+def sweep_hourly(today=None):
+    """`sweep`, but at most once an hour. Never raises."""
+    try:
+        if not cache.add('auto-orders-sweep', 1, 60 * 60):
+            return 0
+        return sweep(today)
+    except Exception:       # noqa: BLE001
+        log.exception('The sweep for low stock failed')
+        return 0

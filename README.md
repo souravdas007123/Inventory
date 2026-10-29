@@ -136,6 +136,12 @@ its Excel / CSV export keeps CGST, SGST and IGST as separate columns.
   - **Quantity** = enough for 30 days of sales minus the sellable stock and what is already on order, rounded up to whole packs
     (same rule as the Reorder Suggestions page, `reorder.order_qty`). Without sales: twice the reorder level.
   - No new PO for a product that is already on a Pending / Sent PO.
+- **The sweep for low stock** (`levels.sweep`): a sale only checks the product it sold, so a product that became low another way
+  (write-off, expiry or purchase return, stock count, edited purchase) used to wait for its next sale. Now every product that is low
+  **and has sold in the last 30 days** is added to a PENDING order the same way (one order per supplier), at most once an hour (on a visit
+  to the Dashboard / Products / Reorder Suggestions) and in the nightly `daily_tasks`. Products with no recent sales are not ordered
+  automatically (a new shop's imported products with no stock yet must not flood the orders); they appear in **Reorder Suggestions** as
+  "Low stock (no recent sales)", where you pick and order them. Tests: `backend/tests/test_auto_po.py`.
 - Needs `python manage.py migrate` (migration 0009).
 
 ## Purchases without a separate Products import

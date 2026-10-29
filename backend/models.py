@@ -1287,36 +1287,7 @@ class InvoiceItem(models.Model):
     # ---------- Auto Purchase Order (qty in base unit) ----------
     def _auto_create_purchase_order(self, product):
         from . import levels      # imported here: levels imports this module
-
-        # The reorder level follows the real sales (it cannot be typed in), then the stock is compared with it.
-        levels.refresh_product(product)
-        if product.stock_qty > product.reorder_level:
-            return
-
-        # Supplier: the one whose latest price for this product is the lowest; else the product's default supplier;
-        # else the supplier of the last purchase (see supplier_prices.pick_supplier).
-        today = timezone.localdate()
-        rows = supplier_prices.rows_from_items(PurchaseItem.objects.filter(product=product))
-        supplier_id = supplier_prices.pick_supplier(rows, product.default_supplier_id, today)
-        supplier = Supplier.objects.filter(pk=supplier_id).first() if supplier_id else None
-        if not supplier:
-            return
-
-        # If a PENDING or SENT PO already exists, do not create a new one
-        if PurchaseOrderItem.objects.filter(
-            product=product, purchase_order__status__in=['PENDING', 'SENT']
-        ).exists():
-            return
-
-        # Quantity: the same rule as the Reorder Suggestions page (30 days of sales, whole packs)
-        qty = levels.order_quantity(product, today)
-        if qty <= 0:
-            return
-        po = (
-            PurchaseOrder.objects.filter(supplier=supplier, status='PENDING').first()
-            or PurchaseOrder.objects.create(supplier=supplier)
-        )
-        PurchaseOrderItem.objects.create(purchase_order=po, product=product, order_qty=qty)
+        levels.maybe_create_order(product)
 
     def __str__(self):
         return f"{self.product} x {self.qty} {self.unit or ''}".strip()

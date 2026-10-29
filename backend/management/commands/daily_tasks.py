@@ -40,6 +40,12 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"Reorder level updated for {changed} product(s) from sales."))
         except Exception as e:       # must not stop the summary
             self.stderr.write(self.style.ERROR(f"Reorder levels failed: {e}"))
+        try:
+            added = levels.sweep()
+            if added:
+                self.stdout.write(self.style.SUCCESS(f"{added} low-stock product(s) added to purchase orders."))
+        except Exception as e:       # must not stop the summary
+            self.stderr.write(self.style.ERROR(f"Automatic purchase orders failed: {e}"))
         if opts['skip_email'] and not opts['print_only']:
             return
         shop = ShopProfile.get()
