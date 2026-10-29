@@ -20,6 +20,6 @@ class StackCellTests(SimpleTestCase):
 class PhoneCssTests(SimpleTestCase):
     def test_the_base_template_has_the_phone_card_rules(self):
         from pathlib import Path
-        css = (Path(__file__).resolve().parents[2] / 'templates' / 'app' / 'base.html').read_text()
+        css = (Path(__file__).resolve().parents[2] / 'templates' / 'app' / 'base.html').read_text(encoding='utf-8')
         for rule in ('table.t.stack td.nil{display:none}', 'td.acts{display:flex', '.bars .col:nth-child(even) small'):
             self.assertIn(rule, css)
