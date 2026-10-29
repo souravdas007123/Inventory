@@ -78,8 +78,8 @@ class SupplierAdmin(ImportExportModelAdmin):
 
 @admin.register(Payment)
 class PaymentAdmin(SafeDeleteMixin, admin.ModelAdmin):
-    list_display = ('id', 'supplier', 'amount', 'due', 'payment_mode', 'payment_date')
-    search_fields = ['supplier__company']
+    list_display = ('id', 'supplier', 'amount', 'due', 'payment_mode', 'payment_date', 'note')
+    search_fields = ['supplier__company', 'note']
     list_select_related = ('supplier',)
     autocomplete_fields = ['supplier']
     list_per_page = 10

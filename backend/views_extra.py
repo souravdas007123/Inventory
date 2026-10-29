@@ -108,7 +108,7 @@ def _supplier_statement(supplier):
     for r in PurchaseReturn.objects.filter(purchase__supplier=supplier).select_related('purchase').prefetch_related('items'):
         entries.append((r.date, 1, f"Return {r.note_number} (invoice {r.purchase.invoice_number})", zero, r.total))
     for pay in supplier.payments.all():
-        entries.append((pay.payment_date, 2, f"Payment ({pay.payment_mode or '-'})", zero, pay.amount))
+        entries.append((pay.payment_date, 2, f"Payment ({pay.payment_mode or '-'})" + (f" \u00b7 {pay.note}" if pay.note else ''), zero, pay.amount))
     entries.sort(key=lambda e: (e[0] or date_cls.min, e[1]))
     rows, running = [], zero
     for dt, _, text, owed, paid in entries:

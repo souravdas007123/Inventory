@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from django.db.models import Count, Sum
 
+from .dataexport import safe
 from .models import (
     Bill, CustomerPayment, Expense, InvoiceItem, Payment, Purchase, PurchaseItem, PurchaseReturn,
     PurchaseReturnItem, SalesReturn, SalesReturnItem,
@@ -219,13 +220,13 @@ def build_workbook(start, end):
     sheet('Debit Notes', ['Date', 'Note', 'Against invoice', 'Supplier', 'GSTIN', 'Reason', 'Taxable', 'GST', 'Total'],
           [[dstr(r['date']), r['note'], r['invoice'], r['supplier'], r['gstin'], r['reason'], d2(r['taxable']), d2(r['gst']), d2(r['total'])]
            for r in dn], 7, 'Total', range(7, 10))
-    ex = [[dstr(e.date), e.get_name_display(), e.employee.name if e.employee_id else '', e.note, d2(e.amount)]
+    ex = [[dstr(e.date), e.get_name_display(), e.employee.name if e.employee_id else '', safe(e.note), d2(e.amount)]
           for e in Expense.objects.filter(date__gte=start, date__lte=end).select_related('employee').order_by('date', 'id')]
     sheet('Expenses', ['Date', 'Type', 'Employee', 'Note', 'Amount'], ex, 5, 'Total', [5])
-    sp = [[dstr(p.payment_date), p.supplier.company, p.get_payment_mode_display() if p.payment_mode else '', d2(p.amount)]
+    sp = [[dstr(p.payment_date), p.supplier.company, p.get_payment_mode_display() if p.payment_mode else '', safe(p.note), d2(p.amount)]
           for p in Payment.objects.filter(payment_date__gte=start, payment_date__lte=end).select_related('supplier').order_by('payment_date', 'id')]
-    sheet('Supplier Payments', ['Date', 'Supplier', 'Mode', 'Amount'], sp, 4, 'Total', [4])
-    cr = [[dstr(p.date), p.customer.name, p.get_mode_display(), p.note, d2(p.amount)]
+    sheet('Supplier Payments', ['Date', 'Supplier', 'Mode', 'Note', 'Amount'], sp, 5, 'Total', [5])
+    cr = [[dstr(p.date), p.customer.name, p.get_mode_display(), safe(p.note), d2(p.amount)]
           for p in CustomerPayment.objects.filter(date__gte=start, date__lte=end).select_related('customer').order_by('date', 'id')]
     sheet('Customer Receipts', ['Date', 'Customer', 'Mode', 'Note', 'Amount'], cr, 5, 'Total', [5])
     buf = io.BytesIO()

@@ -322,11 +322,11 @@ CONFIG = {
     ),
     'payments': dict(
         title='Payments', one='Payment', model=Payment, order=['-id'], related=['supplier'],
-        search=['supplier__company'],
+        search=['supplier__company', 'note'],
         cols=[('Supplier', lambda o: o.supplier.company), ('Amount', lambda o: rs(o.amount)),
-              ('Mode', lambda o: o.payment_mode or '-'), ('Date', lambda o: d(o.payment_date)),
-              ('Due after', lambda o: rs(o.due))],
-        fields=['supplier', 'amount', 'payment_mode'],
+              ('Mode', lambda o: o.get_payment_mode_display() if o.payment_mode else '-'), ('Date', lambda o: d(o.payment_date)),
+              ('Note', lambda o: o.note or '-'), ('Due after', lambda o: rs(o.due))],
+        fields=['supplier', 'amount', 'payment_mode', 'payment_date', 'note'],
     ),
     'expenses': dict(
         title='Expenses', one='Expense', model=Expense, order=['-date', '-id'], related=['employee'],

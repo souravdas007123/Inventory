@@ -250,6 +250,15 @@ Public articles for SEO, written in the admin under **Website → Blog Articles*
 * Migration `0015` creates the table; `0016` adds 6 first articles once (an article that already exists is never overwritten, so your edits are safe). Files: `backend/blog.py`, `backend/blog_seed.py`, `templates/app/blog_*.html`, tests in `backend/tests/test_blog.py`.
 
 
+## Supplier payments: note, date and mode
+
+* **Note** (optional, up to 255 characters): the UTR or cheque number, or which invoice the money pays. It shows in the Payments list (and its search), in the supplier's ledger next to the payment (`Payment (UPI) · UTR 4231987`), in the Excel/CSV list export and in the accountant's file (sheet "Supplier Payments", column *Note*). The note of an old payment can be corrected at any time without touching the balance.
+* **Payment date** is now chosen on the form (today is filled in). Left empty it means today. It cannot be in the future. Back-dated payments take their place in the ledger by date; the stored balance does not depend on the date.
+* **Mode**: Cash, Bank, **UPI** and **Cheque**.
+* **Closed period** (Shop Settings, *books closed up to*): a payment cannot be added to, moved into or out of, or deleted from a closed period, and its amount, supplier, date or mode cannot be changed there; only its note can. The message says so in plain words.
+* The accountant's file also guards the notes of expenses and customer receipts against Excel formulas (a note starting with `=` is shown as text).
+* Migration `0023` adds the note and makes the date editable (existing payments keep their dates). Tests: `backend/tests/test_payment_note.py`.
+
 ## Server health (platform panel)
 
 `/superadmin/server/` ("Server health" in the platform menu) shows how busy the server is: CPU load (as `load 0.8 of 4 CPUs`), memory, disk, database size (total and per shop), database connections, how long the application has been running (since the last restart), the server's own uptime and the age of the last backup. Each figure has a plain status (OK / Busy / Low / Almost full ...) and the page lists what needs attention. The shop list (`/superadmin/`) shows a short warning when something does.

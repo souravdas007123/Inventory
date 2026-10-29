@@ -1301,20 +1301,44 @@ class Payment(models.Model):
     TRANSACTION_TYPES = (
         ('CASH', 'Cash'),
         ('BANK', 'Bank'),
+        ('UPI', 'UPI'),
+        ('CHEQUE', 'Cheque'),
     )
     supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, related_name='payments')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     due = models.DecimalField(max_digits=12, decimal_places=2, editable=False, blank=True, null=True)
     payment_mode = models.CharField(max_length=50, choices=TRANSACTION_TYPES, blank=True, null=True)
-    payment_date = models.DateField(auto_now_add=True)
+    payment_date = models.DateField(default=timezone.localdate, blank=True,
+                                    help_text="The day the money was paid (today unless you change it).")
+    note = models.CharField(max_length=255, blank=True, default='',
+                            help_text="Optional. For example the UTR or cheque number, or which invoice this pays.")
 
     def clean(self):
         if self.amount is not None and self.amount <= 0:
             raise ValidationError({'amount': 'Amount must be greater than 0.'})
+        if self.payment_date and self.payment_date > timezone.localdate():
+            raise ValidationError({'payment_date': 'The payment date cannot be in the future.'})
+        self.payment_date = self.payment_date or timezone.localdate()       # left empty = today (also for forms opened before this existed)
+        self.note = (self.note or '').strip()
+        # The books can be closed up to a date (Shop Settings): no payment can be added to, or moved out of, a closed period.
+        old = Payment.objects.filter(pk=self.pk).first() if self.pk else None
+        if self._counts_changed(old):
+            msg = locks.problem('This payment', self.payment_date, old.payment_date if old else None)
+            if msg:
+                raise ValidationError(msg)
+
+    def _counts_changed(self, old):
+        """True for a new payment, or when the amount, supplier, date or mode of an old one changes. Only the note of a
+        payment in a closed period may still be corrected."""
+        return (old is None or old.amount != self.amount or old.supplier_id != self.supplier_id
+                or old.payment_date != self.payment_date or old.payment_mode != self.payment_mode)
 
     def save(self, *args, **kwargs):
         with transaction.atomic():
+            self.payment_date = self.payment_date or timezone.localdate()
             old = Payment.objects.filter(pk=self.pk).first() if self.pk else None
+            if self._counts_changed(old):
+                locks.check('This payment', self.payment_date, old.payment_date if old else None)
 
             if old and old.supplier_id != self.supplier_id:
                 adjust_supplier_balance(old.supplier_id, old.amount)   # reverse for the old supplier
@@ -1328,6 +1352,7 @@ class Payment(models.Model):
 
     def delete(self, *args, **kwargs):
         with transaction.atomic():
+            locks.check('This payment', self.payment_date)
             adjust_supplier_balance(self.supplier_id, self.amount)
             super().delete(*args, **kwargs)
 
