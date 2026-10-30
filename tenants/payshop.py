@@ -1,4 +1,4 @@
-"""A shop owner pays for a plan: online with Razorpay, or by UPI (QR code + the UPI reference number, approved later by the
+"""A shop owner pays for a plan: with Razorpay autopay (a subscription that renews on its own), or by UPI (QR code + the UPI reference number, approved later by the
 platform owner). Only on a shop's own address, only for the owner. These pages stay open when the plan has ended (the
 shop must be able to pay to continue): see ShopAccessMiddleware."""
 import logging
@@ -16,7 +16,7 @@ from backend import access, qr, tenancy
 from backend.views import page
 
 from . import billing, razorpay, site, upi
-from .models import PlanOrder
+from .models import AutoPay, PlanOrder
 
 log = logging.getLogger(__name__)
 MAX_ORDERS_PER_DAY = 10
@@ -40,48 +40,71 @@ def _too_many(shop):
 
 @access.owner_required
 @require_POST
-def online_start(request):
-    """Makes the order at Razorpay and returns what the checkout window needs (JSON)."""
+def autopay_start(request):
+    """Makes the subscription at Razorpay and returns what the checkout window needs (JSON). The price is the server's."""
     shop = _shop(request)
-    if not razorpay.configured():
-        raise Http404
     plan = _plan(request)
     if not plan:
         return JsonResponse(dict(ok=False, error='Choose monthly or yearly.'), status=400)
-    if _too_many(shop):
+    if not razorpay.available(plan):
+        raise Http404
+    if AutoPay.objects.filter(shop=shop, status='active').exists():
+        return JsonResponse(dict(ok=False, error='Autopay is already on for this shop. To change the plan, stop the autopay first.'), status=409)
+    if AutoPay.objects.filter(shop=shop, created_at__gte=timezone.now() - timedelta(days=1)).count() >= MAX_ORDERS_PER_DAY:
         return JsonResponse(dict(ok=False, error='Too many payment attempts today. Please try again tomorrow or write to us.'), status=429)
-    order = PlanOrder.objects.create(shop=shop, plan=plan, amount=billing.price_for(plan), method='razorpay',
-                                     reference=billing.new_reference())
+    price = billing.price_for(plan)
     try:
-        order.razorpay_order_id = razorpay.create_order(order.reference, order.amount, dict(shop=shop.schema_name, reference=order.reference))
+        razorpay.check_plan(plan, price)
+        for old in AutoPay.objects.filter(shop=shop, status='created'):                 # a checkout that was never finished
+            try:
+                razorpay.cancel_subscription(old.razorpay_subscription_id, at_cycle_end=False)
+            except razorpay.RazorpayError:
+                pass
+            AutoPay.objects.filter(pk=old.pk, status='created').update(status='cancelled', ended_at=timezone.now())
+        sub_id = razorpay.create_subscription(plan, dict(shop=shop.schema_name, plan=plan))
     except razorpay.RazorpayError as e:
-        order.status, order.note = 'cancelled', str(e)[:200]
-        order.save()
         return JsonResponse(dict(ok=False, error=str(e)), status=502)
-    order.save()
+    AutoPay.objects.create(shop=shop, plan=plan, amount=price, razorpay_subscription_id=sub_id)
     return JsonResponse(dict(
-        ok=True, key=settings.RAZORPAY_KEY_ID, order_id=order.razorpay_order_id, amount=razorpay.paise(order.amount), currency='INR',
-        name='MedSync', description=f'{billing.PLAN_LABEL[plan]} plan for {shop.name}', reference=order.reference,
+        ok=True, key=settings.RAZORPAY_KEY_ID, subscription_id=sub_id, name='MedSync',
+        description=f'{billing.PLAN_LABEL[plan]} plan for {shop.name} (renews every {"month" if plan == "monthly" else "year"})',
         prefill=dict(name=shop.owner_name or '', email=shop.email or '', contact=shop.phone or '')))
 
 
 @access.owner_required
 @require_POST
-def online_verify(request):
+def autopay_verify(request):
     """The checkout finished in the browser: check Razorpay's signature, then extend the plan (once)."""
     shop = _shop(request)
-    order_id, payment_id = request.POST.get('razorpay_order_id', ''), request.POST.get('razorpay_payment_id', '')
-    order = PlanOrder.objects.filter(shop=shop, method='razorpay', razorpay_order_id=order_id).first() if order_id else None
-    if order is None or not razorpay.checkout_signature_ok(order_id, payment_id, request.POST.get('razorpay_signature', '')):
+    sub_id, payment_id = request.POST.get('razorpay_subscription_id', ''), request.POST.get('razorpay_payment_id', '')
+    ap = AutoPay.objects.filter(shop=shop, razorpay_subscription_id=sub_id).first() if sub_id else None
+    if ap is None or not razorpay.subscription_signature_ok(payment_id, sub_id, request.POST.get('razorpay_signature', '')):
         return JsonResponse(dict(ok=False, error='We could not confirm this payment. If money was taken from your account, '
                                                  'do not pay again: it will be added to your plan shortly, or write to us.'), status=400)
-    PlanOrder.objects.filter(pk=order.pk).update(razorpay_payment_id=payment_id[:40])
-    billing.settle(order.pk, f'Online payment {payment_id}', allowed=('created', 'waiting', 'cancelled'))
-    order.refresh_from_db()
+    order = billing.charge(ap.pk, payment_id[:40], f'Autopay payment {payment_id}')
     if order.status != 'paid':
         return JsonResponse(dict(ok=False, error='This payment could not be added. Please write to us with the reference ' + order.reference), status=409)
-    messages.success(request, f'Payment received. Your plan is paid until {order.payment.period_to:%d %b %Y}. Thank you!')
+    messages.success(request, f'Payment received. Your plan is paid until {order.payment.period_to:%d %b %Y} and renews on its own. Thank you!')
     return JsonResponse(dict(ok=True))
+
+
+@access.owner_required
+@require_POST
+def autopay_cancel(request, pk):
+    """Stops the renewals. What was paid for stays valid until its end date."""
+    shop = _shop(request)
+    ap = get_object_or_404(AutoPay, pk=pk, shop=shop)
+    if ap.status not in ('active', 'created'):
+        messages.info(request, 'This autopay is already stopped.')
+        return redirect('plan')
+    try:
+        razorpay.cancel_subscription(ap.razorpay_subscription_id, at_cycle_end=True)
+    except razorpay.RazorpayError as e:
+        messages.error(request, f'{e} The autopay was not stopped.')
+        return redirect('plan')
+    billing.autopay_state(ap.pk, 'cancelled')
+    messages.success(request, 'Autopay stopped. You will not be charged again. Your plan stays valid until its end date.')
+    return redirect('plan')
 
 
 @access.owner_required

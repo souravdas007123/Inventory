@@ -26,7 +26,7 @@
 <div><label for="upi_name">Name shown in the payer's UPI app</label>
 <input id="upi_name" name="upi_name" maxlength="40" value="{{ values.upi_name|default_if_none:'' }}" placeholder="MedSync" style="width:100%">
 <p class="mut" style="margin:4px 0 0">A shop sees a QR code and this UPI ID with the amount, pays, and types the UPI reference number. You approve it under <a href="{% url 'platform_payments' %}">Payments</a>.</p></div>
-<p class="mut" style="margin:0">Online payment (Razorpay): <b>{% if razorpay_on %}switched on{% else %}off{% endif %}</b>. It is switched on by putting the Razorpay keys in the server <code>.env</code> (see the README).</p>
+<p class="mut" style="margin:0">Autopay (Razorpay Subscriptions): <b>{% if razorpay_on %}switched on{% else %}off{% endif %}</b>. It is switched on by putting the Razorpay keys and the two plan ids in the server <code>.env</code> (see the README).</p>
 <div><button>Save settings</button> <a class="btn line" href="{% url 'platform' %}">Back to shops</a></div>
 </form>
 {% endblock %}

@@ -259,10 +259,14 @@ SIGNUP_SKIP_EMAIL = env_bool('SIGNUP_SKIP_EMAIL', False)   # TESTING ONLY: no em
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '').strip()
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '').strip()
 
-# Online payment of plans with Razorpay (main site + shops, needs MULTI_SHOP=1). Empty keys = no "Pay online" button (UPI still works).
+# Auto-renewing plans with Razorpay Subscriptions (main site + shops, needs MULTI_SHOP=1). Empty keys = no "Subscribe" button (UPI still works).
+# The two plan ids (plan_xxxx) are the Razorpay plans Rs 500 / 1 month and Rs 5000 / 1 year made in the Razorpay dashboard.
 RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID', '').strip()
 RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET', '').strip()
 RAZORPAY_WEBHOOK_SECRET = os.environ.get('RAZORPAY_WEBHOOK_SECRET', '').strip()
+RAZORPAY_PLAN_MONTHLY = os.environ.get('RAZORPAY_PLAN_MONTHLY', '').strip()
+RAZORPAY_PLAN_YEARLY = os.environ.get('RAZORPAY_PLAN_YEARLY', '').strip()
+GST_PERCENT = 18                                                     # prices include this GST; shown split on the plan page
 PLAN_PRICES = {'monthly': 500, 'yearly': 5000}                       # rupees
 
 if MULTI_SHOP:

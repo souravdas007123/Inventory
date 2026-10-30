@@ -126,11 +126,11 @@ class PlanOrder(models.Model):
     method = models.CharField(max_length=10, choices=METHODS)
     status = models.CharField(max_length=10, choices=STATUSES, default='created')
     reference = models.CharField(max_length=20, unique=True)                      # short code the payer sees, e.g. MS7K2Q9XAB
-    razorpay_order_id = models.CharField(max_length=40, blank=True, default='', db_index=True)
     razorpay_payment_id = models.CharField(max_length=40, blank=True, default='')
     utr = models.CharField(max_length=25, blank=True, default='')                 # the UPI reference the owner typed
     note = models.CharField(max_length=200, blank=True, default='')               # who approved, or why it was rejected
     payment = models.ForeignKey(Payment, null=True, blank=True, on_delete=models.SET_NULL, related_name='orders')
+    autopay = models.ForeignKey('AutoPay', null=True, blank=True, on_delete=models.SET_NULL, related_name='orders')   # the subscription it was charged by
     created_at = models.DateTimeField(auto_now_add=True)
     decided_at = models.DateTimeField(null=True, blank=True)
 
@@ -139,6 +139,28 @@ class PlanOrder(models.Model):
 
     def __str__(self):
         return f'{self.shop} {self.get_plan_display()} {self.amount} ({self.get_status_display()})'
+
+
+class AutoPay(models.Model):
+    """A Razorpay Subscription: the shop agreed once (UPI autopay or card) and Razorpay charges every month / year. Each
+    charge becomes a PlanOrder + Payment, so the plan is extended by the same code as every other payment."""
+    STATUSES = [('created', 'Started'), ('active', 'Active'), ('cancelled', 'Cancelled'), ('halted', 'Payment failed'),
+                ('completed', 'Completed')]
+
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='autopays')
+    plan = models.CharField(max_length=10, choices=PlanOrder.PLANS)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)                # rupees per charge, GST included
+    razorpay_subscription_id = models.CharField(max_length=40, unique=True)
+    status = models.CharField(max_length=10, choices=STATUSES, default='created')
+    next_charge = models.DateField(null=True, blank=True)                         # told by Razorpay with each charge
+    created_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+
+    def __str__(self):
+        return f'{self.shop} autopay {self.get_plan_display()} ({self.get_status_display()})'
 
 
 class Ticket(models.Model):

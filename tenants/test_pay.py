@@ -1,4 +1,4 @@
-"""Paying for a plan: Razorpay (stubbed), UPI with QR + approval, the webhook and the platform's Payments page.
+"""Paying for a plan: Razorpay autopay subscriptions (stubbed), UPI with QR + approval, the webhook and the platform's Payments page.
 
 Needs the tenants app (MULTI_SHOP=1). The shop is a plain row without a schema, and the shop-side views are reached on the main
 address with the shop pinned, so the tests run the same on PostgreSQL and in a simple setup."""
@@ -23,10 +23,11 @@ from tenants import razorpay, upi
 HAS_TENANTS = 'tenants' in settings.INSTALLED_APPS
 if HAS_TENANTS:
     from tenants import billing, middleware, payshop, site
-    from tenants.models import PlanOrder, Shop, SiteSetting
+    from tenants.models import AutoPay, PlanOrder, Shop, SiteSetting
 
 KEY, SECRET, HOOK = 'rzp_test_key', 'key-secret-123', 'hook-secret-456'
-RAZ = dict(RAZORPAY_KEY_ID=KEY, RAZORPAY_KEY_SECRET=SECRET, RAZORPAY_WEBHOOK_SECRET=HOOK, MULTI_SHOP=True)
+RAZ = dict(RAZORPAY_KEY_ID=KEY, RAZORPAY_KEY_SECRET=SECRET, RAZORPAY_WEBHOOK_SECRET=HOOK, MULTI_SHOP=True,
+           RAZORPAY_PLAN_MONTHLY='plan_M', RAZORPAY_PLAN_YEARLY='plan_Y')
 HOST = dict(ALLOWED_HOSTS=['.localhost', 'testserver'], SECURE_SSL_REDIRECT=False, SESSION_COOKIE_SECURE=False, CSRF_COOKIE_SECURE=False)
 
 
@@ -34,17 +35,46 @@ def sign(body, secret):
     return hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
 
 
+class FakeHttp:
+    """Stands in for urllib.request.urlopen: answers by the end of the URL and remembers each request."""
+    def __init__(self, answers):
+        self.answers, self.seen = answers, []
+
+    def __call__(self, req, timeout):
+        self.seen.append(dict(url=req.full_url, body=json.loads(req.data) if req.data else None, auth=req.get_header('Authorization')))
+        for end, out in self.answers.items():
+            if req.full_url.endswith(end):
+                if isinstance(out, Exception):
+                    raise out
+                return FakeResp(out)
+        raise AssertionError('unexpected call ' + req.full_url)
+
+
+class FakeResp:
+    def __init__(self, out):
+        self.out = out
+
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+    def read(self): return json.dumps(self.out).encode()
+
+
+GOOD_PLAN = {'plan_M': dict(period='monthly', interval=1, item=dict(amount=50000, currency='INR')),
+             'plan_Y': dict(period='yearly', interval=1, item=dict(amount=500000, currency='INR'))}
+
+
 class RazorpayPureTests(SimpleTestCase):
-    def test_checkout_signature(self):
-        good = sign(b'order_1|pay_1', SECRET)
-        self.assertTrue(razorpay.checkout_signature_ok('order_1', 'pay_1', good, SECRET))
-        for args in (('order_2', 'pay_1', good), ('order_1', 'pay_2', good), ('order_1', 'pay_1', good[:-1] + '0'), ('order_1', 'pay_1', ''),
-                     ('', 'pay_1', good), ('order_1', '', good)):
-            self.assertFalse(razorpay.checkout_signature_ok(*args, secret=SECRET), args)
-        self.assertFalse(razorpay.checkout_signature_ok('order_1', 'pay_1', good, ''))          # no secret, never valid
+    def test_subscription_signature(self):
+        good = sign(b'pay_1|sub_1', SECRET)
+        self.assertTrue(razorpay.subscription_signature_ok('pay_1', 'sub_1', good, SECRET))
+        for args in (('pay_2', 'sub_1', good), ('pay_1', 'sub_2', good), ('pay_1', 'sub_1', good[:-1] + ('1' if good[-1] == '0' else '0')), ('pay_1', 'sub_1', ''),
+                     ('', 'sub_1', good), ('pay_1', '', good)):
+            self.assertFalse(razorpay.subscription_signature_ok(*args, secret=SECRET), args)
+        self.assertFalse(razorpay.subscription_signature_ok('pay_1', 'sub_1', good, ''))          # no secret, never valid
+        self.assertFalse(razorpay.subscription_signature_ok('sub_1', 'pay_1', good, SECRET))      # the order of the two matters
 
     def test_webhook_signature(self):
-        body = b'{"event":"payment.captured"}'
+        body = b'{"event":"subscription.charged"}'
         self.assertTrue(razorpay.webhook_signature_ok(body, sign(body, HOOK), HOOK))
         self.assertFalse(razorpay.webhook_signature_ok(body + b' ', sign(body, HOOK), HOOK))
         self.assertFalse(razorpay.webhook_signature_ok(body, sign(body, 'other'), HOOK))
@@ -55,39 +85,61 @@ class RazorpayPureTests(SimpleTestCase):
         self.assertEqual((razorpay.paise(Decimal('500')), razorpay.paise('5000.00'), razorpay.paise(Decimal('499.5'))), (50000, 500000, 49950))
 
     @override_settings(**RAZ)
-    def test_create_order_sends_the_right_request(self):
-        seen = {}
-
-        class Resp:
-            def __enter__(self): return self
-            def __exit__(self, *a): return False
-            def read(self): return b'{"id": "order_ABC"}'
-
-        def fake(req, timeout):
-            seen.update(url=req.full_url, body=json.loads(req.data), auth=req.get_header('Authorization'))
-            return Resp()
+    def test_create_subscription_sends_the_right_request(self):
+        fake = FakeHttp({'/subscriptions': {'id': 'sub_ABC'}})
         with mock.patch('urllib.request.urlopen', fake):
-            self.assertEqual(razorpay.create_order('MSREF', Decimal('500'), dict(shop='s_x')), 'order_ABC')
-        self.assertEqual(seen['url'], 'https://api.razorpay.com/v1/orders')
-        self.assertEqual((seen['body']['amount'], seen['body']['currency'], seen['body']['payment_capture'], seen['body']['receipt']),
-                         (50000, 'INR', 1, 'MSREF'))
+            self.assertEqual(razorpay.create_subscription('yearly', dict(shop='s_x')), 'sub_ABC')
+        seen = fake.seen[0]
+        self.assertEqual(seen['url'], 'https://api.razorpay.com/v1/subscriptions')
+        self.assertEqual((seen['body']['plan_id'], seen['body']['total_count'], seen['body']['notes']), ('plan_Y', 10, dict(shop='s_x')))
         import base64
         self.assertEqual(base64.b64decode(seen['auth'].split()[1]).decode(), f'{KEY}:{SECRET}')
 
     @override_settings(**RAZ)
-    def test_create_order_failures_are_polite(self):
+    def test_cancel_stops_at_the_end_of_the_paid_period_by_default(self):
+        fake = FakeHttp({'/subscriptions/sub_1/cancel': {'id': 'sub_1'}})
+        with mock.patch('urllib.request.urlopen', fake):
+            razorpay.cancel_subscription('sub_1')
+            razorpay.cancel_subscription('sub_1', at_cycle_end=False)
+        self.assertEqual([c['body'] for c in fake.seen], [dict(cancel_at_cycle_end=1), dict(cancel_at_cycle_end=0)])
+
+    @override_settings(**RAZ)
+    def test_the_razorpay_plan_must_be_the_one_we_show(self):
+        with mock.patch('urllib.request.urlopen', FakeHttp({'/plans/plan_M': GOOD_PLAN['plan_M'], '/plans/plan_Y': GOOD_PLAN['plan_Y']})):
+            razorpay.check_plan('monthly', 500)
+            razorpay.check_plan('yearly', Decimal('5000.00'))
+        for plan_id, price in (('plan_M', 600), ('plan_Y', 4000)):               # the price was changed here but not at Razorpay
+            with mock.patch('urllib.request.urlopen', FakeHttp({f'/plans/{plan_id}': GOOD_PLAN[plan_id]})):
+                with self.assertRaises(razorpay.RazorpayError):
+                    razorpay.check_plan('monthly' if plan_id == 'plan_M' else 'yearly', price)
+        wrong = dict(GOOD_PLAN['plan_M'], period='weekly')                         # right amount, wrong period
+        with mock.patch('urllib.request.urlopen', FakeHttp({'/plans/plan_M': wrong})):
+            with self.assertRaises(razorpay.RazorpayError):
+                razorpay.check_plan('monthly', 500)
+        every2 = dict(GOOD_PLAN['plan_M'], interval=2)
+        with mock.patch('urllib.request.urlopen', FakeHttp({'/plans/plan_M': every2})):
+            with self.assertRaises(razorpay.RazorpayError):
+                razorpay.check_plan('monthly', 500)
+
+    @override_settings(**RAZ)
+    def test_failures_are_polite(self):
+        import io
         import urllib.error
         with mock.patch('urllib.request.urlopen', side_effect=urllib.error.URLError('down')):
+            with self.assertRaises(razorpay.RazorpayError) as cm:
+                razorpay.create_subscription('monthly')
+        self.assertIn('could not reach', str(cm.exception))
+        err = urllib.error.HTTPError('u', 400, 'Bad', {}, io.BytesIO(b'{"error":{"description":"secret detail"}}'))
+        with mock.patch('urllib.request.urlopen', side_effect=err):
+            with self.assertRaises(razorpay.RazorpayError) as cm:
+                razorpay.create_subscription('monthly')
+        self.assertNotIn('secret detail', str(cm.exception))                       # Razorpay's own text is only logged
+        with mock.patch('urllib.request.urlopen', FakeHttp({'/subscriptions': {}})):
             with self.assertRaises(razorpay.RazorpayError):
-                razorpay.create_order('R', 500)
-
-        class Empty:
-            def __enter__(self): return self
-            def __exit__(self, *a): return False
-            def read(self): return b'{}'
-        with mock.patch('urllib.request.urlopen', return_value=Empty()):
+                razorpay.create_subscription('monthly')
+        with mock.patch('urllib.request.urlopen', FakeHttp({'/subscriptions': [1]})):
             with self.assertRaises(razorpay.RazorpayError):
-                razorpay.create_order('R', 500)
+                razorpay.create_subscription('monthly')
 
     def test_configured_needs_both_keys_and_many_shops(self):
         for keys, expect in ((dict(RAZORPAY_KEY_ID='a', RAZORPAY_KEY_SECRET='b', MULTI_SHOP=True), True),
@@ -96,6 +148,13 @@ class RazorpayPureTests(SimpleTestCase):
                              (dict(RAZORPAY_KEY_ID='a', RAZORPAY_KEY_SECRET='b', MULTI_SHOP=False), False)):
             with override_settings(**keys):
                 self.assertEqual(razorpay.configured(), expect, keys)
+
+    def test_a_plan_can_be_bought_only_with_its_razorpay_plan_id(self):
+        base = dict(RAZORPAY_KEY_ID='a', RAZORPAY_KEY_SECRET='b', MULTI_SHOP=True)
+        with override_settings(RAZORPAY_PLAN_MONTHLY='plan_M', RAZORPAY_PLAN_YEARLY='', **base):
+            self.assertEqual((razorpay.available('monthly'), razorpay.available('yearly'), razorpay.available('weekly')), (True, False, False))
+        with override_settings(RAZORPAY_PLAN_MONTHLY='plan_M', RAZORPAY_PLAN_YEARLY='plan_Y', RAZORPAY_KEY_ID='', RAZORPAY_KEY_SECRET='b', MULTI_SHOP=True):
+            self.assertFalse(razorpay.available('monthly'))
 
 
 class UpiPureTests(SimpleTestCase):
@@ -228,97 +287,173 @@ class SettleTests(PayTestBase):
 
 
 @skipUnless(HAS_TENANTS, 'needs the tenants app (many shops on)')
-@override_settings(**RAZ)
-class OnlinePayTests(PayTestBase):
-    def start(self, plan='monthly'):
-        self.on_shop()
-        with mock.patch('tenants.razorpay.create_order', return_value='order_XYZ') as co:
-            r = self.client.post('/plan/pay/online/', dict(plan=plan))
-        return r, co
+class GstAndPeriodTests(PayTestBase):
+    def test_the_price_splits_into_price_and_gst_that_add_up(self):
+        self.assertEqual(billing.gst_split(500), (Decimal('423.73'), Decimal('76.27')))
+        self.assertEqual(billing.gst_split(Decimal('5000')), (Decimal('4237.29'), Decimal('762.71')))
+        for total in ('1', '99', '499', '500', '777.77', '5000', '12345'):
+            base, gst = billing.gst_split(total)
+            self.assertEqual(base + gst, Decimal(total))
 
-    def test_start_makes_an_order_at_the_server_price(self):
-        r, co = self.start('yearly')
+    def test_the_period_starts_after_the_paid_one(self):
+        self.assertEqual(billing.period_for(self.shop, 'monthly', self.today), (self.today, tenancy.add_months(self.today, 1)))
+        Shop.objects.filter(pk=self.shop.pk).update(paid_until=self.today + timedelta(days=10))
+        self.shop.refresh_from_db()
+        start = self.today + timedelta(days=10)
+        self.assertEqual(billing.period_for(self.shop, 'yearly', self.today), (start, tenancy.add_months(start, 12)))
+
+
+@skipUnless(HAS_TENANTS, 'needs the tenants app (many shops on)')
+@override_settings(**RAZ)
+class AutoPayTests(PayTestBase):
+    def start(self, plan='monthly', sub='sub_XYZ'):
+        self.on_shop()
+        with mock.patch('tenants.razorpay.check_plan') as cp, mock.patch('tenants.razorpay.create_subscription', return_value=sub) as cs, \
+                mock.patch('tenants.razorpay.cancel_subscription') as cx:
+            r = self.client.post('/plan/pay/autopay/', dict(plan=plan))
+        return r, cp, cs, cx
+
+    def verify(self, pay='pay_777', sub='sub_XYZ', sig=None):
+        return self.client.post('/plan/pay/autopay/verify/', dict(
+            razorpay_subscription_id=sub, razorpay_payment_id=pay, razorpay_signature=sign(f'{pay}|{sub}'.encode(), SECRET) if sig is None else sig))
+
+    def test_start_makes_a_subscription_at_the_server_price(self):
+        r, cp, cs, _ = self.start('yearly')
         self.assertEqual(r.status_code, 200)
         data = r.json()
-        o = PlanOrder.objects.get()
-        self.assertEqual((data['ok'], data['key'], data['order_id'], data['amount'], data['currency']), (True, KEY, 'order_XYZ', 500000, 'INR'))
-        self.assertEqual((o.plan, o.amount, o.method, o.status, o.razorpay_order_id), ('yearly', Decimal('5000'), 'razorpay', 'created', 'order_XYZ'))
-        self.assertEqual(co.call_args.args[1], Decimal('5000'))
-        self.assertNotIn(SECRET, r.content.decode())                           # the secret never leaves the server
+        a = AutoPay.objects.get()
+        self.assertEqual((data['ok'], data['key'], data['subscription_id']), (True, KEY, 'sub_XYZ'))
+        self.assertEqual((a.plan, a.amount, a.status, a.razorpay_subscription_id), ('yearly', Decimal('5000'), 'created', 'sub_XYZ'))
+        self.assertEqual(cp.call_args.args, ('yearly', Decimal('5000')))          # the Razorpay plan is checked against our price
+        self.assertEqual(cs.call_args.args[0], 'yearly')
+        self.assertNotIn(SECRET, r.content.decode())                              # the secret never leaves the server
+        self.assertIn('renews every year', data['description'])
 
     def test_the_browser_cannot_choose_the_amount(self):
         self.on_shop()
-        with mock.patch('tenants.razorpay.create_order', return_value='order_1'):
-            r = self.client.post('/plan/pay/online/', dict(plan='monthly', amount='1'))
-        self.assertEqual(PlanOrder.objects.get().amount, Decimal('500'))
-        self.assertEqual(r.json()['amount'], 50000)
+        with mock.patch('tenants.razorpay.check_plan'), mock.patch('tenants.razorpay.create_subscription', return_value='sub_1'):
+            self.client.post('/plan/pay/autopay/', dict(plan='monthly', amount='1', plan_id='plan_other'))
+        self.assertEqual(AutoPay.objects.get().amount, Decimal('500'))
 
-    def test_a_wrong_plan_and_a_failing_service(self):
+    def test_a_wrong_plan_an_unready_plan_and_a_failing_service(self):
         self.on_shop()
-        self.assertEqual(self.client.post('/plan/pay/online/', dict(plan='weekly')).status_code, 400)
-        with mock.patch('tenants.razorpay.create_order', side_effect=razorpay.RazorpayError('down')):
-            r = self.client.post('/plan/pay/online/', dict(plan='monthly'))
-        self.assertEqual(r.status_code, 502)
-        self.assertEqual(PlanOrder.objects.get().status, 'cancelled')
-
-    def test_too_many_attempts_are_stopped(self):
-        for _ in range(payshop.MAX_ORDERS_PER_DAY):
-            self.order(method='razorpay')
-        r, _ = self.start()
-        self.assertEqual(r.status_code, 429)
-
-    def test_not_configured_means_404_and_get_is_refused(self):
-        self.on_shop()
+        self.assertEqual(self.client.post('/plan/pay/autopay/', dict(plan='weekly')).status_code, 400)
+        with override_settings(RAZORPAY_PLAN_YEARLY=''):
+            self.assertEqual(self.client.post('/plan/pay/autopay/', dict(plan='yearly')).status_code, 404)
         with override_settings(RAZORPAY_KEY_ID=''):
-            self.assertEqual(self.client.post('/plan/pay/online/', dict(plan='monthly')).status_code, 404)
-        self.assertEqual(self.client.get('/plan/pay/online/').status_code, 405)
+            self.assertEqual(self.client.post('/plan/pay/autopay/', dict(plan='monthly')).status_code, 404)
+        with mock.patch('tenants.razorpay.check_plan', side_effect=razorpay.RazorpayError('Autopay is not ready for this plan yet.')):
+            r = self.client.post('/plan/pay/autopay/', dict(plan='monthly'))
+        self.assertEqual((r.status_code, r.json()['ok']), (502, False))
+        self.assertEqual(AutoPay.objects.count(), 0)
+        self.assertEqual(self.client.get('/plan/pay/autopay/').status_code, 405)
 
-    def test_a_real_signature_extends_the_plan(self):
+    def test_one_active_autopay_at_a_time_and_a_limit_per_day(self):
+        AutoPay.objects.create(shop=self.shop, plan='monthly', amount=Decimal('500'), razorpay_subscription_id='sub_ACTIVE', status='active')
+        r, _, cs, _ = self.start('yearly')
+        self.assertEqual(r.status_code, 409)
+        cs.assert_not_called()
+        AutoPay.objects.all().delete()
+        for i in range(payshop.MAX_ORDERS_PER_DAY):
+            AutoPay.objects.create(shop=self.shop, plan='monthly', amount=Decimal('500'), razorpay_subscription_id=f'sub_old{i}', status='cancelled')
+        self.assertEqual(self.start()[0].status_code, 429)
+
+    def test_an_unfinished_checkout_is_cancelled_when_a_new_one_starts(self):
+        AutoPay.objects.create(shop=self.shop, plan='monthly', amount=Decimal('500'), razorpay_subscription_id='sub_STALE')
+        r, _, _, cx = self.start('yearly')
+        self.assertEqual(r.status_code, 200)
+        cx.assert_called_once_with('sub_STALE', at_cycle_end=False)
+        self.assertEqual(AutoPay.objects.get(razorpay_subscription_id='sub_STALE').status, 'cancelled')
+
+    def test_a_real_signature_extends_the_plan_and_switches_autopay_on(self):
         self.start()
-        sig = sign(b'order_XYZ|pay_777', SECRET)
-        r = self.client.post('/plan/pay/online/verify/', dict(razorpay_order_id='order_XYZ', razorpay_payment_id='pay_777', razorpay_signature=sig))
+        r = self.verify()
         self.assertEqual((r.status_code, r.json()), (200, {'ok': True}))
+        a = AutoPay.objects.get()
         o = PlanOrder.objects.get()
-        self.assertEqual((o.status, o.razorpay_payment_id), ('paid', 'pay_777'))
+        self.assertEqual((a.status, o.status, o.razorpay_payment_id, o.autopay_id, o.amount, o.method), ('active', 'paid', 'pay_777', a.pk, Decimal('500'), 'razorpay'))
         self.shop.refresh_from_db()
-        self.assertEqual(self.shop.paid_until, tenancy.add_months(self.today, 1))
+        self.assertEqual((self.shop.plan, self.shop.paid_until), ('monthly', tenancy.add_months(self.today, 1)))
         self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('423.73', mail.outbox[0].body)
+        self.assertIn('76.27', mail.outbox[0].body)
+        self.assertIn('renews on its own', mail.outbox[0].body)
 
     def test_a_forged_or_foreign_confirmation_changes_nothing(self):
         self.start()
-        for oid, pid, sig in (('order_XYZ', 'pay_1', 'deadbeef'), ('order_XYZ', 'pay_1', sign(b'order_XYZ|pay_2', SECRET)),
-                              ('order_NOPE', 'pay_1', sign(b'order_NOPE|pay_1', SECRET)), ('', '', '')):
-            r = self.client.post('/plan/pay/online/verify/', dict(razorpay_order_id=oid, razorpay_payment_id=pid, razorpay_signature=sig))
-            self.assertEqual(r.status_code, 400, (oid, pid))
-        self.assertEqual(PlanOrder.objects.get().status, 'created')
+        for sub, pay, sig in (('sub_XYZ', 'pay_1', 'deadbeef'), ('sub_XYZ', 'pay_1', sign(b'pay_2|sub_XYZ', SECRET)),
+                              ('sub_XYZ', 'pay_1', sign(b'sub_XYZ|pay_1', SECRET)), ('sub_NOPE', 'pay_1', sign(b'pay_1|sub_NOPE', SECRET)),
+                              ('', '', '')):
+            self.assertEqual(self.verify(pay, sub, sig).status_code, 400, (sub, pay))
+        self.assertEqual(PlanOrder.objects.count(), 0)
+        self.assertEqual(AutoPay.objects.get().status, 'created')
         self.shop.refresh_from_db()
         self.assertIsNone(self.shop.paid_until)
 
-    def test_another_shops_order_cannot_be_confirmed(self):
+    def test_another_shops_subscription_cannot_be_confirmed(self):
         other = Shop(schema_name='s_other_test', name='Other', email='o@example.com', plan='trial')
         other.auto_create_schema = False
         other.save()
-        PlanOrder.objects.create(shop=other, plan='monthly', amount=Decimal('500'), method='razorpay', reference='MSOTHER111',
-                                 razorpay_order_id='order_OTHER')
+        AutoPay.objects.create(shop=other, plan='monthly', amount=Decimal('500'), razorpay_subscription_id='sub_OTHER')
         self.on_shop()
-        r = self.client.post('/plan/pay/online/verify/', dict(razorpay_order_id='order_OTHER', razorpay_payment_id='pay_1',
-                                                              razorpay_signature=sign(b'order_OTHER|pay_1', SECRET)))
-        self.assertEqual(r.status_code, 400)
-        self.assertEqual(PlanOrder.objects.get(reference='MSOTHER111').status, 'created')
+        self.assertEqual(self.verify('pay_1', 'sub_OTHER').status_code, 400)
+        self.assertEqual(AutoPay.objects.get().status, 'created')
+        self.assertEqual(PlanOrder.objects.count(), 0)
 
     def test_confirming_twice_never_extends_twice(self):
         self.start()
-        data = dict(razorpay_order_id='order_XYZ', razorpay_payment_id='pay_777', razorpay_signature=sign(b'order_XYZ|pay_777', SECRET))
-        self.assertTrue(self.client.post('/plan/pay/online/verify/', data).json()['ok'])
-        self.assertTrue(self.client.post('/plan/pay/online/verify/', data).json()['ok'])
+        self.assertTrue(self.verify().json()['ok'])
+        self.assertTrue(self.verify().json()['ok'])
         self.assertEqual(self.shop.payments.count(), 1)
+        self.assertEqual(PlanOrder.objects.count(), 1)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_cancel_stops_the_renewals_but_keeps_the_paid_days(self):
+        self.start()
+        self.verify()
+        a = AutoPay.objects.get()
+        with mock.patch('tenants.razorpay.cancel_subscription') as cx:
+            r = self.client.post(f'/plan/pay/autopay/{a.pk}/cancel/')
+        self.assertRedirects(r, '/plan/', fetch_redirect_response=False)
+        cx.assert_called_once_with('sub_XYZ', at_cycle_end=True)
+        a.refresh_from_db()
+        self.assertEqual(a.status, 'cancelled')
+        self.assertIsNotNone(a.ended_at)
+        self.shop.refresh_from_db()
+        self.assertEqual(self.shop.paid_until, tenancy.add_months(self.today, 1))
+
+    def test_a_failing_cancel_leaves_autopay_on_and_says_so(self):
+        self.start()
+        self.verify()
+        a = AutoPay.objects.get()
+        with mock.patch('tenants.razorpay.cancel_subscription', side_effect=razorpay.RazorpayError('We could not reach the payment service.')):
+            r = self.client.post(f'/plan/pay/autopay/{a.pk}/cancel/', follow=True)
+        a.refresh_from_db()
+        self.assertEqual(a.status, 'active')
+        self.assertContains(r, 'The autopay was not stopped')
+
+    def test_cancel_is_for_the_owner_of_the_shop_only(self):
+        other = Shop(schema_name='s_other_test', name='Other', email='o@example.com', plan='trial')
+        other.auto_create_schema = False
+        other.save()
+        a = AutoPay.objects.create(shop=other, plan='monthly', amount=Decimal('500'), razorpay_subscription_id='sub_OTHER', status='active')
+        self.on_shop()
+        with mock.patch('tenants.razorpay.cancel_subscription') as cx:
+            self.assertEqual(self.client.post(f'/plan/pay/autopay/{a.pk}/cancel/').status_code, 404)
+            self.assertEqual(self.client.get(f'/plan/pay/autopay/{a.pk}/cancel/').status_code, 405)
+        cx.assert_not_called()
+        a.refresh_from_db()
+        self.assertEqual(a.status, 'active')
 
 
 @skipUnless(HAS_TENANTS, 'needs the tenants app (many shops on)')
 @override_settings(**RAZ)
 class WebhookTests(PayTestBase):
-    def event(self, name='payment.captured', order_id='order_XYZ', amount=50000, pay_id='pay_9'):
-        return json.dumps(dict(event=name, payload=dict(payment=dict(entity=dict(id=pay_id, order_id=order_id, amount=amount, status='captured'))))).encode()
+    def event(self, name='subscription.charged', sub='sub_XYZ', amount=50000, pay_id='pay_9', charge_at=None):
+        payload = dict(subscription=dict(entity=dict(id=sub, charge_at=charge_at)))
+        if name == 'subscription.charged':
+            payload['payment'] = dict(entity=dict(id=pay_id, amount=amount, status='captured'))
+        return json.dumps(dict(event=name, payload=payload)).encode()
 
     def post(self, body, secret=HOOK, **extra):
         return self.client.post('/razorpay/webhook/', body, content_type='application/json',
@@ -327,40 +462,58 @@ class WebhookTests(PayTestBase):
     def setUp(self):
         super().setUp()
         self.client.logout()                                    # Razorpay is not signed in
-        self.o = self.order(method='razorpay', razorpay_order_id='order_XYZ')
+        self.ap = AutoPay.objects.create(shop=self.shop, plan='monthly', amount=Decimal('500'), razorpay_subscription_id='sub_XYZ')
 
-    def test_a_signed_captured_event_extends_the_plan_once(self):
+    def test_a_signed_charge_extends_the_plan_once(self):
         r = self.post(self.event())
         self.assertEqual((r.status_code, r.content), (200, b'ok'))
-        self.o.refresh_from_db()
-        self.assertEqual((self.o.status, self.o.razorpay_payment_id), ('paid', 'pay_9'))
+        self.ap.refresh_from_db()
+        o = PlanOrder.objects.get()
+        self.assertEqual((self.ap.status, o.status, o.razorpay_payment_id, o.autopay_id), ('active', 'paid', 'pay_9', self.ap.pk))
         self.post(self.event())                                  # Razorpay sends it again
-        self.assertEqual(self.shop.payments.count(), 1)
+        self.assertEqual((self.shop.payments.count(), PlanOrder.objects.count(), len(mail.outbox)), (1, 1, 1))
         self.shop.refresh_from_db()
         self.assertEqual(self.shop.paid_until, tenancy.add_months(self.today, 1))
 
-    def test_order_paid_event_works_too(self):
-        body = json.dumps(dict(event='order.paid', payload=dict(order=dict(entity=dict(id='order_XYZ', amount_paid=50000)),
-                                                                 payment=dict(entity=dict(id='pay_3', order_id='order_XYZ', amount=50000))))).encode()
-        self.assertEqual(self.post(body).content, b'ok')
-        self.o.refresh_from_db()
-        self.assertEqual(self.o.status, 'paid')
+    def test_every_renewal_adds_another_period(self):
+        self.post(self.event(pay_id='pay_1'))
+        self.post(self.event(pay_id='pay_2'))                    # next month
+        self.post(self.event(pay_id='pay_3'))
+        self.shop.refresh_from_db()
+        self.assertEqual(self.shop.payments.count(), 3)
+        self.assertEqual(self.shop.paid_until, tenancy.add_months(tenancy.add_months(tenancy.add_months(self.today, 1), 1), 1))
+
+    def test_the_next_charge_day_is_kept(self):
+        stamp = int(timezone.now().timestamp()) + 30 * 86400
+        self.post(self.event(charge_at=stamp))
+        self.ap.refresh_from_db()
+        self.assertEqual(self.ap.next_charge, (timezone.now() + timedelta(days=30)).astimezone(timezone.get_current_timezone()).date())
+
+    def test_the_browser_and_the_webhook_together_extend_once(self):
+        self.post(self.event(pay_id='pay_5'))                    # the webhook came first (common)
+        self.client.force_login(self.admin)
+        self.on_shop()
+        r = self.client.post('/plan/pay/autopay/verify/', dict(razorpay_subscription_id='sub_XYZ', razorpay_payment_id='pay_5',
+                                                              razorpay_signature=sign(b'pay_5|sub_XYZ', SECRET)))
+        self.assertEqual(r.json(), {'ok': True})
+        self.assertEqual((self.shop.payments.count(), PlanOrder.objects.count()), (1, 1))
 
     def test_a_bad_or_missing_signature_is_refused(self):
         body = self.event()
         self.assertEqual(self.post(body, secret='wrong').status_code, 400)
         self.assertEqual(self.post(body, secret='').status_code, 400)
         self.assertEqual(self.client.post('/razorpay/webhook/', body, content_type='application/json').status_code, 400)
-        self.o.refresh_from_db()
-        self.assertEqual(self.o.status, 'created')
+        self.assertEqual(PlanOrder.objects.count(), 0)
+        self.ap.refresh_from_db()
+        self.assertEqual(self.ap.status, 'created')
 
-    def test_a_wrong_amount_unknown_order_and_other_events_change_nothing(self):
+    def test_a_wrong_amount_unknown_subscription_and_other_events_change_nothing(self):
         self.assertEqual(self.post(self.event(amount=100)).content, b'amount differs')
-        self.assertEqual(self.post(self.event(order_id='order_NOPE')).content, b'unknown order')
+        self.assertEqual(self.post(self.event(sub='sub_NOPE')).content, b'unknown subscription')
         self.assertEqual(self.post(self.event(name='payment.failed')).content, b'ignored')
+        self.assertEqual(self.post(self.event(name='subscription.authenticated')).content, b'ignored')
         self.assertEqual(self.post(b'[1,2]').status_code, 200)
-        self.o.refresh_from_db()
-        self.assertEqual(self.o.status, 'created')
+        self.assertEqual(PlanOrder.objects.count(), 0)
         self.assertEqual(self.shop.payments.count(), 0)
 
     def test_garbage_that_is_signed_is_a_400(self):
@@ -370,14 +523,51 @@ class WebhookTests(PayTestBase):
         with override_settings(RAZORPAY_WEBHOOK_SECRET=''):
             self.assertEqual(self.post(self.event()).status_code, 404)
 
-    def test_a_cancelled_order_that_was_really_paid_is_still_credited(self):
-        PlanOrder.objects.filter(pk=self.o.pk).update(status='cancelled')
-        self.post(self.event())
-        self.o.refresh_from_db()
-        self.assertEqual(self.o.status, 'paid')
-
     def test_get_is_not_allowed(self):
         self.assertEqual(self.client.get('/razorpay/webhook/').status_code, 405)
+
+    def test_cancelled_halted_and_completed_events(self):
+        self.post(self.event(pay_id='pay_1'))
+        self.assertEqual(self.post(self.event('subscription.halted')).content, b'ok')
+        self.ap.refresh_from_db()
+        self.assertEqual(self.ap.status, 'halted')
+        self.assertIsNotNone(self.ap.ended_at)
+        self.assertEqual(len(mail.outbox), 2)                    # the receipt and the "payment did not go through" mail
+        self.assertIn('did not go through', mail.outbox[1].subject)
+        self.post(self.event('subscription.halted'))             # sent again: no second mail
+        self.assertEqual(len(mail.outbox), 2)
+        self.post(self.event('subscription.cancelled'))
+        self.ap.refresh_from_db()
+        self.assertEqual(self.ap.status, 'cancelled')
+        self.assertEqual(self.ap.status, 'cancelled')
+
+    def test_a_subscription_that_ran_its_course_is_completed(self):
+        self.post(self.event(pay_id='pay_1'))
+        self.post(self.event('subscription.completed'))
+        self.ap.refresh_from_db()
+        self.assertEqual(self.ap.status, 'completed')
+
+    def test_a_late_event_never_undoes_a_stop(self):
+        self.post(self.event(pay_id='pay_1'))
+        self.post(self.event('subscription.cancelled'))
+        self.post(self.event('subscription.activated'))          # arrives late
+        self.post(self.event('subscription.halted'))
+        self.ap.refresh_from_db()
+        self.assertEqual(self.ap.status, 'cancelled')
+
+    def test_the_last_charge_after_a_cancel_is_still_credited_and_the_status_stays(self):
+        self.post(self.event(pay_id='pay_1'))
+        self.post(self.event('subscription.cancelled'))
+        self.post(self.event(pay_id='pay_2'))                    # a charge that was already on its way
+        self.ap.refresh_from_db()
+        self.assertEqual((self.ap.status, self.shop.payments.count()), ('cancelled', 2))
+
+    def test_a_charge_after_a_failure_switches_autopay_on_again(self):
+        self.post(self.event(pay_id='pay_1'))
+        self.post(self.event('subscription.halted'))
+        self.post(self.event(pay_id='pay_2'))
+        self.ap.refresh_from_db()
+        self.assertEqual(self.ap.status, 'active')
 
 
 @skipUnless(HAS_TENANTS, 'needs the tenants app (many shops on)')
@@ -485,7 +675,8 @@ class PlanPageTests(PayTestBase):
 
     def test_buttons_follow_what_is_switched_on(self):
         html = self.page().content.decode()
-        self.assertIn('data-pay-online="monthly"', html)
+        self.assertIn('data-pay="autopay" data-plan="monthly"', html)
+        self.assertIn('data-pay="autopay" data-plan="yearly"', html)
         self.assertNotIn('/plan/pay/upi/', html)
         self.assertIn('https://checkout.razorpay.com/v1/checkout.js', html)         # loaded only when the button is pressed
         self.assertIn('GST', html)
@@ -494,8 +685,48 @@ class PlanPageTests(PayTestBase):
         self.assertIn('action="/plan/pay/upi/"', html)
         with override_settings(RAZORPAY_KEY_ID=''):
             html = self.page().content.decode()
-        self.assertNotIn('data-pay-online', html)
+        self.assertNotIn('data-pay="autopay"', html)
         self.assertIn('Pay by UPI', html)
+        with override_settings(RAZORPAY_PLAN_YEARLY=''):                           # only the plans that exist at Razorpay
+            html = self.page().content.decode()
+        self.assertIn('data-pay="autopay" data-plan="monthly"', html)
+        self.assertNotIn('data-pay="autopay" data-plan="yearly"', html)
+
+    def test_the_popup_before_paying_has_price_gst_total_and_days(self):
+        html = self.page().content.decode()
+        self.assertIn('id="paysum"', html)
+        end = tenancy.add_months(self.today, 1)
+        for text in ('"total": "500.00"', '"base": "423.73"', '"gst": "76.27"', '"gst_percent": 18', f'"days": {(end - self.today).days}',
+                     f'"end": "{end:%d %b %Y}"', '"total": "5000.00"', '"base": "4237.29"', '"gst": "762.71"', 'Continue to payment'):
+            self.assertIn(text, html)
+
+    def test_the_popup_says_when_the_new_days_start(self):
+        until = self.today + timedelta(days=10)
+        Shop.objects.filter(pk=self.shop.pk).update(plan='monthly', paid_until=until)
+        self.shop.refresh_from_db()
+        self.on_shop()
+        html = self.client.get('/plan/').content.decode()
+        self.assertIn('"after_current": true', html)
+        self.assertIn(f'"start": "{until:%d %b %Y}"', html)
+
+    def test_an_active_autopay_is_shown_with_a_stop_button_and_no_second_subscribe(self):
+        a = AutoPay.objects.create(shop=self.shop, plan='monthly', amount=Decimal('500'), razorpay_subscription_id='sub_1', status='active',
+                                   next_charge=self.today + timedelta(days=20))
+        Shop.objects.filter(pk=self.shop.pk).update(plan='monthly', paid_until=self.today + timedelta(days=20))
+        self.shop.refresh_from_db()
+        self.set_upi()
+        html = self.page().content.decode()
+        self.assertIn('Autopay is on', html)
+        self.assertIn(f'/plan/pay/autopay/{a.pk}/cancel/', html)
+        self.assertNotIn('data-pay="autopay"', html)
+        self.assertIn('Pay by UPI', html)
+
+    def test_a_failed_autopay_is_explained(self):
+        AutoPay.objects.create(shop=self.shop, plan='monthly', amount=Decimal('500'), razorpay_subscription_id='sub_1', status='halted',
+                               ended_at=timezone.now())
+        html = self.page().content.decode()
+        self.assertIn('could not be taken', html)
+        self.assertIn('data-pay="autopay" data-plan="monthly"', html)
 
     def test_nothing_to_pay_with_means_the_old_contact_text(self):
         with override_settings(RAZORPAY_KEY_ID=''):
@@ -566,7 +797,7 @@ class PlatformPaymentsTests(PayTestBase):
 @skipUnless(HAS_TENANTS, 'needs the tenants app (many shops on)')
 class MiddlewareAndSettingsTests(PayTestBase):
     def test_a_locked_shop_can_still_pay(self):
-        for path in ('/plan/pay/online/', '/plan/pay/online/verify/', '/plan/pay/upi/', '/plan/pay/upi/5/', '/plan/pay/5/cancel/'):
+        for path in ('/plan/pay/autopay/', '/plan/pay/autopay/verify/', '/plan/pay/autopay/5/cancel/', '/plan/pay/upi/', '/plan/pay/upi/5/', '/plan/pay/5/cancel/'):
             self.assertTrue(middleware.is_always_open(path), path)
         self.assertFalse(middleware.is_always_open('/bills/new/'))
 
@@ -585,4 +816,4 @@ class MiddlewareAndSettingsTests(PayTestBase):
         self.assertContains(bad, 'UPI ID looks wrong')
         page = self.client.get('/superadmin/site/').content.decode()
         self.assertIn('UPI ID for shops', page)
-        self.assertIn('Online payment (Razorpay)', page)
+        self.assertIn('Autopay (Razorpay Subscriptions)', page)

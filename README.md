@@ -280,24 +280,32 @@ Like the blog, these are edited in the admin (`/admin/`, section **Website**), o
 * Prices, WhatsApp, contact e-mail and the notice bar stay where they were (Platform panel, Website settings).
 * Migration `0021` creates the tables; `0022` copies the first FAQ and the three policy texts once, on the main site only (existing rows are never overwritten, so edits are safe). Files: `backend/sitecontent.py`, `backend/site_seed.py`, `templates/app/legal_saved.html`, tests in `backend/tests/test_site_content.py`.
 
-## Paying for a plan (Razorpay online + UPI with approval)
+## Paying for a plan (Razorpay autopay + UPI with approval)
 
 Prices are **Rs 500 a month or Rs 5000 a year, GST included** (`PLAN_PRICES` in settings; the platform owner can change them under *Website settings*, which wins over the settings file). Shops pay from their **Plan & Payments** page (`/plan/`, owner only). Both ways keep working after a plan has ended (the pages `/plan/pay/...` stay open for a locked shop).
 
-**1. Online with Razorpay** (UPI, cards, net banking): the shop presses *Pay online*, Razorpay's window opens, and when the payment is done the plan is extended at once and a receipt is e-mailed. The amount always comes from the server price, never from the browser; the finished payment is accepted only with a valid Razorpay signature; a webhook is the safety net when the customer closes the window early. One order can extend a shop **only once**, however many times it is confirmed.
-* Setup: create a Razorpay account (KYC), then in the Razorpay dashboard: *Account & Settings -> API keys* gives **Key Id** and **Key Secret**. *Webhooks -> Add*: URL `https://medsync.socialflylive.com/razorpay/webhook/`, a secret of your choice, and tick **payment.captured** and **order.paid**. Put the three values in the server `.env` and restart:
-  ```
-  RAZORPAY_KEY_ID=rzp_live_xxxxxxxx
-  RAZORPAY_KEY_SECRET=xxxxxxxx
-  RAZORPAY_WEBHOOK_SECRET=the-secret-you-typed-in-the-webhook
-  ```
-  Start with the **test** keys (`rzp_test_...`) and Razorpay's test cards/UPI; nothing real is charged. Without the keys the *Pay online* button is not shown.
+**Before every payment a popup shows the details**: plan, the days it covers (from - to; it starts after the current plan when one is still running), the price without GST, **GST 18%** (`GST_PERCENT` in settings; the two always add up to the price), the total, and whether it renews. The same split is in the receipt e-mail.
 
-**2. UPI with approval** (no gateway, no fee): set your **UPI ID** and the name shown to the payer under *Website settings*. A shop presses *Pay by UPI*, sees a QR code (made by `backend/qr.py`, no extra package) with the amount fixed, a reference like `MS7K2Q9XAB` in the payment note and a button for phones. After paying it types the 12-digit **UPI reference number (UTR)**. You get an e-mail, see it under **Payments** in the platform panel (and a bar on the dashboard), check your bank, and press **Approve** (plan extended, receipt e-mailed) or **Reject** (reason e-mailed). The same UTR cannot be used twice.
+**1. Autopay with Razorpay Subscriptions** (renews every month / year, like any subscription): the shop presses *Subscribe (autopay)*, sees the popup, and Razorpay's window opens where it sets up UPI autopay or a card. The first charge extends the plan at once; every later charge arrives by **webhook** and extends it again (receipt e-mailed each time). The shop can **Stop autopay** on the same page; the days already paid stay valid. If a charge keeps failing Razorpay stops the subscription and the shop gets an e-mail. The amount always comes from the server price; the Razorpay plan is checked against it (same amount and period) before every subscription, and an odd plan is refused. A payment can extend a shop **only once** (each Razorpay payment id is recorded once, whether the browser or the webhook tells us first).
+* Setup in the Razorpay dashboard (start in **Test mode**):
+  1. *Subscriptions -> Plans -> Create plan*: **MedSync Monthly**: billing every **1 month**, amount **500**; **MedSync Yearly**: every **1 year**, amount **5000**. Copy each **Plan Id** (`plan_xxxx`). If you change a price in *Website settings*, make a new plan with the same amount and put its id in `.env`.
+  2. *Account & Settings -> API keys* gives **Key Id** and **Key Secret**.
+  3. *Webhooks -> Add*: URL `https://medsync.socialflylive.com/razorpay/webhook/`, a secret of your choice, tick **subscription.charged, subscription.activated, subscription.halted, subscription.cancelled, subscription.completed**.
+  4. Put the values in the server `.env` and restart (`systemctl restart medsync` as root):
+     ```
+     RAZORPAY_KEY_ID=rzp_test_xxxxxxxx
+     RAZORPAY_KEY_SECRET=xxxxxxxx
+     RAZORPAY_WEBHOOK_SECRET=the-secret-you-typed-in-the-webhook
+     RAZORPAY_PLAN_MONTHLY=plan_xxxxxxxx
+     RAZORPAY_PLAN_YEARLY=plan_xxxxxxxx
+     ```
+  A plan's *Subscribe* button is shown only when its plan id is set. Test with Razorpay's test UPI/cards (nothing real is charged), then replace everything with the **live** keys and live plans.
+
+**2. UPI with approval** (no gateway, no fee, one time, does not renew): set your **UPI ID** and the name shown to the payer under *Website settings*. A shop presses *Pay by UPI*, sees the popup, then a QR code (made by `backend/qr.py`, no extra package) with the amount fixed, a reference like `MS7K2Q9XAB` in the payment note and a button for phones. After paying it types the 12-digit **UPI reference number (UTR)**. You get an e-mail, see it under **Payments** in the platform panel (and a bar on the dashboard), check your bank, and press **Approve** (plan extended, receipt e-mailed) or **Reject** (reason e-mailed). The same UTR cannot be used twice.
 
 * Every payment is also a normal row in the shop's *Payments received* list (the old *Save payment* button still works for cash or bank transfers).
-* Files: `tenants/billing.py` (the one place that moves a shop's paid-until date, `settle()` locks the order), `tenants/razorpay.py`, `tenants/upi.py`, `tenants/payshop.py` (shop side), `tenants/payadmin.py` (Payments page + webhook), `templates/app/plan.html`, `plan_upi.html`, `platform_payments.html`, migration `tenants/0010`. Run `python manage.py migrate_schemas --shared` once.
-* Tests: `tenants/test_pay.py` (the parts that need no database run anywhere; the rest needs MULTI_SHOP=1), `backend/tests/test_qr.py`.
+* Files: `tenants/billing.py` (the one place that moves a shop's paid-until date; `settle()` and `charge()` lock the rows), `tenants/razorpay.py`, `tenants/upi.py`, `tenants/payshop.py` (shop side), `tenants/payadmin.py` (Payments page + webhook), `templates/app/plan.html`, `plan_upi.html`, `platform_payments.html`, migrations `tenants/0010` and `0011`. Run `python manage.py migrate_schemas --shared` once.
+* Tests: `tenants/test_pay.py` (the parts that need no database run anywhere; the rest needs MULTI_SHOP=1), `backend/tests/test_qr.py`. The real Razorpay calls are stubbed in tests; try the test mode once for real.
 
 ## Sign in / sign up with Google
 

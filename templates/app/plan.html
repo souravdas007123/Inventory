@@ -14,22 +14,28 @@
   <p style="margin:0;color:var(--mute)">Every plan has every feature. Your data is never deleted when a plan ends.</p>
 </div>
 {% for o in orders %}<div class="msg info" style="margin-bottom:14px">{% if o.status == 'waiting' %}⏳ Your UPI payment of <b>Rs {{ o.amount|floatformat:0 }}</b> ({{ o.get_plan_display }}, number {{ o.utr }}) is waiting for approval. We will extend your plan as soon as we see it.{% elif o.status == 'rejected' %}❌ We could not find your UPI payment {{ o.utr }}{% if o.note %}: {{ o.note }}{% endif %}. Please check the number and pay again, or write to us.{% else %}⏳ A UPI payment of <b>Rs {{ o.amount|floatformat:0 }}</b> ({{ o.get_plan_display }}) was started. <a href="{% url 'plan_upi' o.pk %}">Continue</a>{% endif %}</div>{% endfor %}
+{% if autopay %}<div class="card" style="margin-bottom:14px">
+  <h3 style="margin-top:0">Autopay is on</h3>
+  <p style="margin:0 0 6px">{{ autopay.get_plan_display }} plan, <b>Rs {{ autopay.amount|floatformat:0 }}</b> is charged {% if autopay.plan == 'yearly' %}every year{% else %}every month{% endif %} and your plan is extended each time.{% if autopay.next_charge %} Next charge: <b>{{ autopay.next_charge|date:"d M Y" }}</b>.{% endif %}</p>
+  <form method="post" action="{% url 'plan_autopay_cancel' autopay.pk %}" data-confirm="Stop the autopay? You will not be charged again. Your plan stays valid until {{ end|date:'d M Y' }}." data-confirm-yes="Yes, stop autopay">{% csrf_token %}<button class="btn ghost">Stop autopay</button></form>
+</div>{% endif %}
+{% if autopay_failed %}<div class="msg info" style="margin-bottom:14px">❌ The automatic payment of Rs {{ autopay_failed.amount|floatformat:0 }} could not be taken, so autopay was stopped. Please subscribe again or pay by UPI to continue.</div>{% endif %}
 {% if razorpay_on or upi_on %}
 <div class="card" style="margin-bottom:14px">
   <h3 style="margin-top:0">Pay now</h3>
-  <p style="margin:0 0 10px;color:var(--mute)">Choose a plan. Your plan is extended as soon as the payment is confirmed. If you pay before it ends, the new period starts after the current one.</p>
+  <p style="margin:0 0 10px;color:var(--mute)">Choose a plan. You will see the full amount (price and GST) and the days it covers before you pay. If you pay before your plan ends, the new period starts after the current one.</p>
   <div style="display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">
-  {% for plan, label, price in plans %}
+  {% for plan, label, price, can_autopay in plans %}
     <div style="border:1px solid var(--line);border-radius:10px;padding:12px 14px">
       <b>{{ label }}</b> &middot; Rs {{ price }}{% if plan == 'yearly' and saving %} <span class="badge green">saves Rs {{ saving }}</span>{% endif %}
       <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px">
-        {% if razorpay_on %}<button type="button" class="btn" data-pay-online="{{ plan }}">Pay online</button>{% endif %}
-        {% if upi_on %}<form method="post" action="{% url 'plan_upi_start' %}" style="display:inline">{% csrf_token %}<input type="hidden" name="plan" value="{{ plan }}"><button class="btn ghost">Pay by UPI</button></form>{% endif %}
+        {% if razorpay_on and can_autopay %}<button type="button" class="btn" data-pay="autopay" data-plan="{{ plan }}">Subscribe (autopay)</button>{% endif %}
+        {% if upi_on %}<form method="post" action="{% url 'plan_upi_start' %}" style="display:inline" data-pay-form data-plan="{{ plan }}">{% csrf_token %}<input type="hidden" name="plan" value="{{ plan }}"><button class="btn ghost">Pay by UPI (one time)</button></form>{% endif %}
       </div>
     </div>
   {% endfor %}
   </div>
-  {% if razorpay_on %}<p style="margin:10px 0 0;color:var(--mute);font-size:13px">Online payment accepts UPI, cards and net banking through Razorpay.</p>{% endif %}
+  {% if razorpay_on %}<p style="margin:10px 0 0;color:var(--mute);font-size:13px">Autopay renews on its own every month or year through Razorpay (UPI autopay, cards). You can stop it any time from this page.</p>{% endif %}
   <form id="payform" style="display:none">{% csrf_token %}</form>
 </div>
 {% endif %}
@@ -46,28 +52,70 @@
   </table></div>
 </div>
 {% endblock %}
-{% block scripts %}{% if razorpay_on %}<script>
+{% block scripts %}{% if razorpay_on or upi_on %}
+<dialog id="paysum" class="dlg msgdlg" aria-labelledby="paysum-title">
+  <h3 id="paysum-title">Check your payment</h3>
+  <table class="t" style="margin:0 0 10px"><tbody id="paysum-rows"></tbody></table>
+  <p id="paysum-note" style="margin:0 0 14px;font-size:14px"></p>
+  <div class="bar"><button type="button" class="btn ghost" id="paysum-no">Back</button><button type="button" class="btn" id="paysum-yes">Continue to payment</button></div>
+</dialog>
+{{ summaries|json_script:"paysum-data" }}
+<script>
 (function(){
+  var dlg=document.getElementById('paysum'), data=JSON.parse(document.getElementById('paysum-data').textContent);
+  var rows=document.getElementById('paysum-rows'), note=document.getElementById('paysum-note');
+  function say(t,title){if(window.appAlert){appAlert(t,{title:title||'Payment'});}}
+  // The popup before the payment: plan, days covered, price, GST and the total. Resolves true when the owner goes on.
+  function summary(plan,autopay){
+    var d=data[plan]; if(!d||typeof dlg.showModal!=='function') return Promise.resolve(true);
+    rows.textContent='';
+    [['Plan',d.label+' plan'],['Duration',d.days+' days ('+d.start+' to '+d.end+')'],['Price (without GST)','Rs '+d.base],['GST ('+d.gst_percent+'%)','Rs '+d.gst],['Total to pay now','Rs '+d.total]].forEach(function(r,i,all){
+      var tr=document.createElement('tr'),a=document.createElement('td'),b=document.createElement('td');
+      a.textContent=r[0]; b.textContent=r[1]; b.style.textAlign='right'; if(i===all.length-1){a.style.fontWeight=b.style.fontWeight='700';}
+      tr.appendChild(a); tr.appendChild(b); rows.appendChild(tr);});
+    var t=(d.after_current?'Your current plan is still running, so these days start after it ends. ':'')+
+      (autopay?'This renews on its own every '+d.unit+' at Rs '+d.total+' until you stop it. You can stop it any time from this page, and the days you paid for stay valid.':'This is a one-time payment. It does not renew by itself.');
+    note.textContent=t;
+    return new Promise(function(resolve){
+      var done=false;
+      function close(v){ if(done) return; done=true; dlg.close(); resolve(v); }
+      dlg.onclose=function(){ close(false); };
+      document.getElementById('paysum-yes').onclick=function(){ close(true); };
+      document.getElementById('paysum-no').onclick=function(){ close(false); };
+      dlg.showModal();
+    });
+  }
+  document.querySelectorAll('form[data-pay-form]').forEach(function(f){
+    var again=false;
+    f.addEventListener('submit',function(e){
+      if(again) return;
+      e.preventDefault();
+      summary(f.getAttribute('data-plan'),false).then(function(ok){ if(ok){ again=true; f.submit(); } });
+    });
+  });
   var form=document.getElementById('payform'); if(!form) return;
   var token=form.querySelector('input[name=csrfmiddlewaretoken]').value;
   function post(url,data){return fetch(url,{method:'POST',credentials:'same-origin',headers:{'X-CSRFToken':token,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(data)}).then(function(r){return r.json();});}
-  function say(t,title){if(window.appAlert){appAlert(t,{title:title||'Payment'});}}
   function loadCheckout(){return new Promise(function(ok,fail){if(window.Razorpay)return ok();var s=document.createElement('script');s.src='https://checkout.razorpay.com/v1/checkout.js';s.onload=ok;s.onerror=fail;document.head.appendChild(s);});}
-  document.querySelectorAll('[data-pay-online]').forEach(function(btn){
+  document.querySelectorAll('[data-pay=autopay]').forEach(function(btn){
     btn.addEventListener('click',function(){
-      btn.disabled=true;
-      post('{% url "plan_online_start" %}',{plan:btn.getAttribute('data-pay-online')}).then(function(o){
-        if(!o.ok){btn.disabled=false;say(o.error||'We could not start the payment.');return;}
-        return loadCheckout().then(function(){
-          var rz=new Razorpay({key:o.key,amount:o.amount,currency:o.currency,name:o.name,description:o.description,order_id:o.order_id,prefill:o.prefill,theme:{color:'#0f9d8a'},
-            modal:{ondismiss:function(){btn.disabled=false;}},
-            handler:function(r){post('{% url "plan_online_verify" %}',{razorpay_order_id:r.razorpay_order_id,razorpay_payment_id:r.razorpay_payment_id,razorpay_signature:r.razorpay_signature}).then(function(v){
-              if(v.ok){location.reload();}else{btn.disabled=false;say(v.error||'We could not confirm the payment.');}
-            }).catch(function(){btn.disabled=false;say('We could not confirm the payment. If money was taken, it will be added shortly, or write to us.');});}});
-          rz.on('payment.failed',function(e){btn.disabled=false;say((e&&e.error&&e.error.description)||'The payment failed. You were not charged.','Payment failed');});
-          rz.open();
-        });
-      }).catch(function(){btn.disabled=false;say('We could not reach the payment service. Please try again.');});
+      var plan=btn.getAttribute('data-plan');
+      summary(plan,true).then(function(ok){
+        if(!ok) return;
+        btn.disabled=true;
+        return post('{% url "plan_autopay_start" %}',{plan:plan}).then(function(o){
+          if(!o.ok){btn.disabled=false;say(o.error||'We could not start the payment.');return;}
+          return loadCheckout().then(function(){
+            var rz=new Razorpay({key:o.key,subscription_id:o.subscription_id,name:o.name,description:o.description,prefill:o.prefill,theme:{color:'#0f9d8a'},
+              modal:{ondismiss:function(){btn.disabled=false;}},
+              handler:function(r){post('{% url "plan_autopay_verify" %}',{razorpay_subscription_id:r.razorpay_subscription_id,razorpay_payment_id:r.razorpay_payment_id,razorpay_signature:r.razorpay_signature}).then(function(v){
+                if(v.ok){location.reload();}else{btn.disabled=false;say(v.error||'We could not confirm the payment.');}
+              }).catch(function(){btn.disabled=false;say('We could not confirm the payment. If money was taken, it will be added shortly, or write to us.');});}});
+            rz.on('payment.failed',function(e){btn.disabled=false;say((e&&e.error&&e.error.description)||'The payment failed. You were not charged.','Payment failed');});
+            rz.open();
+          });
+        }).catch(function(){btn.disabled=false;say('We could not reach the payment service. Please try again.');});
+      });
     });
   });
 })();

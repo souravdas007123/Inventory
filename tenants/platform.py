@@ -333,4 +333,4 @@ def site_settings(request):
             messages.success(request, 'Website settings saved. The home page shows them within a minute.')
             return redirect('platform_site')
     from . import razorpay
-    return render(request, 'app/platform_site.html', dict(values=values, standard=settings.PLAN_PRICES, razorpay_on=razorpay.configured()))
+    return render(request, 'app/platform_site.html', dict(values=values, standard=settings.PLAN_PRICES, razorpay_on=any(razorpay.available(k) for k in ('monthly', 'yearly'))))
