@@ -7,11 +7,11 @@ from django.core.cache import cache
 
 log = logging.getLogger(__name__)
 KEY = 'site-setting-v1'
-FIELDS = ('whatsapp', 'contact_email', 'announcement', 'shop_notice', 'price_monthly', 'price_yearly')
+FIELDS = ('whatsapp', 'contact_email', 'announcement', 'shop_notice', 'price_monthly', 'price_yearly', 'upi_id', 'upi_name')
 
 
 def current():
-    """A dict with the five editable values (blank or None when not set)."""
+    """A dict with the editable values (blank or None when not set)."""
     data = cache.get(KEY)
     if data is None:
         data = dict.fromkeys(FIELDS)
@@ -45,3 +45,10 @@ def prices():
     data = current()
     return {'monthly': data.get('price_monthly') or settings.PLAN_PRICES['monthly'],
             'yearly': data.get('price_yearly') or settings.PLAN_PRICES['yearly']}
+
+
+def upi():
+    """(upi id, name shown to the payer) for the UPI payment, or None when no UPI id is set."""
+    data = current()
+    upi_id = (data.get('upi_id') or '').strip()
+    return (upi_id, (data.get('upi_name') or '').strip() or 'MedSync') if upi_id else None

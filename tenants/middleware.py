@@ -13,6 +13,7 @@ ALWAYS_OPEN = ('/login/', '/login/verify/', '/logout/', '/forgot/')       # a lo
 ALWAYS_OPEN_PREFIX = '/reset-password/'                  # and to choose a new password
 
 
+ALWAYS_OPEN_PAY = '/plan/pay/'                              # and to pay for a plan (it is the way out of the locked state)
 ALWAYS_OPEN_SUPPORT = '/support/'                          # a shop whose plan ended must still be able to write to us
 
 
@@ -20,7 +21,7 @@ MAINTENANCE_OPEN = ('/healthz/', '/sw.js', '/manifest.webmanifest')      # a mon
 
 
 def is_always_open(path):
-    return path in ALWAYS_OPEN or path.startswith(ALWAYS_OPEN_PREFIX) or path.startswith(ALWAYS_OPEN_SUPPORT)
+    return path in ALWAYS_OPEN or path.startswith(ALWAYS_OPEN_PREFIX) or path.startswith(ALWAYS_OPEN_SUPPORT) or path.startswith(ALWAYS_OPEN_PAY)
 
 
 class ShopAccessMiddleware:

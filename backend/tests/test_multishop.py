@@ -24,7 +24,7 @@ class SwitchTests(SimpleTestCase):
         self.assertIn('backend', settings.TENANT_APPS)             # and every new shop gets the same tables
 
     def test_prices(self):
-        self.assertEqual(settings.PLAN_PRICES, {'monthly': 700, 'yearly': 8000})
+        self.assertEqual(settings.PLAN_PRICES, {'monthly': 500, 'yearly': 5000})
 
 
 @skipUnless(settings.MULTI_SHOP, 'many shops is switched off')

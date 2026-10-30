@@ -104,10 +104,41 @@ class SiteSetting(models.Model):
     shop_notice = models.CharField(max_length=200, blank=True, default='')      # shown at the top of every shop
     price_monthly = models.PositiveIntegerField(null=True, blank=True)
     price_yearly = models.PositiveIntegerField(null=True, blank=True)
+    upi_id = models.CharField(max_length=80, blank=True, default='')           # where shops pay by UPI, e.g. medsync@okhdfcbank
+    upi_name = models.CharField(max_length=40, blank=True, default='')         # the name shown in the payer's UPI app
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return 'Website settings'
+
+
+class PlanOrder(models.Model):
+    """A shop's wish to pay for a plan: through Razorpay (paid at once) or by UPI (the owner types the UPI reference and the
+    platform owner approves it once the money is seen). A paid order is linked to the Payment it created."""
+    PLANS = [('monthly', 'Monthly'), ('yearly', 'Yearly')]
+    METHODS = [('razorpay', 'Online (Razorpay)'), ('upi', 'UPI')]
+    STATUSES = [('created', 'Started'), ('waiting', 'Waiting for approval'), ('paid', 'Paid'), ('rejected', 'Rejected'),
+                ('cancelled', 'Cancelled')]
+
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='orders')
+    plan = models.CharField(max_length=10, choices=PLANS)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)                # rupees, GST included
+    method = models.CharField(max_length=10, choices=METHODS)
+    status = models.CharField(max_length=10, choices=STATUSES, default='created')
+    reference = models.CharField(max_length=20, unique=True)                      # short code the payer sees, e.g. MS7K2Q9XAB
+    razorpay_order_id = models.CharField(max_length=40, blank=True, default='', db_index=True)
+    razorpay_payment_id = models.CharField(max_length=40, blank=True, default='')
+    utr = models.CharField(max_length=25, blank=True, default='')                 # the UPI reference the owner typed
+    note = models.CharField(max_length=200, blank=True, default='')               # who approved, or why it was rejected
+    payment = models.ForeignKey(Payment, null=True, blank=True, on_delete=models.SET_NULL, related_name='orders')
+    created_at = models.DateTimeField(auto_now_add=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+
+    def __str__(self):
+        return f'{self.shop} {self.get_plan_display()} {self.amount} ({self.get_status_display()})'
 
 
 class Ticket(models.Model):

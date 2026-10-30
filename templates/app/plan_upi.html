@@ -1,0 +1,24 @@
+{% extends "app/base.html" %}
+{% block title %}Pay by UPI{% endblock %}
+{% block content %}
+<div class="head"><h1>📲 Pay by UPI</h1><a class="btn ghost" href="{% url 'plan' %}">&larr; Back</a></div>
+<div class="card" style="margin-bottom:14px;max-width:640px">
+  <h3 style="margin-top:0">Step 1: pay Rs {{ order.amount|floatformat:0 }} ({{ order.get_plan_display }} plan, GST included)</h3>
+  {% if qr_svg %}<div style="text-align:center;margin:8px 0">{{ qr_svg }}<p style="margin:4px 0 0;color:var(--mute);font-size:13px">Scan with any UPI app (PhonePe, Google Pay, Paytm, BHIM ...)</p></div>{% endif %}
+  <p style="margin:10px 0 4px">Or pay to this UPI ID: <b style="user-select:all">{{ upi_id }}</b> ({{ upi_name }})</p>
+  <p style="margin:0 0 4px">Amount: <b>Rs {{ order.amount|floatformat:2 }}</b></p>
+  <p style="margin:0 0 10px;color:var(--mute)">Payment note / reference: <b>MedSync {{ order.get_plan_display }} {{ order.reference }}</b></p>
+  <p style="margin:0"><a class="btn" href="{{ link }}">Open my UPI app (on a phone)</a></p>
+</div>
+<div class="card" style="max-width:640px">
+  <h3 style="margin-top:0">Step 2: type the UPI reference number</h3>
+  <p style="margin:0 0 10px;color:var(--mute)">After paying, your app shows a 12-digit number called <b>UPI Ref No.</b>, <b>UTR</b> or <b>Transaction ID</b>. Type it here, so we can find your payment.</p>
+  {% if error %}<div class="msg error" role="alert">{{ error }}</div>{% endif %}
+  <form method="post" style="display:flex;flex-wrap:wrap;gap:10px;align-items:end">{% csrf_token %}
+    <div style="flex:1 1 220px"><label for="utr">UPI reference number (12 digits)</label>
+    <input id="utr" name="utr" value="{{ utr }}" inputmode="numeric" maxlength="20" autocomplete="off" required></div>
+    <button class="btn">I have paid</button>
+  </form>
+  <form method="post" action="{% url 'plan_order_cancel' order.pk %}" style="margin-top:14px" data-confirm="Cancel this payment?" data-confirm-yes="Yes, cancel">{% csrf_token %}<button class="btn ghost sm">Cancel this payment</button></form>
+</div>
+{% endblock %}

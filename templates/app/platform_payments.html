@@ -1,0 +1,23 @@
+{% extends "app/platform_base.html" %}
+{% block title %}Payments{% endblock %}
+{% block nav_pay %} on{% endblock %}
+{% block content %}
+<h1>Payments</h1>
+<p class="sub">UPI payments that shops say they made. Check your bank or UPI app for the amount and the reference number, then approve. Approving extends the shop's plan.</p>
+<h2>Waiting for approval ({{ waiting|length }})</h2>
+<div class="tw"><table style="min-width:760px">
+<thead><tr><th>Shop</th><th>Plan</th><th class="num">Amount</th><th>UPI reference (UTR)</th><th>Order ref</th><th>Sent</th><th></th></tr></thead>
+<tbody>{% for o in waiting %}<tr>
+<td><a href="{% url 'platform_shop' o.shop_id %}"><b>{{ o.shop.name }}</b></a></td><td>{{ o.get_plan_display }}</td><td class="num">Rs {{ o.amount|floatformat:2 }}</td>
+<td><b style="user-select:all">{{ o.utr }}</b></td><td>{{ o.reference }}</td><td>{{ o.created_at|date:"d M, H:i" }}</td>
+<td style="min-width:250px"><form method="post" action="{% url 'platform_payment_approve' o.pk %}" style="display:inline" data-confirm="Approve Rs {{ o.amount|floatformat:0 }} from {{ o.shop.name }}? Their plan will be extended." data-confirm-yes="Yes, approve">{% csrf_token %}<button>Approve</button></form>
+<form method="post" action="{% url 'platform_payment_reject' o.pk %}" style="display:flex;gap:6px;margin-top:6px">{% csrf_token %}<input name="reason" placeholder="Reason (optional)" style="width:150px"><button class="gray">Reject</button></form></td>
+</tr>{% empty %}<tr><td colspan="7" class="mut">Nothing is waiting.</td></tr>{% endfor %}</tbody></table></div>
+<h2 style="margin-top:22px">Recent</h2>
+<div class="tw"><table style="min-width:760px">
+<thead><tr><th>Shop</th><th>Plan</th><th class="num">Amount</th><th>How</th><th>Status</th><th>Note</th><th>Date</th></tr></thead>
+<tbody>{% for o in recent %}<tr>
+<td>{{ o.shop.name }}</td><td>{{ o.get_plan_display }}</td><td class="num">Rs {{ o.amount|floatformat:2 }}</td><td>{{ o.get_method_display }}</td>
+<td>{{ o.get_status_display }}</td><td class="mut">{{ o.note }}</td><td>{{ o.decided_at|default:o.created_at|date:"d M Y" }}</td>
+</tr>{% empty %}<tr><td colspan="7" class="mut">No payments yet.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

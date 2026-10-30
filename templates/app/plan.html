@@ -10,10 +10,32 @@
 </div>
 <div class="card" style="margin-bottom:14px">
   <h3 style="margin-top:0">Prices</h3>
-  <p style="margin:0 0 6px">Monthly: <b>Rs {{ prices.monthly }}</b> a month. Yearly: <b>Rs {{ prices.yearly }}</b> a year{% if saving %}, which saves Rs {{ saving }}{% endif %}.</p>
-  <p style="margin:0 0 10px;color:var(--mute)">Every plan has every feature. Your data is never deleted when a plan ends.</p>
-  <p style="margin:0 0 6px"><b>To continue or renew, contact us:</b></p>
-  <p style="margin:0">{% if whatsapp %}<a class="btn" href="{{ whatsapp }}" target="_blank" rel="noopener">Message us on WhatsApp</a> {% endif %}{% if contact_email %}<a class="btn ghost" href="mailto:{{ contact_email }}">Email {{ contact_email }}</a>{% endif %}{% if not whatsapp and not contact_email %}Please contact MedSync. We will record your payment and extend your plan the same day.{% endif %}</p>
+  <p style="margin:0 0 6px">Monthly: <b>Rs {{ prices.monthly }}</b> a month. Yearly: <b>Rs {{ prices.yearly }}</b> a year{% if saving %}, which saves Rs {{ saving }}{% endif %}. Prices include GST.</p>
+  <p style="margin:0;color:var(--mute)">Every plan has every feature. Your data is never deleted when a plan ends.</p>
+</div>
+{% for o in orders %}<div class="msg info" style="margin-bottom:14px">{% if o.status == 'waiting' %}⏳ Your UPI payment of <b>Rs {{ o.amount|floatformat:0 }}</b> ({{ o.get_plan_display }}, number {{ o.utr }}) is waiting for approval. We will extend your plan as soon as we see it.{% elif o.status == 'rejected' %}❌ We could not find your UPI payment {{ o.utr }}{% if o.note %}: {{ o.note }}{% endif %}. Please check the number and pay again, or write to us.{% else %}⏳ A UPI payment of <b>Rs {{ o.amount|floatformat:0 }}</b> ({{ o.get_plan_display }}) was started. <a href="{% url 'plan_upi' o.pk %}">Continue</a>{% endif %}</div>{% endfor %}
+{% if razorpay_on or upi_on %}
+<div class="card" style="margin-bottom:14px">
+  <h3 style="margin-top:0">Pay now</h3>
+  <p style="margin:0 0 10px;color:var(--mute)">Choose a plan. Your plan is extended as soon as the payment is confirmed. If you pay before it ends, the new period starts after the current one.</p>
+  <div style="display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">
+  {% for plan, label, price in plans %}
+    <div style="border:1px solid var(--line);border-radius:10px;padding:12px 14px">
+      <b>{{ label }}</b> &middot; Rs {{ price }}{% if plan == 'yearly' and saving %} <span class="badge green">saves Rs {{ saving }}</span>{% endif %}
+      <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px">
+        {% if razorpay_on %}<button type="button" class="btn" data-pay-online="{{ plan }}">Pay online</button>{% endif %}
+        {% if upi_on %}<form method="post" action="{% url 'plan_upi_start' %}" style="display:inline">{% csrf_token %}<input type="hidden" name="plan" value="{{ plan }}"><button class="btn ghost">Pay by UPI</button></form>{% endif %}
+      </div>
+    </div>
+  {% endfor %}
+  </div>
+  {% if razorpay_on %}<p style="margin:10px 0 0;color:var(--mute);font-size:13px">Online payment accepts UPI, cards and net banking through Razorpay.</p>{% endif %}
+  <form id="payform" style="display:none">{% csrf_token %}</form>
+</div>
+{% endif %}
+<div class="card" style="margin-bottom:14px">
+  <p style="margin:0 0 6px"><b>Need help with a payment or want a receipt?</b></p>
+  <p style="margin:0">{% if whatsapp %}<a class="btn" href="{{ whatsapp }}" target="_blank" rel="noopener">Message us on WhatsApp</a> {% endif %}{% if contact_email %}<a class="btn ghost" href="mailto:{{ contact_email }}">Email {{ contact_email }}</a>{% endif %}{% if not whatsapp and not contact_email %}Please write to us from Support tickets in the menu.{% endif %}</p>
 </div>
 <div class="card">
   <h3 style="margin-top:0">Payments received</h3>
@@ -24,3 +46,29 @@
   </table></div>
 </div>
 {% endblock %}
+{% block scripts %}{% if razorpay_on %}<script>
+(function(){
+  var form=document.getElementById('payform'); if(!form) return;
+  var token=form.querySelector('input[name=csrfmiddlewaretoken]').value;
+  function post(url,data){return fetch(url,{method:'POST',credentials:'same-origin',headers:{'X-CSRFToken':token,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(data)}).then(function(r){return r.json();});}
+  function say(t,title){if(window.appAlert){appAlert(t,{title:title||'Payment'});}}
+  function loadCheckout(){return new Promise(function(ok,fail){if(window.Razorpay)return ok();var s=document.createElement('script');s.src='https://checkout.razorpay.com/v1/checkout.js';s.onload=ok;s.onerror=fail;document.head.appendChild(s);});}
+  document.querySelectorAll('[data-pay-online]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      btn.disabled=true;
+      post('{% url "plan_online_start" %}',{plan:btn.getAttribute('data-pay-online')}).then(function(o){
+        if(!o.ok){btn.disabled=false;say(o.error||'We could not start the payment.');return;}
+        return loadCheckout().then(function(){
+          var rz=new Razorpay({key:o.key,amount:o.amount,currency:o.currency,name:o.name,description:o.description,order_id:o.order_id,prefill:o.prefill,theme:{color:'#0f9d8a'},
+            modal:{ondismiss:function(){btn.disabled=false;}},
+            handler:function(r){post('{% url "plan_online_verify" %}',{razorpay_order_id:r.razorpay_order_id,razorpay_payment_id:r.razorpay_payment_id,razorpay_signature:r.razorpay_signature}).then(function(v){
+              if(v.ok){location.reload();}else{btn.disabled=false;say(v.error||'We could not confirm the payment.');}
+            }).catch(function(){btn.disabled=false;say('We could not confirm the payment. If money was taken, it will be added shortly, or write to us.');});}});
+          rz.on('payment.failed',function(e){btn.disabled=false;say((e&&e.error&&e.error.description)||'The payment failed. You were not charged.','Payment failed');});
+          rz.open();
+        });
+      }).catch(function(){btn.disabled=false;say('We could not reach the payment service. Please try again.');});
+    });
+  });
+})();
+</script>{% endif %}{% endblock %}

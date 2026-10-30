@@ -258,7 +258,12 @@ SIGNUP_SKIP_EMAIL = env_bool('SIGNUP_SKIP_EMAIL', False)   # TESTING ONLY: no em
 # Sign in / sign up with Google (main site only, needs MULTI_SHOP=1). Both values come from Google Cloud Console (see README). Empty = no Google button.
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '').strip()
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '').strip()
-PLAN_PRICES = {'monthly': 700, 'yearly': 8000}                       # rupees
+
+# Online payment of plans with Razorpay (main site + shops, needs MULTI_SHOP=1). Empty keys = no "Pay online" button (UPI still works).
+RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID', '').strip()
+RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET', '').strip()
+RAZORPAY_WEBHOOK_SECRET = os.environ.get('RAZORPAY_WEBHOOK_SECRET', '').strip()
+PLAN_PRICES = {'monthly': 500, 'yearly': 5000}                       # rupees
 
 if MULTI_SHOP:
     if not os.environ.get('DB_NAME'):

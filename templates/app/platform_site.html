@@ -21,6 +21,12 @@
 <input id="price_yearly" name="price_yearly" inputmode="numeric" value="{{ values.price_yearly|default_if_none:'' }}" placeholder="{{ standard.yearly }}" style="width:100%"></div>
 </div>
 <p class="mut" style="margin:0">Leave a price blank to use the standard price (Rs {{ standard.monthly }} a month, Rs {{ standard.yearly }} a year). A new price applies to the home page, the sign-up page and the payment form. Shops that already paid keep their dates.</p>
+<div><label for="upi_id">UPI ID for shops that pay by UPI (leave blank to switch UPI payment off)</label>
+<input id="upi_id" name="upi_id" value="{{ values.upi_id|default_if_none:'' }}" placeholder="medsync@okhdfcbank" autocapitalize="none" spellcheck="false" style="width:100%"></div>
+<div><label for="upi_name">Name shown in the payer's UPI app</label>
+<input id="upi_name" name="upi_name" maxlength="40" value="{{ values.upi_name|default_if_none:'' }}" placeholder="MedSync" style="width:100%">
+<p class="mut" style="margin:4px 0 0">A shop sees a QR code and this UPI ID with the amount, pays, and types the UPI reference number. You approve it under <a href="{% url 'platform_payments' %}">Payments</a>.</p></div>
+<p class="mut" style="margin:0">Online payment (Razorpay): <b>{% if razorpay_on %}switched on{% else %}off{% endif %}</b>. It is switched on by putting the Razorpay keys in the server <code>.env</code> (see the README).</p>
 <div><button>Save settings</button> <a class="btn line" href="{% url 'platform' %}">Back to shops</a></div>
 </form>
 {% endblock %}

@@ -137,7 +137,14 @@ def clean_site_form(post):
         else:
             prices[key] = None
             errors.append(f'The {label} price must be a whole number of rupees between 100 and 1,00,000.')
-    return dict(whatsapp=number, contact_email=email, announcement=notice, shop_notice=shop_notice, **prices), errors
+    upi_id = (post.get('upi_id') or '').strip()
+    if upi_id and not re.fullmatch(r'[A-Za-z0-9._\-]{2,64}@[A-Za-z][A-Za-z0-9]{1,30}', upi_id):
+        errors.append('The UPI ID looks wrong. It should look like name@bank, for example medsync@okhdfcbank.')
+    upi_name = ' '.join((post.get('upi_name') or '').split())
+    if len(upi_name) > 40 or not re.fullmatch(r"[A-Za-z0-9 .&'\-]*", upi_name):
+        errors.append('The name shown to the payer can have letters, digits and spaces, at most 40 characters.')
+    return dict(whatsapp=number, contact_email=email, announcement=notice, shop_notice=shop_notice, upi_id=upi_id,
+                upi_name=upi_name, **prices), errors
 
 
 def is_unknown_shop_host(host, base):

@@ -19,7 +19,7 @@ from django.views.decorators.http import require_POST
 
 from backend import backup, tenancy
 
-from . import site
+from . import billing, site
 from .models import LoginToken, Payment, PendingSignup, Shop
 
 log = logging.getLogger(__name__)
@@ -177,7 +177,7 @@ def shop_detail(request, pk):
 
 
 def _log(shop, text):
-    shop.notes = f'{timezone.localdate():%Y-%m-%d}: {text}\n{shop.notes}'
+    billing.log_note(shop, text)
 
 
 def _money(raw, default):
@@ -201,12 +201,8 @@ def _apply(request, shop, today):
         if plan not in ('monthly', 'yearly'):
             raise ValueError('Choose monthly or yearly.')
         amount = _money(request.POST.get('amount'), prices()[plan])
-        start = max(today, shop.paid_until or today)       # a payment made before the end of a period extends it
-        end = tenancy.add_months(start, 1 if plan == 'monthly' else 12)
-        Payment.objects.create(shop=shop, plan=plan, amount=amount, paid_on=today, period_from=start, period_to=end,
-                               note=(request.POST.get('note') or '').strip()[:200])
-        shop.plan, shop.paid_until = plan, end
-        _log(shop, f'payment Rs {amount} for {plan} plan, paid until {end:%d %b %Y}')
+        payment = billing.record_payment(shop, plan, amount, today, (request.POST.get('note') or '').strip())
+        end = payment.period_to
         return f'Payment of Rs {amount} saved. The shop is paid until {end:%d %b %Y}.'
     if action == 'trial':
         if shop.plan != 'trial':
@@ -336,4 +332,5 @@ def site_settings(request):
             site.save(values)
             messages.success(request, 'Website settings saved. The home page shows them within a minute.')
             return redirect('platform_site')
-    return render(request, 'app/platform_site.html', dict(values=values, standard=settings.PLAN_PRICES))
+    from . import razorpay
+    return render(request, 'app/platform_site.html', dict(values=values, standard=settings.PLAN_PRICES, razorpay_on=razorpay.configured()))

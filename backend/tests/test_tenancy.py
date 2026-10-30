@@ -121,12 +121,22 @@ class SiteFormTests(SimpleTestCase):
                                                       announcement='  Offer   today ', price_monthly='1,000', price_yearly='9000'))
         self.assertEqual(errors, [])
         self.assertEqual(values, dict(whatsapp='919876543210', contact_email='a@b.com', announcement='Offer today',
-                                      shop_notice='', price_monthly=1000, price_yearly=9000))
+                                      shop_notice='', price_monthly=1000, price_yearly=9000,
+                                      upi_id='', upi_name=''))
 
     def test_blank_fields_hide_things_and_blank_prices_mean_standard(self):
         values, errors = tenancy.clean_site_form({})
         self.assertEqual(errors, [])
-        self.assertEqual(values, dict(whatsapp='', contact_email='', announcement='', shop_notice='', price_monthly=None, price_yearly=None))
+        self.assertEqual(values, dict(whatsapp='', contact_email='', announcement='', shop_notice='', price_monthly=None, price_yearly=None,
+                                      upi_id='', upi_name=''))
+
+    def test_the_upi_id_and_name_are_checked(self):
+        values, errors = tenancy.clean_site_form(dict(upi_id=' medsync@okhdfcbank ', upi_name='  Med   Sync '))
+        self.assertEqual((errors, values['upi_id'], values['upi_name']), ([], 'medsync@okhdfcbank', 'Med Sync'))
+        for bad in ('medsync', '@bank', 'a b@bank', 'name@', 'name@1bank', 'x' * 70 + '@okbank', 'a@b@c', 'name@bank&x=1'):
+            self.assertTrue(tenancy.clean_site_form(dict(upi_id=bad))[1], bad)
+        for bad in ('<b>x</b>', 'a' * 41, 'Med&amp;Sync;'):
+            self.assertTrue(tenancy.clean_site_form(dict(upi_name=bad))[1], bad)
 
     def test_bad_entries_give_one_message_each(self):
         _, errors = tenancy.clean_site_form(dict(whatsapp='abc', contact_email='x', announcement='y' * 201,

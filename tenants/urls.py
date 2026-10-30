@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import google, mainlogin, maintenance_admin, plan, platform, server_admin, support, supportadmin, views
+from . import google, mainlogin, maintenance_admin, payadmin, payshop, plan, platform, server_admin, support, supportadmin, views
 
 urlpatterns = [
     path('signup/', views.signup, name='signup'),
@@ -9,6 +9,15 @@ urlpatterns = [
     path('auth/google/callback/', google.callback, name='google_callback'),
     path('sso/<str:token>/', mainlogin.sso, name='sso'),
     path('plan/', plan.plan, name='plan'),
+    path('plan/pay/online/', payshop.online_start, name='plan_online_start'),
+    path('plan/pay/online/verify/', payshop.online_verify, name='plan_online_verify'),
+    path('plan/pay/upi/', payshop.upi_start, name='plan_upi_start'),
+    path('plan/pay/upi/<int:pk>/', payshop.upi_page, name='plan_upi'),
+    path('plan/pay/<int:pk>/cancel/', payshop.order_cancel, name='plan_order_cancel'),
+    path('razorpay/webhook/', payadmin.razorpay_webhook, name='razorpay_webhook'),
+    path('superadmin/payments/', payadmin.payments, name='platform_payments'),
+    path('superadmin/payments/<int:pk>/approve/', payadmin.approve, name='platform_payment_approve'),
+    path('superadmin/payments/<int:pk>/reject/', payadmin.reject, name='platform_payment_reject'),
     path('superadmin/', platform.dashboard, name='platform'),
     path('support/', support.ticket_list, name='support'),
     path('support/<int:pk>/', support.ticket_detail, name='support_ticket'),

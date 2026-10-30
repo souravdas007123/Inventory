@@ -75,6 +75,16 @@ def _count_tickets(request, user, platform=False):
         return 0
 
 
+def _count_waiting_payments(user):
+    """UPI payments waiting for the platform owner's approval (0 for others, or when unreadable)."""
+    try:
+        from tenants.models import PlanOrder
+        from tenants.platform import is_platform_admin
+        return PlanOrder.objects.filter(status='waiting').count() if is_platform_admin(user) else 0
+    except Exception:
+        return 0
+
+
 def template_context(request):
     """Adds `is_owner` and the menu (only what this user may open) to every template."""
     user = request.user
@@ -82,7 +92,7 @@ def template_context(request):
     from . import tenancy
     ctx = {'is_owner': is_owner(user), 'nav': nav_for(user), 'shop_note': tenancy.shop_note(request),
            'platform_url': tenancy.platform_panel_url(user), 'platform_notice': ''}
-    ctx['support_unread'] = ctx['open_tickets'] = 0
+    ctx['support_unread'] = ctx['open_tickets'] = ctx['payments_waiting'] = 0
     ctx['maintenance_banner'] = ctx['maintenance_bar'] = ''
     if tenancy.on_shop_site():
         from tenants import maintenance, site
@@ -91,6 +101,7 @@ def template_context(request):
         ctx['support_unread'] = _count_tickets(request, user)
     elif getattr(settings, 'MULTI_SHOP', False) and tenancy.is_platform() and user.is_authenticated:
         ctx['open_tickets'] = _count_tickets(request, user, platform=True)
+        ctx['payments_waiting'] = _count_waiting_payments(user)
         from tenants import maintenance
         ctx['maintenance_bar'] = maintenance.platform_bar()
     return ctx
