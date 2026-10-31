@@ -648,6 +648,8 @@ def last_purchase(request):
         sid = int(request.GET.get('supplier', ''))
     except (TypeError, ValueError):
         return JsonResponse({'found': False})
+    if not 0 < sid < 2 ** 62:                  # a number too big for the database column: no such supplier (SQLite would raise an error)
+        return JsonResponse({'found': False})
     p = Purchase.objects.filter(supplier_id=sid).order_by('-invoice_date', '-id').first()
     if not p:
         return JsonResponse({'found': False})

@@ -4,7 +4,6 @@ import re
 from datetime import timedelta
 from urllib.parse import quote
 
-from django.conf import settings
 from django.http import Http404
 from django.utils import timezone
 

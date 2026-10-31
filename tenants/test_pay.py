@@ -978,6 +978,12 @@ class InvoiceMakingTests(PayTestBase):
         inv.refresh_from_db()
         self.assertEqual((inv.seller_name, inv.seller_gstin, inv.buyer_name, inv.buyer_country, inv.kind), ('Socialfly Test', '19AABCU9603R1ZK', 'Sharma Medical', 'IN', 'cgst_sgst'))
 
+    def test_the_invoice_uses_the_saved_seller_details_not_a_cached_copy(self):
+        site.current()                                                                           # warms the 60-second cache
+        SiteSetting.objects.filter(pk=1).update(seller_name='Changed Directly', seller_gstin='')   # a change that did not clear the cache
+        inv = self.pay()
+        self.assertEqual((inv.seller_name, inv.kind), ('Changed Directly', 'none'))
+
     def test_every_way_of_paying_makes_one_invoice(self):
         o = self.order(status='waiting', utr='401234567890')
         billing.settle(o.pk, 'UPI approved', allowed=('waiting',))
@@ -1159,6 +1165,16 @@ class PlatformInvoiceListTests(PayTestBase):
         self.assertEqual(len(rows), 3)
         self.assertEqual((rows[1][0], rows[1][6], rows[1][7], rows[1][8], rows[1][9], rows[1][10], rows[1][11]), ('MS/2026-27/0001', 'CGST + SGST', '423.74', '38.13', '38.13', '0.00', '500.00'))
         self.assertEqual((rows[2][3], rows[2][4], rows[2][6], rows[2][8]), ('DE1', 'Germany', 'Export (zero-rated)', '0.00'))
+
+    def test_a_customer_name_cannot_become_an_excel_formula(self):
+        from datetime import date
+        self.make(date(2026, 10, 5), bill_name='=HYPERLINK("http://evil.example","click")', bill_tax_id='@SUM(1)')
+        import csv
+        import io
+        r = self.client.get('/superadmin/invoices/csv/?month=2026-10')
+        row = list(csv.reader(io.StringIO(r.content.decode('utf-8-sig'))))[1]
+        self.assertTrue(row[2].startswith("'="), row[2])
+        self.assertTrue(row[3].startswith("'@"), row[3])
 
     def test_the_menu_has_the_invoices_link(self):
         self.assertContains(self.client.get('/superadmin/invoices/'), 'href="/superadmin/invoices/"')

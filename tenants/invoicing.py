@@ -4,7 +4,7 @@ from django.conf import settings
 from django.db import transaction
 
 from . import gst, site
-from .models import Invoice, InvoiceCounter
+from .models import Invoice, InvoiceCounter, SiteSetting
 
 PLAN_NAME = {'monthly': 'Monthly', 'yearly': 'Yearly'}
 
@@ -39,18 +39,29 @@ def billing_ready(shop):
     return bool(shop.bill_name and shop.bill_address and shop.bill_country and (shop.bill_country != 'IN' or shop.bill_state))
 
 
-def split_for(shop, total):
-    """The tax split a payment of `total` by this shop would get (also used by the popup before paying)."""
-    seller = site.current()
+SELLER_FIELDS = ('seller_name', 'seller_address', 'seller_gstin', 'seller_lut', 'seller_sac')
+
+
+def seller_now():
+    """The seller details read straight from the database (never from the 60-second cache): an invoice is a legal paper and
+    must carry what is saved at this moment."""
+    row = SiteSetting.objects.filter(pk=1).first()
+    return {f: (getattr(row, f) if row else '') for f in SELLER_FIELDS}
+
+
+def split_for(shop, total, seller=None):
+    """The tax split a payment of `total` by this shop would get (also used by the popup before paying, which may use the
+    cached seller details)."""
+    seller = seller if seller is not None else site.current()
     buyer = buyer_of(shop)
     state = buyer['state'] or gst.state_of(seller.get('seller_gstin'))       # state unknown: the seller's own state
     return gst.tax_for(total, seller.get('seller_gstin') or '', buyer['country'], state)
 
 
 def create_invoice(shop, payment, plan, amount, today):
-    seller = site.current()
+    seller = seller_now()
     buyer = buyer_of(shop)
-    parts = split_for(shop, amount)
+    parts = split_for(shop, amount, seller)
     number, fy = next_number(today)
     return Invoice.objects.create(
         number=number, fy=fy, date=today, shop=shop, payment=payment, plan=plan,

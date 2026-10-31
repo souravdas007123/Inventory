@@ -4,14 +4,14 @@ import csv
 import re
 from datetime import date
 
-from django.conf import settings
 from django.contrib import messages
-from django.http import Http404, HttpResponse
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from backend import access
+from backend.dataexport import safe
 
 from . import gst
 from .models import Invoice, Shop
@@ -96,6 +96,7 @@ def invoices_csv(request):
     w.writerow(['Invoice no', 'Date', 'Customer', 'Customer GSTIN / tax no', 'Country', 'Place of supply (state code)', 'Kind', 'Taxable value',
                 'CGST', 'SGST', 'IGST', 'Total', 'Plan', 'From', 'To'])
     for r in Invoice.objects.filter(date__gte=first, date__lt=nxt).order_by('date', 'id'):
-        w.writerow([r.number, r.date.isoformat(), r.buyer_name, r.buyer_tax_id, gst.country_name(r.buyer_country), r.buyer_state,
+        # the customer typed the name and tax number: a cell that starts with = + - @ must never run as an Excel formula
+        w.writerow([r.number, r.date.isoformat(), safe(r.buyer_name), safe(r.buyer_tax_id), gst.country_name(r.buyer_country), r.buyer_state,
                     r.get_kind_display(), r.taxable, r.cgst, r.sgst, r.igst, r.total, r.plan, r.period_from.isoformat(), r.period_to.isoformat()])
     return response
