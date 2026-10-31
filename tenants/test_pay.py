@@ -13,6 +13,7 @@ from urllib.parse import parse_qs, urlparse
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core import mail
+from django.core.management.base import CommandError
 from django.core.cache import cache
 from django.test import SimpleTestCase, TestCase, modify_settings, override_settings
 from django.utils import timezone
@@ -1192,3 +1193,80 @@ class SellerSettingsTests(PayTestBase):
     def test_leaving_the_gst_number_blank_is_allowed(self):
         self.client.post('/superadmin/site/', dict(self.GOOD, seller_gstin=''))
         self.assertEqual(SiteSetting.objects.get(pk=1).seller_gstin, '')
+
+
+@skipUnless(HAS_TENANTS, 'needs the tenants app (many shops on)')
+class ClearTestInvoicesTests(PayTestBase):
+    def setUp(self):
+        super().setUp()
+        self.before = timezone.now() - timedelta(days=2)
+        self.cut = (timezone.localdate() - timedelta(days=1)).isoformat()            # yesterday: the test things below are older than this
+        self.old = self.pay()
+        self.order(status='paid', method='razorpay')
+        self.ap = AutoPay.objects.create(shop=self.shop, plan='monthly', amount=Decimal('500'), razorpay_subscription_id='sub_TEST', status='cancelled')
+        self.age()
+
+    def pay(self):
+        with transaction_atomic():
+            payment = billing.record_payment(self.shop, 'monthly', Decimal('500'), self.today, '')
+            self.shop.save()
+        return payment.invoice
+
+    def age(self):
+        """Makes everything that exists now look as if it was made two days ago."""
+        for model in (Invoice, PlanOrder, AutoPay):
+            model.objects.update(created_at=self.before)
+        from tenants.models import Payment
+        Payment.objects.update(created_at=self.before)
+
+    def run_cmd(self, *args):
+        from io import StringIO
+
+        from django.core.management import call_command
+        out = StringIO()
+        call_command('clear_test_invoices', *args, stdout=out)
+        return out.getvalue()
+
+    def test_without_yes_it_only_shows_what_would_go(self):
+        text = self.run_cmd('--before', self.cut)
+        self.assertIn('invoices 1, payments 1, payment orders 1, autopay records 1', text)
+        self.assertIn('only a preview', text)
+        self.assertIn('Sharma Medical', text)
+        self.assertEqual((Invoice.objects.count(), PlanOrder.objects.count(), AutoPay.objects.count()), (1, 1, 1))
+
+    def test_yes_removes_the_old_data_and_the_numbers_start_again(self):
+        first = self.old.number
+        text = self.run_cmd('--before', self.cut, '--yes')
+        self.assertIn('Removed', text)
+        self.assertEqual((Invoice.objects.count(), PlanOrder.objects.count(), AutoPay.objects.count(), self.shop.payments.count(), InvoiceCounter.objects.count()), (0, 0, 0, 0, 0))
+        self.assertEqual(self.pay().number, first)                                    # 0001 again
+
+    def test_later_data_and_the_shops_are_never_touched(self):
+        Shop.objects.filter(pk=self.shop.pk).update(plan='monthly', paid_until=self.today + timedelta(days=30))
+        newer = self.pay()                                                            # made now, after the cut
+        with self.assertRaises(CommandError):                                            # a real invoice of the same year stays: nothing removed
+            self.run_cmd('--before', self.cut, '--yes')
+        self.assertEqual(Invoice.objects.count(), 2)
+        text = self.run_cmd('--before', self.cut, '--yes', '--allow-gaps')
+        self.assertEqual(list(Invoice.objects.values_list('number', flat=True)), [newer.number])
+        self.assertEqual(InvoiceCounter.objects.get().last, int(newer.number[-4:]))      # numbers go on after the invoice that stays
+        self.assertIn(newer.number[:-4], text)
+        self.shop.refresh_from_db()
+        self.assertEqual(self.shop.plan, 'monthly')                                  # the shop keeps its plan
+        self.assertEqual(self.shop.payments.count(), 1)
+
+    def test_a_wrong_or_future_day_is_refused(self):
+        for bad in ('tomorrow', '2026-13-40', (timezone.localdate() + timedelta(days=3)).isoformat()):
+            with self.assertRaises(CommandError):
+                self.run_cmd('--before', bad, '--yes')
+        self.assertEqual(Invoice.objects.count(), 1)
+        with self.assertRaises(CommandError):
+            self.run_cmd('--yes')                                                     # --before is needed
+
+    def test_a_time_of_day_can_be_given(self):
+        cut = (timezone.localtime() - timedelta(hours=1)).strftime('%Y-%m-%d %H:%M')
+        self.assertIn('invoices 1', self.run_cmd('--before', cut))
+
+    def test_an_autopay_still_active_gets_a_warning(self):
+        AutoPay.objects.filter(pk=self.ap.pk).update(status='active')
+        self.assertIn('still active at Razorpay', self.run_cmd('--before', self.cut))

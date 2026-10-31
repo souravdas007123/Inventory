@@ -326,6 +326,12 @@ Every payment (Razorpay autopay, UPI, or the platform owner's *Save payment* but
 **Good to know**
 * No tax rate for another country's VAT / GST is added on purpose: the Razorpay plans have one fixed amount, and charging a foreign tax needs you to be registered there. If you ever register somewhere, ask first; it needs a separate plan for that country.
 * Foreign customers: Razorpay *International Payments* must be enabled on your account, and some cards cannot be set up for autopay. For such a customer use *Save payment* in the shop's page of the platform panel; it makes the invoice too.
+* **Before the first real customer, clear the test invoices** (made while testing) so that real ones start at `MS/2026-27/0001` and your GST return has no test invoices:
+  ```
+  python manage.py clear_test_invoices --before 2026-11-02          # preview only
+  python manage.py clear_test_invoices --before 2026-11-02 --yes    # really removes
+  ```
+  Everything created before that day (or time, `"2026-11-02 18:30"`) is taken as test data: invoices, payments, payment orders and autopay records. Later data and the shops themselves are never touched (a test shop keeps its plan and paid-until date; edit it in the platform panel). Invoice numbers may not have gaps, so if a real invoice of the same financial year was made after the cut it refuses unless you add `--allow-gaps`. Stop any test autopay in the Razorpay dashboard first (the preview warns about active ones). Run it as the site user with the venv python (`./venv/bin/python manage.py ...`).
 * Payments recorded before this feature have no invoice. The SAC code and the wording on the invoices are for you and your CA to confirm.
 * Files: `tenants/gst.py`, `tenants/invoicing.py`, `tenants/invoiceviews.py`, `tenants/taxdata.py` (states and countries), `templates/app/tax_invoice.html`, `platform_invoices.html`, migration `tenants/0012`. Run `python manage.py migrate_schemas --shared` once. Tests: `tenants/test_pay.py`, `backend/tests/test_tenancy.py`.
 
