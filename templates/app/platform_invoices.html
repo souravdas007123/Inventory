@@ -1,0 +1,19 @@
+{% extends "app/platform_base.html" %}
+{% block title %}Invoices{% endblock %}
+{% block nav_inv %} on{% endblock %}
+{% block content %}
+<h1>Invoices</h1>
+<p class="sub">One tax invoice is made for every payment (online, UPI, or saved by you). Numbers run one after another in each financial year (April to March). Use the CSV for your GST return.</p>
+<form method="get" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+<label for="month" style="margin:0">Month</label><input id="month" name="month" type="month" value="{{ month }}">
+<button>Show</button> <a class="btn line" href="{% url 'platform_invoices_csv' %}?month={{ month }}">Download CSV</a></form>
+<h2>{{ month_label }} ({{ rows|length }})</h2>
+<div class="tw"><table style="min-width:820px">
+<thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Type</th><th class="num">Taxable</th><th class="num">CGST</th><th class="num">SGST</th><th class="num">IGST</th><th class="num">Total</th></tr></thead>
+<tbody>{% for r in rows %}<tr>
+<td><a href="{% url 'platform_invoice' r.pk %}"><b>{{ r.number }}</b></a></td><td>{{ r.date|date:"d M Y" }}</td><td>{{ r.buyer_name }}</td><td>{{ r.get_kind_display }}</td>
+<td class="num">{{ r.taxable }}</td><td class="num">{{ r.cgst }}</td><td class="num">{{ r.sgst }}</td><td class="num">{{ r.igst }}</td><td class="num"><b>{{ r.total }}</b></td>
+</tr>{% empty %}<tr><td colspan="9" class="mut">No invoice in this month.</td></tr>{% endfor %}</tbody>
+{% if rows %}<tfoot><tr><td colspan="4"><b>Total</b></td><td class="num">{{ totals.taxable }}</td><td class="num">{{ totals.cgst }}</td><td class="num">{{ totals.sgst }}</td><td class="num">{{ totals.igst }}</td><td class="num"><b>{{ totals.total }}</b></td></tr></tfoot>{% endif %}
+</table></div>
+{% endblock %}

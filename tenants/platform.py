@@ -332,5 +332,7 @@ def site_settings(request):
             site.save(values)
             messages.success(request, 'Website settings saved. The home page shows them within a minute.')
             return redirect('platform_site')
-    from . import razorpay
-    return render(request, 'app/platform_site.html', dict(values=values, standard=settings.PLAN_PRICES, razorpay_on=any(razorpay.available(k) for k in ('monthly', 'yearly'))))
+    from . import gst, razorpay
+    from .taxdata import INDIA_STATES
+    return render(request, 'app/platform_site.html', dict(values=values, standard=settings.PLAN_PRICES, seller_state=INDIA_STATES.get(gst.state_of(values.get('seller_gstin')), ''),
+                                                          razorpay_on=any(razorpay.available(k) for k in ('monthly', 'yearly'))))

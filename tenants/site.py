@@ -7,7 +7,8 @@ from django.core.cache import cache
 
 log = logging.getLogger(__name__)
 KEY = 'site-setting-v1'
-FIELDS = ('whatsapp', 'contact_email', 'announcement', 'shop_notice', 'price_monthly', 'price_yearly', 'upi_id', 'upi_name')
+FIELDS = ('whatsapp', 'contact_email', 'announcement', 'shop_notice', 'price_monthly', 'price_yearly', 'upi_id', 'upi_name',
+          'seller_name', 'seller_address', 'seller_gstin', 'seller_lut', 'seller_sac')
 
 
 def current():

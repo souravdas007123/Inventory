@@ -122,13 +122,13 @@ class SiteFormTests(SimpleTestCase):
         self.assertEqual(errors, [])
         self.assertEqual(values, dict(whatsapp='919876543210', contact_email='a@b.com', announcement='Offer today',
                                       shop_notice='', price_monthly=1000, price_yearly=9000,
-                                      upi_id='', upi_name=''))
+                                      upi_id='', upi_name='', seller_name='', seller_address='', seller_gstin='', seller_lut='', seller_sac=''))
 
     def test_blank_fields_hide_things_and_blank_prices_mean_standard(self):
         values, errors = tenancy.clean_site_form({})
         self.assertEqual(errors, [])
         self.assertEqual(values, dict(whatsapp='', contact_email='', announcement='', shop_notice='', price_monthly=None, price_yearly=None,
-                                      upi_id='', upi_name=''))
+                                      upi_id='', upi_name='', seller_name='', seller_address='', seller_gstin='', seller_lut='', seller_sac=''))
 
     def test_the_upi_id_and_name_are_checked(self):
         values, errors = tenancy.clean_site_form(dict(upi_id=' medsync@okhdfcbank ', upi_name='  Med   Sync '))
@@ -137,6 +137,16 @@ class SiteFormTests(SimpleTestCase):
             self.assertTrue(tenancy.clean_site_form(dict(upi_id=bad))[1], bad)
         for bad in ('<b>x</b>', 'a' * 41, 'Med&amp;Sync;'):
             self.assertTrue(tenancy.clean_site_form(dict(upi_name=bad))[1], bad)
+
+    def test_the_seller_details_for_invoices_are_checked(self):
+        values, errors = tenancy.clean_site_form(dict(seller_name='  Social   fly ', seller_address=' 1 Road \r\n\r\n Kolkata ', seller_gstin=' 19aabcu9603r1zk ',
+                                                      seller_lut=' AD1  ', seller_sac='998314'))
+        self.assertEqual(errors, [])
+        self.assertEqual((values['seller_name'], values['seller_address'], values['seller_gstin'], values['seller_lut'], values['seller_sac']),
+                         ('Social fly', '1 Road\nKolkata', '19AABCU9603R1ZK', 'AD1', '998314'))
+        for bad in (dict(seller_gstin='19AABCU9603R1ZJ'), dict(seller_gstin='123'), dict(seller_sac='12'), dict(seller_sac='abcd'), dict(seller_name='x' * 121),
+                    dict(seller_address='x' * 301), dict(seller_lut='x' * 41)):
+            self.assertTrue(tenancy.clean_site_form(bad)[1], bad)
 
     def test_bad_entries_give_one_message_each(self):
         _, errors = tenancy.clean_site_form(dict(whatsapp='abc', contact_email='x', announcement='y' * 201,

@@ -89,6 +89,7 @@ pre{white-space:pre-wrap;margin:0;font:inherit}
 <a class="nav{% block nav_shops %}{% endblock %}" href="{% url 'platform' %}">Shops</a>
 <a class="nav{% block nav_support %}{% endblock %}" href="{% url 'platform_support' %}">Support{% if open_tickets %} <b style="background:var(--amber);color:#0d2b28;border-radius:99px;padding:1px 8px;margin-left:4px">{{ open_tickets }}</b>{% endif %}</a>
 <a class="nav{% block nav_pay %}{% endblock %}" href="{% url 'platform_payments' %}">Payments{% if payments_waiting %} <b style="background:var(--amber);color:#0d2b28;border-radius:99px;padding:1px 8px;margin-left:4px">{{ payments_waiting }}</b>{% endif %}</a>
+<a class="nav{% block nav_inv %}{% endblock %}" href="{% url 'platform_invoices' %}">Invoices</a>
 <a class="nav{% block nav_maint %}{% endblock %}" href="{% url 'platform_maintenance' %}">Maintenance{% if maintenance_bar %} <b style="background:var(--amber);color:#0d2b28;border-radius:99px;padding:1px 8px;margin-left:4px">!</b>{% endif %}</a>
 <a class="nav{% block nav_server %}{% endblock %}" href="{% url 'platform_server' %}">Server health</a>
 <a class="nav{% block nav_site %}{% endblock %}" href="{% url 'platform_site' %}">Website settings</a>

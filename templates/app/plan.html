@@ -20,18 +20,33 @@
   <form method="post" action="{% url 'plan_autopay_cancel' autopay.pk %}" data-confirm="Stop the autopay? You will not be charged again. Your plan stays valid until {{ end|date:'d M Y' }}." data-confirm-yes="Yes, stop autopay">{% csrf_token %}<button class="btn ghost">Stop autopay</button></form>
 </div>{% endif %}
 {% if autopay_failed %}<div class="msg info" style="margin-bottom:14px">❌ The automatic payment of Rs {{ autopay_failed.amount|floatformat:0 }} could not be taken, so autopay was stopped. Please subscribe again or pay by UPI to continue.</div>{% endif %}
+<details class="card" style="margin-bottom:14px"{% if not billing_ready %} open{% endif %}>
+  <summary style="cursor:pointer;font-weight:700">Details for your invoice{% if billing_ready %} <span class="badge green">saved</span>{% else %} <span class="badge">needed before you pay</span>{% endif %}</summary>
+  <p style="margin:10px 0;color:var(--mut)">These go on your tax invoice. In India the state decides the tax: CGST + SGST in {{ seller_state_name|default:"the seller's state" }}, IGST in other states. Customers in other countries are charged no tax (export of service).</p>
+  <form method="post" action="{% url 'plan_billing_save' %}" style="display:grid;gap:12px;max-width:560px">{% csrf_token %}
+    <div><label for="bill_name">Name on the invoice</label><input id="bill_name" name="bill_name" maxlength="120" value="{{ bill.name }}" style="width:100%"></div>
+    <div class="grid2" style="margin:0">
+      <div><label for="bill_country">Country</label><select id="bill_country" name="bill_country" style="width:100%">{% for code, name in countries %}<option value="{{ code }}"{% if code == bill.country %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></div>
+      <div id="bill_state_box"><label for="bill_state">State (India)</label><select id="bill_state" name="bill_state" style="width:100%"><option value="">Choose the state</option>{% for code, name in states %}<option value="{{ code }}"{% if code == bill.state %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></div>
+    </div>
+    <div><label for="bill_address">Address</label><textarea id="bill_address" name="bill_address" rows="3" maxlength="300" style="width:100%">{{ bill.address }}</textarea></div>
+    <div><label for="bill_tax_id" id="bill_tax_label">GST number (optional)</label><input id="bill_tax_id" name="bill_tax_id" maxlength="30" value="{{ bill.tax_id }}" autocapitalize="characters" spellcheck="false" style="width:100%"></div>
+    <div><button class="btn">Save invoice details</button></div>
+  </form>
+</details>
 {% if razorpay_on or upi_on %}
 <div class="card" style="margin-bottom:14px">
   <h3 style="margin-top:0">Pay now</h3>
   <p style="margin:0 0 10px;color:var(--mute)">Choose a plan. You will see the full amount (price and GST) and the days it covers before you pay. If you pay before your plan ends, the new period starts after the current one.</p>
+  {% if not billing_ready %}<p class="msg info" style="margin:0 0 10px">Please save your invoice details above first. Then the pay buttons appear.</p>{% endif %}
   <div style="display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">
   {% for plan, label, price, can_autopay in plans %}
     <div style="border:1px solid var(--line);border-radius:10px;padding:12px 14px">
       <b>{{ label }}</b> &middot; Rs {{ price }}{% if plan == 'yearly' and saving %} <span class="badge green">saves Rs {{ saving }}</span>{% endif %}
-      <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px">
+      {% if billing_ready %}<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px">
         {% if razorpay_on and can_autopay %}<button type="button" class="btn" data-pay="autopay" data-plan="{{ plan }}">Subscribe (autopay)</button>{% endif %}
         {% if upi_on %}<form method="post" action="{% url 'plan_upi_start' %}" style="display:inline" data-pay-form data-plan="{{ plan }}">{% csrf_token %}<input type="hidden" name="plan" value="{{ plan }}"><button class="btn ghost">Pay by UPI (one time)</button></form>{% endif %}
-      </div>
+      </div>{% endif %}
     </div>
   {% endfor %}
   </div>
@@ -46,13 +61,23 @@
 <div class="card">
   <h3 style="margin-top:0">Payments received</h3>
   <div class="tw"><table class="t">
-    <thead><tr><th>Date</th><th>Plan</th><th>Amount</th><th>Covers</th></tr></thead>
-    {% for p in payments %}<tr><td>{{ p.paid_on|date:"d M Y" }}</td><td>{{ p.get_plan_display }}</td><td>Rs {{ p.amount|floatformat:2 }}</td><td>{{ p.period_from|date:"d M Y" }} to {{ p.period_to|date:"d M Y" }}</td></tr>
-    {% empty %}<tr><td class="empty" colspan="4">No payment has been recorded yet.</td></tr>{% endfor %}
+    <thead><tr><th>Date</th><th>Plan</th><th>Amount</th><th>Covers</th><th>Invoice</th></tr></thead>
+    {% for p in payments %}<tr><td>{{ p.paid_on|date:"d M Y" }}</td><td>{{ p.get_plan_display }}</td><td>Rs {{ p.amount|floatformat:2 }}</td><td>{{ p.period_from|date:"d M Y" }} to {{ p.period_to|date:"d M Y" }}</td><td>{% if p.invoice %}<a href="{% url 'plan_invoice' p.invoice.pk %}">{{ p.invoice.number }}</a>{% else %}-{% endif %}</td></tr>
+    {% empty %}<tr><td class="empty" colspan="5">No payment has been recorded yet.</td></tr>{% endfor %}
   </table></div>
 </div>
 {% endblock %}
-{% block scripts %}{% if razorpay_on or upi_on %}
+{% block scripts %}<script>
+(function(){
+  var c=document.getElementById('bill_country'); if(!c) return;
+  function sync(){
+    var india=c.value==='IN';
+    document.getElementById('bill_state_box').style.display=india?'':'none';
+    document.getElementById('bill_tax_label').textContent=india?'GST number (optional)':'VAT / company tax number (optional)';
+  }
+  c.addEventListener('change',sync); sync();
+})();
+</script>{% if razorpay_on or upi_on %}
 <dialog id="paysum" class="dlg msgdlg" aria-labelledby="paysum-title">
   <h3 id="paysum-title">Check your payment</h3>
   <table class="t" style="margin:0 0 10px"><tbody id="paysum-rows"></tbody></table>
@@ -69,7 +94,7 @@
   function summary(plan,autopay){
     var d=data[plan]; if(!d||typeof dlg.showModal!=='function') return Promise.resolve(true);
     rows.textContent='';
-    [['Plan',d.label+' plan'],['Duration',d.days+' days ('+d.start+' to '+d.end+')'],['Price (without GST)','Rs '+d.base],['GST ('+d.gst_percent+'%)','Rs '+d.gst],['Total to pay now','Rs '+d.total]].forEach(function(r,i,all){
+    [['Plan',d.label+' plan'],['Duration',d.days+' days ('+d.start+' to '+d.end+')']].concat(d.rows).forEach(function(r,i,all){
       var tr=document.createElement('tr'),a=document.createElement('td'),b=document.createElement('td');
       a.textContent=r[0]; b.textContent=r[1]; b.style.textAlign='right'; if(i===all.length-1){a.style.fontWeight=b.style.fontWeight='700';}
       tr.appendChild(a); tr.appendChild(b); rows.appendChild(tr);});

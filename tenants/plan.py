@@ -11,19 +11,21 @@ from django.utils import timezone
 from backend import access, tenancy
 from backend.views import page
 
-from . import billing, razorpay, site
+from . import billing, gst, invoicing, razorpay, site
+from .taxdata import COUNTRIES, INDIA_STATES
 from .models import AutoPay, PlanOrder
 from .platform import STATE_LABELS
 
 
 def _summaries(shop, price, today):
-    """What the 'before you pay' popup shows for each plan: the price split into price and GST, and the days it covers."""
+    """What the 'before you pay' popup shows for each plan: the lines of the tax split (CGST + SGST, IGST or export), the days
+    it covers and whether it renews."""
     out = {}
-    for key, months, label in (('monthly', 1, 'month'), ('yearly', 12, 'year')):
-        base, gst = billing.gst_split(price[key])
+    for key, unit in (('monthly', 'month'), ('yearly', 'year')):
         start, end = billing.period_for(shop, key, today)
-        out[key] = dict(label=billing.PLAN_LABEL[key], total=f'{price[key]:.2f}', base=f'{base:.2f}', gst=f'{gst:.2f}', gst_percent=settings.GST_PERCENT,
-                        unit=label, days=(end - start).days, start=f'{start:%d %b %Y}', end=f'{end:%d %b %Y}',
+        rows = gst.rows_for(invoicing.split_for(shop, price[key]))
+        out[key] = dict(label=billing.PLAN_LABEL[key], total=f'{price[key]:.2f}', rows=[list(r) for r in rows], unit=unit,
+                        days=(end - start).days, start=f'{start:%d %b %Y}', end=f'{end:%d %b %Y}',
                         after_current=bool(shop.paid_until and shop.paid_until > today))
     return out
 
@@ -46,7 +48,10 @@ def plan(request):
     return page(request, 'app/plan.html', active='plan', shop=shop, state=state, state_label=STATE_LABELS[state],
                 end=shop.trial_ends if on_trial else shop.paid_until, on_trial=on_trial,
                 days_left=tenancy.days_left(shop, today), prices=price, saving=saving if saving > 0 else 0,
-                whatsapp=wa, contact_email=data.get('contact_email') or '', payments=shop.payments.all()[:50],
+                billing_ready=invoicing.billing_ready(shop), seller_state_name=INDIA_STATES.get(gst.state_of(data.get('seller_gstin')), ''), countries=sorted(COUNTRIES.items(), key=lambda c: (c[0] == 'ZZ', c[0] != 'IN', c[1])),
+                states=sorted(((k, v) for k, v in INDIA_STATES.items() if k != '25'), key=lambda c: c[1]),
+                bill=dict(name=shop.bill_name or shop.name, country=shop.bill_country or 'IN', state=shop.bill_state, address=shop.bill_address, tax_id=shop.bill_tax_id),
+                whatsapp=wa, contact_email=data.get('contact_email') or '', payments=shop.payments.select_related('invoice')[:50],
                 plans=[(k, label, price[k], razorpay.available(k)) for k, label in (('monthly', 'Monthly'), ('yearly', 'Yearly'))],
                 summaries=_summaries(shop, price, today), autopay=autopay, autopay_failed=failed,
                 razorpay_on=any(razorpay.available(k) for k in ('monthly', 'yearly')) and not autopay, upi_on=bool(site.upi()),

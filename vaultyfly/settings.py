@@ -266,6 +266,7 @@ RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET', '').strip()
 RAZORPAY_WEBHOOK_SECRET = os.environ.get('RAZORPAY_WEBHOOK_SECRET', '').strip()
 RAZORPAY_PLAN_MONTHLY = os.environ.get('RAZORPAY_PLAN_MONTHLY', '').strip()
 RAZORPAY_PLAN_YEARLY = os.environ.get('RAZORPAY_PLAN_YEARLY', '').strip()
+INVOICE_PREFIX = 'MS'                                                # invoice numbers look like MS/2026-27/0001
 GST_PERCENT = 18                                                     # prices include this GST; shown split on the plan page
 PLAN_PRICES = {'monthly': 500, 'yearly': 5000}                       # rupees
 

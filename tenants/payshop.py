@@ -15,7 +15,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from backend import access, qr, tenancy
 from backend.views import page
 
-from . import billing, razorpay, site, upi
+from . import billing, invoicing, razorpay, site, upi
 from .models import AutoPay, PlanOrder
 
 log = logging.getLogger(__name__)
@@ -48,6 +48,8 @@ def autopay_start(request):
         return JsonResponse(dict(ok=False, error='Choose monthly or yearly.'), status=400)
     if not razorpay.available(plan):
         raise Http404
+    if not invoicing.billing_ready(shop):
+        return JsonResponse(dict(ok=False, error='Please save your invoice details first (on this page, under Details for your invoice).'), status=400)
     if AutoPay.objects.filter(shop=shop, status='active').exists():
         return JsonResponse(dict(ok=False, error='Autopay is already on for this shop. To change the plan, stop the autopay first.'), status=409)
     if AutoPay.objects.filter(shop=shop, created_at__gte=timezone.now() - timedelta(days=1)).count() >= MAX_ORDERS_PER_DAY:
@@ -117,6 +119,9 @@ def upi_start(request):
     plan = _plan(request)
     if not plan:
         messages.error(request, 'Choose monthly or yearly.')
+        return redirect('plan')
+    if not invoicing.billing_ready(shop):
+        messages.error(request, 'Please save your invoice details first (under Details for your invoice).')
         return redirect('plan')
     order = PlanOrder.objects.filter(shop=shop, method='upi', status='created', plan=plan,
                                      created_at__gte=timezone.now() - timedelta(days=1)).first()

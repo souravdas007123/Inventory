@@ -18,14 +18,16 @@ from django.test import SimpleTestCase, TestCase, modify_settings, override_sett
 from django.utils import timezone
 
 from backend import qr, tenancy
-from tenants import razorpay, upi
+from tenants import gst, razorpay, upi
 
 HAS_TENANTS = 'tenants' in settings.INSTALLED_APPS
 if HAS_TENANTS:
-    from tenants import billing, middleware, payshop, site
-    from tenants.models import AutoPay, PlanOrder, Shop, SiteSetting
+    from tenants import billing, invoicing, middleware, payshop, site
+    from tenants.models import AutoPay, Invoice, InvoiceCounter, PlanOrder, Shop, SiteSetting
 
 KEY, SECRET, HOOK = 'rzp_test_key', 'key-secret-123', 'hook-secret-456'
+SELLER = dict(seller_name='Socialfly Test', seller_address='1 Test Road\nKolkata 700001', seller_gstin='19AABCU9603R1ZK',     # a valid number of West Bengal (code 19)
+              seller_lut='AD190000000000A', seller_sac='998314')
 RAZ = dict(RAZORPAY_KEY_ID=KEY, RAZORPAY_KEY_SECRET=SECRET, RAZORPAY_WEBHOOK_SECRET=HOOK, MULTI_SHOP=True,
            RAZORPAY_PLAN_MONTHLY='plan_M', RAZORPAY_PLAN_YEARLY='plan_Y')
 HOST = dict(ALLOWED_HOSTS=['.localhost', 'testserver'], SECURE_SSL_REDIRECT=False, SESSION_COOKIE_SECURE=False, CSRF_COOKIE_SECURE=False)
@@ -200,9 +202,11 @@ class PayTestBase(TestCase):
         cache.clear()
         today = timezone.localdate()
         self.shop = Shop(schema_name='s_pay_test', name='Sharma Medical', owner_name='Raj Sharma', email='raj@example.com', phone='9876543210',
-                         plan='trial', trial_ends=today + timedelta(days=3), email_verified=True)
+                         plan='trial', trial_ends=today + timedelta(days=3), email_verified=True,
+                         bill_name='Sharma Medical', bill_country='IN', bill_state='19', bill_address='5 Park Street\nKolkata')
         self.shop.auto_create_schema = False                      # a plain row: no schema is needed for these tests
         self.shop.save()
+        site.save(dict(SELLER))
         self.admin = get_user_model().objects.create_superuser('boss', 'b@example.com', 'pw-12345')
         self.client.force_login(self.admin)
         self.today = today
@@ -287,14 +291,7 @@ class SettleTests(PayTestBase):
 
 
 @skipUnless(HAS_TENANTS, 'needs the tenants app (many shops on)')
-class GstAndPeriodTests(PayTestBase):
-    def test_the_price_splits_into_price_and_gst_that_add_up(self):
-        self.assertEqual(billing.gst_split(500), (Decimal('423.73'), Decimal('76.27')))
-        self.assertEqual(billing.gst_split(Decimal('5000')), (Decimal('4237.29'), Decimal('762.71')))
-        for total in ('1', '99', '499', '500', '777.77', '5000', '12345'):
-            base, gst = billing.gst_split(total)
-            self.assertEqual(base + gst, Decimal(total))
-
+class PeriodTests(PayTestBase):
     def test_the_period_starts_after_the_paid_one(self):
         self.assertEqual(billing.period_for(self.shop, 'monthly', self.today), (self.today, tenancy.add_months(self.today, 1)))
         Shop.objects.filter(pk=self.shop.pk).update(paid_until=self.today + timedelta(days=10))
@@ -375,8 +372,9 @@ class AutoPayTests(PayTestBase):
         self.shop.refresh_from_db()
         self.assertEqual((self.shop.plan, self.shop.paid_until), ('monthly', tenancy.add_months(self.today, 1)))
         self.assertEqual(len(mail.outbox), 1)
-        self.assertIn('423.73', mail.outbox[0].body)
-        self.assertIn('76.27', mail.outbox[0].body)
+        self.assertIn('MS/', mail.outbox[0].body)                                # the invoice number
+        self.assertIn('CGST (9%): Rs 38.13', mail.outbox[0].body)
+        self.assertIn('SGST (9%): Rs 38.13', mail.outbox[0].body)
         self.assertIn('renews on its own', mail.outbox[0].body)
 
     def test_a_forged_or_foreign_confirmation_changes_nothing(self):
@@ -696,9 +694,32 @@ class PlanPageTests(PayTestBase):
         html = self.page().content.decode()
         self.assertIn('id="paysum"', html)
         end = tenancy.add_months(self.today, 1)
-        for text in ('"total": "500.00"', '"base": "423.73"', '"gst": "76.27"', '"gst_percent": 18', f'"days": {(end - self.today).days}',
-                     f'"end": "{end:%d %b %Y}"', '"total": "5000.00"', '"base": "4237.29"', '"gst": "762.71"', 'Continue to payment'):
+        for text in ('"total": "500.00"', '"total": "5000.00"', f'"days": {(end - self.today).days}', f'"end": "{end:%d %b %Y}"',
+                     '["Price without GST", "Rs 423.74"]', '["CGST (9%)", "Rs 38.13"]', '["SGST (9%)", "Rs 38.13"]', '["Total to pay now", "Rs 500.00"]',
+                     '["Price without GST", "Rs 4237.30"]', 'Continue to payment'):
             self.assertIn(text, html)
+
+    def test_the_popup_follows_the_state_and_country_of_the_customer(self):
+        Shop.objects.filter(pk=self.shop.pk).update(bill_state='27')                     # another state: IGST
+        self.shop.refresh_from_db()
+        html = self.page().content.decode()
+        self.assertIn('["IGST (18%)", "Rs 76.27"]', html)
+        self.assertNotIn('CGST', html.split('id="paysum-data"')[1].split('</script>')[0])
+        Shop.objects.filter(pk=self.shop.pk).update(bill_country='US', bill_state='')    # another country: export, no tax
+        self.shop.refresh_from_db()
+        html = self.page().content.decode()
+        self.assertIn('["Tax (export of service, zero-rated)", "Rs 0.00"]', html)
+        self.assertIn('["Total to pay now", "Rs 500.00"]', html)
+
+    def test_without_invoice_details_the_pay_buttons_wait(self):
+        self.set_upi()
+        Shop.objects.filter(pk=self.shop.pk).update(bill_address='')
+        self.shop.refresh_from_db()
+        html = self.page().content.decode()
+        self.assertIn('Please save your invoice details above first', html)
+        self.assertNotIn('data-pay="autopay"', html)
+        self.assertNotIn('action="/plan/pay/upi/"', html)
+        self.assertIn('needed before you pay', html)
 
     def test_the_popup_says_when_the_new_days_start(self):
         until = self.today + timedelta(days=10)
@@ -797,7 +818,7 @@ class PlatformPaymentsTests(PayTestBase):
 @skipUnless(HAS_TENANTS, 'needs the tenants app (many shops on)')
 class MiddlewareAndSettingsTests(PayTestBase):
     def test_a_locked_shop_can_still_pay(self):
-        for path in ('/plan/pay/autopay/', '/plan/pay/autopay/verify/', '/plan/pay/autopay/5/cancel/', '/plan/pay/upi/', '/plan/pay/upi/5/', '/plan/pay/5/cancel/'):
+        for path in ('/plan/pay/billing/', '/plan/pay/autopay/', '/plan/pay/autopay/verify/', '/plan/pay/autopay/5/cancel/', '/plan/pay/upi/', '/plan/pay/upi/5/', '/plan/pay/5/cancel/'):
             self.assertTrue(middleware.is_always_open(path), path)
         self.assertFalse(middleware.is_always_open('/bills/new/'))
 
@@ -817,3 +838,357 @@ class MiddlewareAndSettingsTests(PayTestBase):
         page = self.client.get('/superadmin/site/').content.decode()
         self.assertIn('UPI ID for shops', page)
         self.assertIn('Autopay (Razorpay Subscriptions)', page)
+
+
+class GstPureTests(SimpleTestCase):
+    SELLER = '19AABCU9603R1ZK'
+
+    def test_gstin_check(self):
+        for good in (self.SELLER, '27AAPFU0939F1ZV', ' 19aabcu9603r1zk '):
+            self.assertTrue(gst.gstin_ok(good), good)
+        for bad in ('', '19AABCU9603R1ZJ', '99AABCU9603R1ZK', '19AABCU9603R1Y' + 'K', '19AABCU9603R1Z', '19AABCU9603R1ZKK', 'ABCDEFGHIJKLMNO'):
+            self.assertFalse(gst.gstin_ok(bad), bad)
+        self.assertEqual((gst.state_of(self.SELLER), gst.state_of('nonsense')), ('19', ''))
+
+    def test_the_same_state_pays_cgst_and_sgst_in_equal_halves(self):
+        for total in ('500', '5000', '1', '99', '777.77', '12345.67'):
+            p = gst.tax_for(total, self.SELLER, 'IN', '19')
+            self.assertEqual(p['kind'], 'cgst_sgst')
+            self.assertEqual(p['cgst'], p['sgst'])
+            self.assertEqual(p['taxable'] + p['cgst'] + p['sgst'], Decimal(total))
+            self.assertEqual(p['igst'], 0)
+        p = gst.tax_for(500, self.SELLER, 'IN', '19')
+        self.assertEqual((p['taxable'], p['cgst'], p['sgst']), (Decimal('423.74'), Decimal('38.13'), Decimal('38.13')))
+
+    def test_another_state_pays_igst(self):
+        p = gst.tax_for(500, self.SELLER, 'IN', '27')
+        self.assertEqual((p['kind'], p['taxable'], p['igst'], p['cgst'], p['sgst']), ('igst', Decimal('423.73'), Decimal('76.27'), 0, 0))
+        self.assertEqual(p['taxable'] + p['igst'], 500)
+
+    def test_another_country_pays_no_tax(self):
+        for state in ('', '19', '27'):
+            p = gst.tax_for(500, self.SELLER, 'US', state)
+            self.assertEqual((p['kind'], p['taxable'], p['tax'], p['total']), ('export', Decimal('500.00'), 0, Decimal('500.00')))
+
+    def test_a_seller_without_a_gst_number_charges_no_gst(self):
+        for country in ('IN', 'US'):
+            p = gst.tax_for(500, '', country, '19')
+            self.assertEqual((p['kind'], p['taxable'], p['tax']), ('none', Decimal('500.00'), 0))
+
+    def test_an_unknown_state_is_taken_as_the_sellers_state_by_the_caller_not_igst(self):
+        self.assertEqual(gst.tax_for(500, self.SELLER, 'IN', '')['kind'], 'cgst_sgst')
+
+    def test_the_lines_shown_to_the_customer(self):
+        self.assertEqual(gst.rows_for(gst.tax_for(500, self.SELLER, 'IN', '19')),
+                         [('Price without GST', 'Rs 423.74'), ('CGST (9%)', 'Rs 38.13'), ('SGST (9%)', 'Rs 38.13'), ('Total to pay now', 'Rs 500.00')])
+        self.assertEqual(gst.rows_for(gst.tax_for(500, self.SELLER, 'IN', '27'))[1], ('IGST (18%)', 'Rs 76.27'))
+        self.assertEqual(gst.rows_for(gst.tax_for(500, self.SELLER, 'DE', ''))[1], ('Tax (export of service, zero-rated)', 'Rs 0.00'))
+        self.assertEqual(gst.rows_for(gst.tax_for(500, '', 'IN', '19')), [('Price', 'Rs 500.00'), ('Total to pay now', 'Rs 500.00')])
+
+    def test_the_billing_form_is_checked(self):
+        good = dict(bill_name=' Raj  Sharma ', bill_country='in', bill_state='19', bill_address='5 Park Street\r\n\r\n Kolkata ', bill_tax_id=' 19aabcu9603r1zk')
+        values, errors = gst.clean_billing(good)
+        self.assertEqual(errors, [])
+        self.assertEqual(values, dict(bill_name='Raj Sharma', bill_country='IN', bill_state='19', bill_address='5 Park Street\nKolkata', bill_tax_id='19AABCU9603R1ZK'))
+        for change, text in ((dict(bill_name=''), 'name'), (dict(bill_country='XX'), 'country'), (dict(bill_address=' '), 'address'), (dict(bill_state=''), 'state'),
+                             (dict(bill_state='99'), 'state'), (dict(bill_tax_id='19AABCU9603R1ZJ'), 'GST number is not valid'),
+                             (dict(bill_state='27'), 'different state')):
+            _, errors = gst.clean_billing(dict(good, **change))
+            self.assertTrue(any(text in e for e in errors), (change, errors))
+        values, errors = gst.clean_billing(dict(good, bill_country='DE', bill_state='19', bill_tax_id='DE123456789'))      # abroad: no state, free tax number
+        self.assertEqual((errors, values['bill_state'], values['bill_tax_id']), ([], '', 'DE123456789'))
+        _, errors = gst.clean_billing(dict(good, bill_country='DE', bill_tax_id='X' * 31))
+        self.assertTrue(errors)
+
+    def test_the_financial_year_and_the_number_fit_gst_rules(self):
+        from datetime import date
+        if not HAS_TENANTS:
+            self.skipTest('needs the tenants app')
+        self.assertEqual([invoicing.financial_year(date(*d)) for d in ((2026, 3, 31), (2026, 4, 1), (2026, 12, 31), (2027, 3, 31), (2099, 4, 1))],
+                         ['2025-26', '2026-27', '2026-27', '2026-27', '2099-00'])
+        self.assertLessEqual(len('MS/2026-27/0001'), 16)
+
+
+@skipUnless(HAS_TENANTS, 'needs the tenants app (many shops on)')
+class InvoiceMakingTests(PayTestBase):
+    def pay(self, plan='monthly', amount=Decimal('500'), today=None, shop=None):
+        shop = shop or self.shop
+        with transaction_atomic():
+            payment = billing.record_payment(shop, plan, amount, today or self.today, 'test')
+            shop.save()
+        return payment.invoice
+
+    def test_a_payment_in_the_sellers_state_makes_a_cgst_sgst_invoice(self):
+        inv = self.pay()
+        self.assertEqual(inv.number, f'MS/{invoicing.financial_year(self.today)}/0001')
+        self.assertEqual((inv.kind, inv.rate, inv.taxable, inv.cgst, inv.sgst, inv.igst, inv.total),
+                         ('cgst_sgst', Decimal('18'), Decimal('423.74'), Decimal('38.13'), Decimal('38.13'), 0, Decimal('500.00')))
+        self.assertEqual((inv.seller_name, inv.seller_gstin, inv.sac, inv.seller_lut), ('Socialfly Test', '19AABCU9603R1ZK', '998314', 'AD190000000000A'))
+        self.assertEqual((inv.buyer_name, inv.buyer_country, inv.buyer_state, inv.date, inv.plan), ('Sharma Medical', 'IN', '19', self.today, 'monthly'))
+        self.assertEqual((inv.period_from, inv.period_to), (self.today, tenancy.add_months(self.today, 1)))
+        self.assertEqual(inv.payment.invoice, inv)
+
+    def test_another_state_gets_igst_and_a_gst_number_is_printed(self):
+        Shop.objects.filter(pk=self.shop.pk).update(bill_state='27', bill_tax_id='27AAPFU0939F1ZV')
+        self.shop.refresh_from_db()
+        inv = self.pay('yearly', Decimal('5000'))
+        self.assertEqual((inv.kind, inv.igst, inv.cgst, inv.sgst, inv.taxable, inv.buyer_tax_id), ('igst', Decimal('762.71'), 0, 0, Decimal('4237.29'), '27AAPFU0939F1ZV'))
+
+    def test_another_country_gets_an_export_invoice_without_tax(self):
+        Shop.objects.filter(pk=self.shop.pk).update(bill_country='DE', bill_state='', bill_tax_id='DE123456789')
+        self.shop.refresh_from_db()
+        inv = self.pay()
+        self.assertEqual((inv.kind, inv.rate, inv.taxable, inv.igst, inv.total, inv.buyer_country), ('export', 0, Decimal('500.00'), 0, Decimal('500.00'), 'DE'))
+
+    def test_a_seller_without_a_gst_number_makes_a_plain_invoice(self):
+        site.save(dict(seller_gstin=''))
+        inv = self.pay()
+        self.assertEqual((inv.kind, inv.taxable, inv.cgst, inv.total), ('none', Decimal('500.00'), 0, Decimal('500.00')))
+
+    def test_a_shop_that_never_gave_details_is_taken_as_indian_in_the_sellers_state(self):
+        Shop.objects.filter(pk=self.shop.pk).update(bill_name='', bill_country='', bill_state='', bill_address='')
+        self.shop.refresh_from_db()
+        inv = self.pay()
+        self.assertEqual((inv.kind, inv.buyer_country, inv.buyer_name), ('cgst_sgst', 'IN', 'Sharma Medical'))
+
+    def test_numbers_run_one_after_another_and_start_again_each_financial_year(self):
+        from datetime import date
+        a = self.pay(today=date(2026, 3, 30))
+        b = self.pay(today=date(2026, 3, 31))
+        c = self.pay(today=date(2026, 4, 1))
+        d = self.pay(today=date(2026, 4, 2))
+        self.assertEqual([i.number for i in (a, b, c, d)], ['MS/2025-26/0001', 'MS/2025-26/0002', 'MS/2026-27/0001', 'MS/2026-27/0002'])
+        self.assertEqual(len({i.number for i in Invoice.objects.all()}), 4)
+
+    def test_a_payment_that_is_rolled_back_loses_no_number(self):
+        try:
+            with transaction_atomic():
+                billing.record_payment(self.shop, 'monthly', Decimal('500'), self.today, 'x')
+                raise RuntimeError('something failed after the invoice')
+        except RuntimeError:
+            pass
+        self.assertEqual((Invoice.objects.count(), InvoiceCounter.objects.filter(last__gt=0).count()), (0, 0))
+        self.assertTrue(self.pay().number.endswith('/0001'))
+
+    def test_an_old_invoice_never_changes_when_details_change(self):
+        inv = self.pay()
+        site.save(dict(seller_name='Another Name', seller_gstin='27AAPFU0939F1ZV'))
+        Shop.objects.filter(pk=self.shop.pk).update(bill_name='New Name', bill_country='US')
+        inv.refresh_from_db()
+        self.assertEqual((inv.seller_name, inv.seller_gstin, inv.buyer_name, inv.buyer_country, inv.kind), ('Socialfly Test', '19AABCU9603R1ZK', 'Sharma Medical', 'IN', 'cgst_sgst'))
+
+    def test_every_way_of_paying_makes_one_invoice(self):
+        o = self.order(status='waiting', utr='401234567890')
+        billing.settle(o.pk, 'UPI approved', allowed=('waiting',))
+        billing.settle(o.pk, 'again', allowed=('waiting',))                                      # a second approval does nothing
+        self.assertEqual(Invoice.objects.count(), 1)
+        from django.test import RequestFactory
+        from tenants import platform
+        req = RequestFactory().post('/x/', dict(action='paid', plan='monthly', amount='', note='cash'))
+        platform._apply(req, self.shop, self.today)                                               # the platform owner's own payment button
+        self.assertEqual(Invoice.objects.count(), 2)
+
+    def test_the_receipt_mail_names_the_invoice(self):
+        o = self.order(status='waiting', utr='401234567890')
+        billing.settle(o.pk, 'UPI approved', allowed=('waiting',))
+        inv = Invoice.objects.get()
+        self.assertIn(inv.number, mail.outbox[0].body)
+        self.assertIn('CGST (9%): Rs 38.13', mail.outbox[0].body)
+
+
+def transaction_atomic():
+    from django.db import transaction
+    return transaction.atomic()
+
+
+@skipUnless(HAS_TENANTS, 'needs the tenants app (many shops on)')
+class InvoiceViewTests(PayTestBase):
+    def make(self, shop=None, **extra):
+        shop = shop or self.shop
+        for k, v in extra.items():
+            setattr(shop, k, v)
+        with transaction_atomic():
+            payment = billing.record_payment(shop, 'monthly', Decimal('500'), self.today, '')
+            shop.save()
+        return payment.invoice
+
+    def test_the_owner_opens_his_invoice_with_all_the_parts(self):
+        inv = self.make()
+        self.on_shop()
+        html = self.client.get(f'/plan/invoices/{inv.pk}/').content.decode()
+        for text in ('Tax Invoice', inv.number, 'Socialfly Test', 'GSTIN: 19AABCU9603R1ZK', 'Sharma Medical', '5 Park Street', 'West Bengal (19)', '998314',
+                     '423.74', 'CGST 9%', 'SGST 9%', '38.13', '500.00', 'Print / Save as PDF'):
+            self.assertIn(text, html)
+        self.assertNotIn('IGST', html)
+
+    def test_an_export_invoice_says_so_and_names_the_lut(self):
+        inv = self.make(bill_country='DE', bill_state='', bill_tax_id='DE123456789')
+        self.on_shop()
+        html = self.client.get(f'/plan/invoices/{inv.pk}/').content.decode()
+        for text in ('Germany', 'Tax no.: DE123456789', 'Export of services', 'zero-rated', 'AD190000000000A', 'Rs 0.00'):
+            self.assertIn(text, html)
+        self.assertNotIn('CGST', html)
+
+    def test_an_invoice_without_gst_is_called_just_invoice(self):
+        site.save(dict(seller_gstin=''))
+        inv = self.make()
+        self.on_shop()
+        html = self.client.get(f'/plan/invoices/{inv.pk}/').content.decode()
+        self.assertIn('<h1>Invoice</h1>', html)
+        self.assertIn('not registered under GST', html)
+
+    def test_a_shop_cannot_open_the_invoice_of_another_shop(self):
+        other = Shop(schema_name='s_other_test', name='Other', email='o@example.com', plan='trial', bill_name='Other', bill_country='IN', bill_state='19', bill_address='x')
+        other.auto_create_schema = False
+        other.save()
+        inv = self.make(shop=other)
+        self.on_shop()
+        self.assertEqual(self.client.get(f'/plan/invoices/{inv.pk}/').status_code, 404)
+
+    def test_the_plan_page_lists_the_invoice_number_with_a_link(self):
+        inv = self.make()
+        self.on_shop()
+        html = self.client.get('/plan/').content.decode()
+        self.assertIn(inv.number, html)
+        self.assertIn(f'/plan/invoices/{inv.pk}/', html)
+
+    def test_others_cannot_open_an_invoice(self):
+        inv = self.make()
+        self.client.logout()
+        self.assertEqual(self.client.get(f'/superadmin/invoices/{inv.pk}/').status_code, 302)
+        self.client.force_login(get_user_model().objects.create_user('clerk', 'c@example.com', 'pw-12345'))
+        self.assertEqual(self.client.get(f'/superadmin/invoices/{inv.pk}/').status_code, 404)
+        self.assertEqual(self.client.get('/superadmin/invoices/').status_code, 404)
+        self.assertEqual(self.client.get('/superadmin/invoices/csv/').status_code, 404)
+
+
+@skipUnless(HAS_TENANTS, 'needs the tenants app (many shops on)')
+@override_settings(**RAZ)
+class BillingDetailsTests(PayTestBase):
+    GOOD = dict(bill_name='Raj Sharma Medical', bill_country='IN', bill_state='07', bill_address='1 Main Road\nDelhi', bill_tax_id='')
+
+    def test_the_details_are_saved(self):
+        self.on_shop()
+        r = self.client.post('/plan/pay/billing/', self.GOOD)
+        self.assertRedirects(r, '/plan/', fetch_redirect_response=False)
+        self.shop.refresh_from_db()
+        self.assertEqual((self.shop.bill_name, self.shop.bill_state, self.shop.bill_address), ('Raj Sharma Medical', '07', '1 Main Road\nDelhi'))
+
+    def test_wrong_details_change_nothing_and_say_why(self):
+        self.on_shop()
+        r = self.client.post('/plan/pay/billing/', dict(self.GOOD, bill_state='', bill_tax_id='19AABCU9603R1ZJ'), follow=True)
+        self.assertContains(r, 'Choose the state')
+        self.assertContains(r, 'GST number is not valid')
+        self.shop.refresh_from_db()
+        self.assertEqual((self.shop.bill_name, self.shop.bill_state), ('Sharma Medical', '19'))
+
+    def test_a_foreign_customer_gives_a_country_and_no_state(self):
+        self.on_shop()
+        self.client.post('/plan/pay/billing/', dict(self.GOOD, bill_country='AE', bill_state='07', bill_tax_id='TRN 100200300'))
+        self.shop.refresh_from_db()
+        self.assertEqual((self.shop.bill_country, self.shop.bill_state, self.shop.bill_tax_id), ('AE', '', 'TRN100200300'))
+
+    def test_get_is_refused_and_it_is_for_the_owner_only(self):
+        self.on_shop()
+        self.assertEqual(self.client.get('/plan/pay/billing/').status_code, 405)
+        self.client.logout()
+        self.assertEqual(self.client.post('/plan/pay/billing/', self.GOOD).status_code, 302)
+
+    def test_nobody_can_pay_before_the_details_are_given(self):
+        self.set_upi()
+        Shop.objects.filter(pk=self.shop.pk).update(bill_address='')
+        self.shop.refresh_from_db()
+        self.on_shop()
+        with mock.patch('tenants.razorpay.check_plan'), mock.patch('tenants.razorpay.create_subscription', return_value='sub_1') as cs:
+            r = self.client.post('/plan/pay/autopay/', dict(plan='monthly'))
+        self.assertEqual((r.status_code, r.json()['ok']), (400, False))
+        self.assertIn('invoice details', r.json()['error'])
+        cs.assert_not_called()
+        self.assertEqual(AutoPay.objects.count(), 0)
+        r = self.client.post('/plan/pay/upi/', dict(plan='monthly'), follow=True)
+        self.assertContains(r, 'save your invoice details first')
+        self.assertEqual(PlanOrder.objects.count(), 0)
+
+    def test_the_form_shows_the_saved_values_and_the_lists(self):
+        self.on_shop()
+        html = self.client.get('/plan/').content.decode()
+        for text in ('name="bill_name" maxlength="120" value="Sharma Medical"', '<option value="IN" selected>India</option>', '<option value="19" selected>West Bengal</option>',
+                     'Other country', 'CGST + SGST in West Bengal'):
+            self.assertIn(text, html)
+        self.assertNotIn('value="25"', html)                                  # the old Daman and Diu code is not offered
+        self.assertLess(html.index('>India<'), html.index('>Germany<'))       # India first
+        self.assertLess(html.index('>Germany<'), html.index('>Other country<'))
+
+
+@skipUnless(HAS_TENANTS, 'needs the tenants app (many shops on)')
+class PlatformInvoiceListTests(PayTestBase):
+    def make(self, day, amount='500', **shop_fields):
+        for k, v in shop_fields.items():
+            setattr(self.shop, k, v)
+        with transaction_atomic():
+            payment = billing.record_payment(self.shop, 'monthly', Decimal(amount), day, '')
+            self.shop.save()
+        return payment.invoice
+
+    def test_the_list_shows_one_month_with_totals_and_other_months_are_left_out(self):
+        from datetime import date
+        a = self.make(date(2026, 10, 5))
+        b = self.make(date(2026, 10, 20), bill_state='27')
+        self.make(date(2026, 11, 2))
+        r = self.client.get('/superadmin/invoices/?month=2026-10')
+        self.assertContains(r, a.number)
+        self.assertContains(r, b.number)
+        self.assertNotContains(r, 'MS/2026-27/0003')
+        self.assertContains(r, 'October 2026 (2)')
+        self.assertContains(r, '1000.00')                                      # total of the two
+        self.assertContains(self.client.get('/superadmin/invoices/?month=2026-12'), 'No invoice in this month.')
+        self.assertEqual(self.client.get('/superadmin/invoices/?month=bad').status_code, 200)
+
+    def test_the_csv_has_one_line_per_invoice_for_the_return(self):
+        from datetime import date
+        self.make(date(2026, 10, 5))
+        self.make(date(2026, 10, 20), bill_country='DE', bill_state='', bill_tax_id='DE1')
+        r = self.client.get('/superadmin/invoices/csv/?month=2026-10')
+        self.assertEqual(r['Content-Type'], 'text/csv; charset=utf-8')
+        self.assertIn('invoices-2026-10.csv', r['Content-Disposition'])
+        import csv
+        import io
+        rows = list(csv.reader(io.StringIO(r.content.decode('utf-8-sig'))))
+        self.assertEqual(rows[0][:3], ['Invoice no', 'Date', 'Customer'])
+        self.assertEqual(len(rows), 3)
+        self.assertEqual((rows[1][0], rows[1][6], rows[1][7], rows[1][8], rows[1][9], rows[1][10], rows[1][11]), ('MS/2026-27/0001', 'CGST + SGST', '423.74', '38.13', '38.13', '0.00', '500.00'))
+        self.assertEqual((rows[2][3], rows[2][4], rows[2][6], rows[2][8]), ('DE1', 'Germany', 'Export (zero-rated)', '0.00'))
+
+    def test_the_menu_has_the_invoices_link(self):
+        self.assertContains(self.client.get('/superadmin/invoices/'), 'href="/superadmin/invoices/"')
+
+    def test_an_invoice_can_be_opened_from_the_list(self):
+        inv = self.make(self.today)
+        r = self.client.get(f'/superadmin/invoices/{inv.pk}/')
+        self.assertContains(r, 'Tax Invoice')
+        self.assertContains(r, 'Back to invoices')
+
+
+@skipUnless(HAS_TENANTS, 'needs the tenants app (many shops on)')
+class SellerSettingsTests(PayTestBase):
+    GOOD = dict(seller_name='Socialfly', seller_address='127/3 College Street\nKolkata 700007', seller_gstin='19aabcu9603r1zk', seller_lut='', seller_sac='998314')
+
+    def test_the_seller_details_are_saved_cleaned_and_shown_with_the_state(self):
+        r = self.client.post('/superadmin/site/', self.GOOD)
+        self.assertRedirects(r, '/superadmin/site/', fetch_redirect_response=False)
+        row = SiteSetting.objects.get(pk=1)
+        self.assertEqual((row.seller_name, row.seller_gstin, row.seller_sac, row.seller_address), ('Socialfly', '19AABCU9603R1ZK', '998314', '127/3 College Street\nKolkata 700007'))
+        page = self.client.get('/superadmin/site/').content.decode()
+        self.assertIn('West Bengal (19)' if False else 'State: <b>West Bengal</b>', page)
+        self.assertIn('value="19AABCU9603R1ZK"', page)
+
+    def test_a_wrong_gst_number_or_sac_is_refused_and_nothing_is_saved(self):
+        before = SiteSetting.objects.get(pk=1).seller_gstin
+        r = self.client.post('/superadmin/site/', dict(self.GOOD, seller_gstin='19AABCU9603R1ZJ', seller_sac='12'), follow=True)
+        self.assertContains(r, 'Your GST number is not valid')
+        self.assertContains(r, 'SAC code is 4 to 8 digits')
+        self.assertEqual(SiteSetting.objects.get(pk=1).seller_gstin, before)
+
+    def test_leaving_the_gst_number_blank_is_allowed(self):
+        self.client.post('/superadmin/site/', dict(self.GOOD, seller_gstin=''))
+        self.assertEqual(SiteSetting.objects.get(pk=1).seller_gstin, '')

@@ -5,7 +5,7 @@ can be settled only once (the row is locked), so a double click, the browser con
 together can never extend a shop twice."""
 import logging
 import secrets
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 
 from django.conf import settings
 from django.core.cache import cache
@@ -15,7 +15,7 @@ from django.utils import timezone
 
 from backend import tenancy
 
-from . import site
+from . import gst, invoicing, site
 from .models import AutoPay, Payment, PlanOrder, Shop
 
 log = logging.getLogger(__name__)
@@ -31,13 +31,6 @@ def price_for(plan):
     return Decimal(site.prices()[plan])
 
 
-def gst_split(total):
-    """(price without GST, GST) of a price that includes GST at settings.GST_PERCENT; the two always add up to the total."""
-    total = Decimal(total)
-    base = (total * 100 / (100 + Decimal(settings.GST_PERCENT))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-    return base, total - base
-
-
 def period_for(shop, plan, today):
     """(first day, last day) a payment made today would cover: it starts after the current paid period when there is one."""
     start = max(today, shop.paid_until or today)
@@ -51,6 +44,7 @@ def record_payment(shop, plan, amount, today, note=''):
     payment = Payment.objects.create(shop=shop, plan=plan, amount=amount, paid_on=today, period_from=start, period_to=end,
                                      note=(note or '')[:200])
     shop.plan, shop.paid_until = plan, end
+    invoicing.create_invoice(shop, payment, plan, amount, today)
     log_note(shop, f'payment Rs {amount} for {plan} plan, paid until {end:%d %b %Y}')
     return payment
 
@@ -146,11 +140,16 @@ def _mail(subject, text, to):
 def mail_receipt(order):
     payment = order.payment
     until = f'{payment.period_to:%d %b %Y}' if payment else ''
-    base, gst = gst_split(order.amount)
+    invoice = getattr(payment, 'invoice', None) if payment else None
+    lines = ''
+    if invoice:
+        parts = dict(kind=invoice.kind, rate=invoice.rate, taxable=invoice.taxable, cgst=invoice.cgst, sgst=invoice.sgst, igst=invoice.igst, total=invoice.total)
+        lines = f'\nInvoice {invoice.number} dated {invoice.date:%d %b %Y}\n' + ''.join(f'  {label}: {value}\n' for label, value in gst.rows_for(parts, 'Total paid'))
+        lines += 'You can open and print the invoice from the Plan and payments page.\n'
     _mail(f'MedSync payment received: Rs {order.amount}',
           f'Hello {order.shop.owner_name or "there"},\n\nThank you. We received your payment for {order.shop.name}.\n\n'
-          f'Plan: {PLAN_LABEL.get(order.plan, order.plan)}\nAmount: Rs {order.amount} (price Rs {base} + GST Rs {gst})\nReference: {order.reference}\n'
-          f'Your shop is paid until: {until}\n'
+          f'Plan: {PLAN_LABEL.get(order.plan, order.plan)}\nAmount: Rs {order.amount}\nReference: {order.reference}\n'
+          f'Your shop is paid until: {until}\n{lines}'
           + ('The plan renews on its own; you can stop it any time from the Plan and payments page.\n' if order.autopay_id else '') + '\nMedSync',
           [order.shop.email])
 

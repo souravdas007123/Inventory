@@ -26,6 +26,22 @@
 <div><label for="upi_name">Name shown in the payer's UPI app</label>
 <input id="upi_name" name="upi_name" maxlength="40" value="{{ values.upi_name|default_if_none:'' }}" placeholder="MedSync" style="width:100%">
 <p class="mut" style="margin:4px 0 0">A shop sees a QR code and this UPI ID with the amount, pays, and types the UPI reference number. You approve it under <a href="{% url 'platform_payments' %}">Payments</a>.</p></div>
+<h3 style="margin:6px 0 0">Invoices: your business details</h3>
+<p class="mut" style="margin:0">Printed on the tax invoice of every payment. Without a GST number the invoices carry no tax. Old invoices never change when you edit this.</p>
+<div><label for="seller_name">Business name</label>
+<input id="seller_name" name="seller_name" maxlength="120" value="{{ values.seller_name|default_if_none:'' }}" style="width:100%"></div>
+<div><label for="seller_address">Business address</label>
+<textarea id="seller_address" name="seller_address" rows="3" maxlength="300" style="width:100%">{{ values.seller_address|default_if_none:'' }}</textarea></div>
+<div class="grid2" style="margin:0">
+<div><label for="seller_gstin">Your GST number (GSTIN)</label>
+<input id="seller_gstin" name="seller_gstin" maxlength="15" value="{{ values.seller_gstin|default_if_none:'' }}" placeholder="19ABCDE1234F1Z5" autocapitalize="characters" spellcheck="false" style="width:100%">
+{% if seller_state %}<p class="mut" style="margin:4px 0 0">State: <b>{{ seller_state }}</b>. Customers in this state pay CGST + SGST, customers in other states pay IGST, customers in other countries pay no tax (export).</p>{% endif %}</div>
+<div><label for="seller_sac">SAC code of the service</label>
+<input id="seller_sac" name="seller_sac" maxlength="8" inputmode="numeric" value="{{ values.seller_sac|default_if_none:'' }}" placeholder="ask your CA" style="width:100%"></div>
+</div>
+<div><label for="seller_lut">LUT number (for invoices to other countries)</label>
+<input id="seller_lut" name="seller_lut" maxlength="40" value="{{ values.seller_lut|default_if_none:'' }}" placeholder="optional" style="width:100%">
+<p class="mut" style="margin:4px 0 0">Exports are invoiced without IGST under a Letter of Undertaking filed on the GST portal once a year. Invoices list: <a href="{% url 'platform_invoices' %}">Invoices</a>.</p></div>
 <p class="mut" style="margin:0">Autopay (Razorpay Subscriptions): <b>{% if razorpay_on %}switched on{% else %}off{% endif %}</b>. It is switched on by putting the Razorpay keys and the two plan ids in the server <code>.env</code> (see the README).</p>
 <div><button>Save settings</button> <a class="btn line" href="{% url 'platform' %}">Back to shops</a></div>
 </form>

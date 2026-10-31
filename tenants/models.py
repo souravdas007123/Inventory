@@ -23,6 +23,12 @@ class Shop(TenantMixin):
     created_on = models.DateTimeField(auto_now_add=True)
     notes = models.TextField(blank=True, default='')
     last_reminder = models.CharField(max_length=40, blank=True, default='')      # e.g. 'trial7:2026-11-21'; see tenancy.reminder_key
+    # What goes on the invoice (the customer fills it in on the Plan page before the first payment)
+    bill_name = models.CharField(max_length=120, blank=True, default='')
+    bill_country = models.CharField(max_length=2, blank=True, default='')        # ISO code, 'IN' = India; blank = not given yet
+    bill_state = models.CharField(max_length=2, blank=True, default='')          # GST state code, for India only
+    bill_address = models.TextField(blank=True, default='')
+    bill_tax_id = models.CharField(max_length=30, blank=True, default='')        # GST number (India) or VAT / company number
 
     auto_create_schema = True            # the schema and its tables are made when the shop is first saved
     auto_drop_schema = False             # deleting a shop row never deletes its data by accident
@@ -106,6 +112,12 @@ class SiteSetting(models.Model):
     price_yearly = models.PositiveIntegerField(null=True, blank=True)
     upi_id = models.CharField(max_length=80, blank=True, default='')           # where shops pay by UPI, e.g. medsync@okhdfcbank
     upi_name = models.CharField(max_length=40, blank=True, default='')         # the name shown in the payer's UPI app
+    # The seller on every invoice (the platform owner's business). Without a GST number invoices carry no tax.
+    seller_name = models.CharField(max_length=120, blank=True, default='')
+    seller_address = models.TextField(blank=True, default='')
+    seller_gstin = models.CharField(max_length=15, blank=True, default='')
+    seller_lut = models.CharField(max_length=40, blank=True, default='')       # LUT number, printed on export invoices
+    seller_sac = models.CharField(max_length=8, blank=True, default='')        # service accounting code printed on invoices
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -196,3 +208,50 @@ class TicketMessage(models.Model):
 
     class Meta:
         ordering = ['created_at', 'id']
+
+
+class InvoiceCounter(models.Model):
+    """The last invoice number used in a financial year (April to March). Locked while a number is taken, so numbers
+    never repeat and never skip."""
+    fy = models.CharField(max_length=7, unique=True)                             # '2026-27'
+    last = models.PositiveIntegerField(default=0)
+
+
+class Invoice(models.Model):
+    """The tax invoice of one payment. Everything is copied onto it when it is made, so changing the seller details or the
+    shop's billing details later never changes an invoice that was already issued."""
+    KINDS = [('cgst_sgst', 'CGST + SGST'), ('igst', 'IGST'), ('export', 'Export (zero-rated)'), ('none', 'No tax')]
+
+    number = models.CharField(max_length=16, unique=True)                        # MS/2026-27/0001 (at most 16 characters, as GST allows)
+    fy = models.CharField(max_length=7)
+    date = models.DateField()
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='invoices')
+    payment = models.OneToOneField(Payment, null=True, blank=True, on_delete=models.SET_NULL, related_name='invoice')
+    plan = models.CharField(max_length=10)
+    description = models.CharField(max_length=200)
+    period_from = models.DateField()
+    period_to = models.DateField()
+    seller_name = models.CharField(max_length=120, blank=True, default='')
+    seller_address = models.TextField(blank=True, default='')
+    seller_gstin = models.CharField(max_length=15, blank=True, default='')
+    seller_lut = models.CharField(max_length=40, blank=True, default='')
+    sac = models.CharField(max_length=8, blank=True, default='')
+    buyer_name = models.CharField(max_length=120, blank=True, default='')
+    buyer_address = models.TextField(blank=True, default='')
+    buyer_country = models.CharField(max_length=2, default='IN')
+    buyer_state = models.CharField(max_length=2, blank=True, default='')
+    buyer_tax_id = models.CharField(max_length=30, blank=True, default='')
+    kind = models.CharField(max_length=10, choices=KINDS)
+    rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)       # percent
+    taxable = models.DecimalField(max_digits=10, decimal_places=2)
+    cgst = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    sgst = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    igst = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date', '-id']
+
+    def __str__(self):
+        return self.number

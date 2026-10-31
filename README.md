@@ -307,6 +307,28 @@ Prices are **Rs 500 a month or Rs 5000 a year, GST included** (`PLAN_PRICES` in 
 * Files: `tenants/billing.py` (the one place that moves a shop's paid-until date; `settle()` and `charge()` lock the rows), `tenants/razorpay.py`, `tenants/upi.py`, `tenants/payshop.py` (shop side), `tenants/payadmin.py` (Payments page + webhook), `templates/app/plan.html`, `plan_upi.html`, `platform_payments.html`, migrations `tenants/0010` and `0011`. Run `python manage.py migrate_schemas --shared` once.
 * Tests: `tenants/test_pay.py` (the parts that need no database run anywhere; the rest needs MULTI_SHOP=1), `backend/tests/test_qr.py`. The real Razorpay calls are stubbed in tests; try the test mode once for real.
 
+## Tax invoices (GST for India, zero-rated export for other countries)
+
+Every payment (Razorpay autopay, UPI, or the platform owner's *Save payment* button) makes one **numbered tax invoice** in the same database transaction as the payment (`tenants/invoicing.py`). Numbers look like `MS/2026-27/0001`, run one after another, and start again each financial year (April to March); a payment that fails leaves no gap.
+
+**Which tax:** the price a customer pays (Rs 500 / Rs 5000) always includes the tax; the tax is taken out of it (`tenants/gst.py`).
+* **India, same state as the seller** (decided by the first two digits of the seller's GST number) -> CGST 9% + SGST 9%. The two are always equal (one paisa moves from the tax to the price when the tax has an odd paisa).
+* **India, other state** -> IGST 18%.
+* **Any other country** -> export of service, zero-rated: no tax is added and the customer pays the same price. The invoice says so and prints your LUT number when you have saved it.
+* **Seller without a GST number** -> a plain *Invoice* without any tax.
+
+**Set up once (platform panel, *Website settings*, "Invoices: your business details"):** business name, address, your GST number (checked: format, state code and check character), the SAC code of the service, and the LUT number if you file one. Only these invoices change when you edit it, never old ones: everything is copied onto the invoice when it is made.
+
+**Customer side (*Plan & Payments*):** a card *Details for your invoice* (name, country, state for India, address, optional GST / VAT number). It must be saved before any pay button appears. The popup before paying shows the tax lines for that customer; the finished invoice opens from the *Payments received* list (*Print / Save as PDF*) and its numbers are in the receipt e-mail.
+
+**For your GST return:** platform panel -> *Invoices*: one month at a time with totals and a CSV (taxable value, CGST, SGST, IGST, total, place of supply).
+
+**Good to know**
+* No tax rate for another country's VAT / GST is added on purpose: the Razorpay plans have one fixed amount, and charging a foreign tax needs you to be registered there. If you ever register somewhere, ask first; it needs a separate plan for that country.
+* Foreign customers: Razorpay *International Payments* must be enabled on your account, and some cards cannot be set up for autopay. For such a customer use *Save payment* in the shop's page of the platform panel; it makes the invoice too.
+* Payments recorded before this feature have no invoice. The SAC code and the wording on the invoices are for you and your CA to confirm.
+* Files: `tenants/gst.py`, `tenants/invoicing.py`, `tenants/invoiceviews.py`, `tenants/taxdata.py` (states and countries), `templates/app/tax_invoice.html`, `platform_invoices.html`, migration `tenants/0012`. Run `python manage.py migrate_schemas --shared` once. Tests: `tenants/test_pay.py`, `backend/tests/test_tenancy.py`.
+
 ## Sign in / sign up with Google
 
 Only on the main site and only while `MULTI_SHOP=1`. Without the two keys below no Google button is shown and nothing changes.

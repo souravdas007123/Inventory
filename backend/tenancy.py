@@ -143,8 +143,25 @@ def clean_site_form(post):
     upi_name = ' '.join((post.get('upi_name') or '').split())
     if len(upi_name) > 40 or not re.fullmatch(r"[A-Za-z0-9 .&'\-]*", upi_name):
         errors.append('The name shown to the payer can have letters, digits and spaces, at most 40 characters.')
+    from tenants import gst
+    seller_name = ' '.join((post.get('seller_name') or '').split())
+    if len(seller_name) > 120:
+        errors.append('The business name on invoices can have at most 120 characters.')
+    seller_address = '\n'.join(' '.join(line.split()) for line in (post.get('seller_address') or '').replace('\r', '').split('\n') if line.strip())
+    if len(seller_address) > 300:
+        errors.append('The business address on invoices can have at most 300 characters.')
+    seller_gstin = gst.clean_gstin(post.get('seller_gstin'))
+    if seller_gstin and not gst.gstin_ok(seller_gstin):
+        errors.append('Your GST number is not valid. It has 15 letters and digits, for example 19ABCDE1234F1Z5.')
+    seller_lut = ' '.join((post.get('seller_lut') or '').split())
+    if len(seller_lut) > 40:
+        errors.append('The LUT number can have at most 40 characters.')
+    seller_sac = (post.get('seller_sac') or '').strip()
+    if seller_sac and not (seller_sac.isdigit() and 4 <= len(seller_sac) <= 8):
+        errors.append('The SAC code is 4 to 8 digits.')
     return dict(whatsapp=number, contact_email=email, announcement=notice, shop_notice=shop_notice, upi_id=upi_id,
-                upi_name=upi_name, **prices), errors
+                upi_name=upi_name, seller_name=seller_name, seller_address=seller_address, seller_gstin=seller_gstin,
+                seller_lut=seller_lut, seller_sac=seller_sac, **prices), errors
 
 
 def is_unknown_shop_host(host, base):

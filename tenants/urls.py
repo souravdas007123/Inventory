@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import google, mainlogin, maintenance_admin, payadmin, payshop, plan, platform, server_admin, support, supportadmin, views
+from . import google, invoiceviews, mainlogin, maintenance_admin, payadmin, payshop, plan, platform, server_admin, support, supportadmin, views
 
 urlpatterns = [
     path('signup/', views.signup, name='signup'),
@@ -12,10 +12,15 @@ urlpatterns = [
     path('plan/pay/autopay/', payshop.autopay_start, name='plan_autopay_start'),
     path('plan/pay/autopay/verify/', payshop.autopay_verify, name='plan_autopay_verify'),
     path('plan/pay/autopay/<int:pk>/cancel/', payshop.autopay_cancel, name='plan_autopay_cancel'),
+    path('plan/pay/billing/', invoiceviews.billing_save, name='plan_billing_save'),
+    path('plan/invoices/<int:pk>/', invoiceviews.invoice_view, name='plan_invoice'),
     path('plan/pay/upi/', payshop.upi_start, name='plan_upi_start'),
     path('plan/pay/upi/<int:pk>/', payshop.upi_page, name='plan_upi'),
     path('plan/pay/<int:pk>/cancel/', payshop.order_cancel, name='plan_order_cancel'),
     path('razorpay/webhook/', payadmin.razorpay_webhook, name='razorpay_webhook'),
+    path('superadmin/invoices/', invoiceviews.invoices, name='platform_invoices'),
+    path('superadmin/invoices/csv/', invoiceviews.invoices_csv, name='platform_invoices_csv'),
+    path('superadmin/invoices/<int:pk>/', invoiceviews.invoice_open, name='platform_invoice'),
     path('superadmin/payments/', payadmin.payments, name='platform_payments'),
     path('superadmin/payments/<int:pk>/approve/', payadmin.approve, name='platform_payment_approve'),
     path('superadmin/payments/<int:pk>/reject/', payadmin.reject, name='platform_payment_reject'),
