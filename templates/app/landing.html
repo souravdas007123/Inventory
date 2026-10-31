@@ -156,7 +156,6 @@ footer .fb p{margin:10px 0 8px;max-width:26em;line-height:1.55}
 footer .fl{color:#fff;font-size:20px;font-weight:800;letter-spacing:-.3px}
 footer .fh{display:block;margin-bottom:10px;color:#e9f5f1;font-weight:700}
 footer a{display:block;margin:0 0 8px;text-decoration:none;color:#9bb8b0}footer a:hover{color:#fff;text-decoration:underline}
-footer .sh{grid-column:1/-1;padding-top:20px;border-top:1px solid #16443d;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center}footer .sh a{display:inline;margin:0}
 footer .so{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px;align-items:center;color:#e9f5f1;font-weight:700}footer .so a{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;margin:0;border-radius:50%;background:#16443d;color:#e9f5f1}footer .so a:hover{background:#1f6a5e;color:#fff;text-decoration:none}
 footer .legal{grid-column:1/-1;font-size:14px}
 :focus-visible{outline:3px solid var(--amber);outline-offset:3px}
@@ -402,7 +401,6 @@ footer .legal{grid-column:1/-1;font-size:14px}
 <div><span class="fh">Product</span><a href="#features">Product features</a><a href="#day">A day in the shop</a><a href="#safe">Safety and backups</a>{% if pricing %}<a href="#pricing">Plans and prices</a>{% endif %}<a href="#faq">Questions and answers</a><a href="/blog/">Blog articles</a></div>
 <div><span class="fh">Account and policies</span><a href="{% url 'login' %}">Sign in</a>{% if pricing %}<a href="/signup/">Sign up free</a>{% endif %}<a href="/terms/">Terms of use</a><a href="/privacy/">Privacy policy</a><a href="/refund/">Refund and cancellation</a></div>
 {% if socials %}<div class="so"><span>Follow us:</span>{% for s in socials %}<a href="{{ s.url }}" target="_blank" rel="noopener nofollow me" aria-label="{{ s.label }}" title="{{ s.label }}">{{ s.svg }}</a>{% endfor %}</div>{% endif %}
-<div class="sh"><span>Share MedSync:</span> <a href="https://wa.me/?text={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">WhatsApp</a><a href="https://www.facebook.com/sharer/sharer.php?u={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">Facebook</a><a href="https://twitter.com/intent/tweet?url={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">X (Twitter)</a><a href="https://www.linkedin.com/sharing/share-offsite/?url={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">LinkedIn</a><a href="https://t.me/share/url?url={{ site_url|urlencode:"" }}%2F" target="_blank" rel="noopener nofollow">Telegram</a></div>
 <div class="legal">&copy; MedSync. All rights reserved. Pictures on this page use sample data.</div>
 </div></footer>
 </body>

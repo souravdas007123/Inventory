@@ -73,11 +73,10 @@ class LandingTests(TestCase):
                 texts.append(text)
         self.assertEqual(len(texts), len(set(texts)), [t for t in texts if texts.count(t) > 1])
 
-    def test_share_links_for_social_networks(self):
+    def test_the_old_share_row_is_gone_from_the_footer(self):
         page = self.client.get('/').content.decode()
-        for host in ('wa.me/?text=http%3A%2F%2Ftestserver%2F', 'facebook.com/sharer', 'twitter.com/intent/tweet',
-                     'linkedin.com/sharing', 't.me/share'):
-            self.assertIn(host, page)
+        for text in ('Share MedSync', 'facebook.com/sharer', 'twitter.com/intent/tweet', 'linkedin.com/sharing', 't.me/share', 'wa.me/?text'):
+            self.assertNotIn(text, page)
 
     def test_every_page_has_a_favicon_and_the_ico_file_is_served(self):
         for url in ('/', '/login/', '/blog/'):

@@ -17,10 +17,10 @@ def home():
 
 @override_settings(**SAFE)
 class SocialLinkPageTests(TestCase):
-    def test_no_links_means_no_follow_row_and_the_share_links_stay(self):
+    def test_no_links_means_no_follow_row_and_no_share_row(self):
         page = home()
         self.assertNotIn('Follow us', page)
-        self.assertIn('Share MedSync:', page)
+        self.assertNotIn('Share MedSync', page)
 
     def test_an_active_link_shows_as_an_icon_with_a_label(self):
         SocialLink.objects.create(platform='instagram', url='https://www.instagram.com/medsync')
