@@ -92,7 +92,7 @@
   <div class="card stat"><small>Stock value (at purchase price)</small><b>₹{{ ov.stock_value|floatformat:2 }}</b></div>
   {% if ov.exp %}
   <a class="card stat" href="/expenses/"><small>Expenses (today / this month)</small><b>₹{{ ov.expenses_today|floatformat:2 }} / ₹{{ ov.expenses_month|floatformat:2 }}</b><span class="sub">View expenses →</span></a>
-  <a class="card stat {% if ov.net_month >= 0 %}ok{% else %}warn{% endif %}" href="/report/"><small>Net profit this month</small><b>₹{{ ov.net_month|floatformat:2 }}</b><span class="sub">after expenses and write-offs</span></a>
+  <a class="card stat {% if ov.net_month >= 0 %}ok{% else %}warn{% endif %}" href="/report/"><small>Net profit this month</small><b>₹{{ ov.net_month|floatformat:2 }}</b><span class="sub">after expenses, write-offs and supplier deductions</span></a>
   {% endif %}
   {% endif %}
 </div>
@@ -110,6 +110,7 @@
       <div><span>Gross profit</span><b>₹{{ ov.profit_month|floatformat:2 }}</b></div>
       <div><span>− Expenses</span><b>₹{{ ov.expenses_month|floatformat:2 }}</b></div>
       <div><span>− Stock written off</span><b>₹{{ ov.writeoffs_month|floatformat:2 }}</b></div>
+      {% if ov.deductions_month %}<div><span>− Kept by suppliers on returns</span><b>₹{{ ov.deductions_month|floatformat:2 }}</b></div>{% endif %}
       <div style="border-top:1px solid var(--line);padding-top:8px;margin-top:4px"><span><b>Net profit</b></span><b>₹{{ ov.net_month|floatformat:2 }}</b></div>
     </div>
     <small style="color:var(--mute)">The same figures as the <a href="/report/">Profit &amp; Loss</a> page.</small>

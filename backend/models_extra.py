@@ -376,6 +376,15 @@ class PurchaseReturn(models.Model):
         return self._sum('taxable_value')
 
     @property
+    def credit_total(self):
+        """What the supplier really credits for this return (the debit note value minus what the supplier keeps)."""
+        return self._sum('credit')
+
+    @property
+    def deduction_total(self):
+        return self.total - self.credit_total
+
+    @property
     def total_items(self):
         return len(self.items.all())
 
@@ -396,6 +405,34 @@ class PurchaseReturnItem(models.Model):
     gst = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=0)
     amount = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=0,
                                  verbose_name="Amount (incl. GST)")
+    # The debit note (amount, GST) is always the full value of the goods. A supplier often keeps a part of it (expired goods):
+    # `credit` is what the supplier really takes off the balance, the rest is a loss (shown in the Profit & Loss report).
+    credit_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('100'), validators=[
+        MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))], verbose_name="Supplier credit (%)")
+    credit = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=0, verbose_name="Credit from supplier")
+    credit_override = None            # not stored: a rupee amount typed by the user instead of the percent (set before save())
+
+    @property
+    def deduction(self):
+        return (self.amount or Decimal('0')) - (self.credit or Decimal('0'))
+
+    def _work_out_credit(self, product):
+        """Sets credit and credit_percent from the line amount: the typed rupee amount if there is one, else the percent."""
+        amount = self.amount or Decimal('0')
+        if self.credit_override is not None:
+            c = Decimal(self.credit_override).quantize(TWO)
+            if amount < c <= amount + Decimal('0.10'):
+                c = amount                                  # the screen works in whole paise of its own: ignore a tiny difference
+            if c < 0 or c > amount:
+                raise ValidationError(f"'{product}': the supplier credit must be between 0 and {amount}.")
+            self.credit = c
+            self.credit_percent = (c * 100 / amount).quantize(TWO) if amount > 0 else Decimal('100')
+            return
+        pct = Decimal(self.credit_percent if self.credit_percent is not None else 100).quantize(TWO)
+        if pct < 0 or pct > 100:
+            raise ValidationError(f"'{product}': the supplier credit % must be between 0 and 100.")
+        self.credit_percent = pct
+        self.credit = (amount * pct / 100).quantize(TWO)
 
     def save(self, *args, **kwargs):
         if self.pk:
@@ -426,6 +463,7 @@ class PurchaseReturnItem(models.Model):
                 self.taxable_value = (pi.tax * ratio).quantize(TWO)
                 self.gst = (pi.gst * ratio).quantize(TWO)
             self.base_qty = self.qty * (pi.unit_factor or 1)
+            self._work_out_credit(pi.product)
 
             batch = Batch.objects.select_for_update().filter(purchase_item=pi).first()
             if batch is None or batch.qty < self.base_qty:
@@ -442,11 +480,11 @@ class PurchaseReturnItem(models.Model):
             batch.qty -= self.base_qty
             batch.save(update_fields=['qty'])
 
-            adjust_supplier_balance(header.supplier_id, -self.amount)   # the supplier is now owed this much less
+            adjust_supplier_balance(header.supplier_id, -self.credit)   # the supplier is now owed this much less (what he really credits)
             super().save(*args, **kwargs)
             Transaction.objects.create(
                 purchase_return_item=self, purchase_date=self.purchase_return.date,
-                supplier=header.supplier.company, purchase_amount=-self.amount,
+                supplier=header.supplier.company, purchase_amount=-self.credit,
             )
 
     def delete(self, *args, **kwargs):
@@ -459,7 +497,7 @@ class PurchaseReturnItem(models.Model):
             if batch is not None:
                 batch.qty += self.base_qty
                 batch.save(update_fields=['qty'])
-            adjust_supplier_balance(pi.purchase.supplier_id, self.amount)
+            adjust_supplier_balance(pi.purchase.supplier_id, self.credit)
             super().delete(*args, **kwargs)   # the Transaction is removed by cascade
 
     def __str__(self):

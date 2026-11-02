@@ -391,6 +391,7 @@ class FinancialReportAdmin(admin.ModelAdmin):
             purchases=pl['purchases'],
             expenses=pl['expenses'],
             writeoffs=pl['writeoffs'],
+            deductions=pl['deductions'],
             gross_profit=pl['gross'],
             net_profit=pl['net'],
             month=month,
@@ -492,7 +493,7 @@ class SalesReturnAdmin(ViewOnlyMixin, SafeDeleteMixin, admin.ModelAdmin):
 class PurchaseReturnItemInline(ViewOnlyMixin, admin.TabularInline):
     model = PurchaseReturnItem
     extra = 0
-    fields = ('purchase_item', 'qty', 'base_qty', 'taxable_value', 'gst', 'amount')
+    fields = ('purchase_item', 'qty', 'base_qty', 'taxable_value', 'gst', 'amount', 'credit_percent', 'credit')
     readonly_fields = fields
 
 

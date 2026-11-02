@@ -477,7 +477,8 @@ CONFIG = {
         cols=[('Debit Note', lambda o: o.note_number), ('Date', lambda o: d(o.date)),
               ('Purchase invoice', lambda o: o.purchase.invoice_number),
               ('Supplier', lambda o: o.purchase.supplier.company), ('Items', lambda o: o.total_items),
-              ('Taxable', lambda o: rs(o.taxable)), ('Total', lambda o: rs(o.total))],
+              ('Taxable', lambda o: rs(o.taxable)), ('Total', lambda o: rs(o.total)),
+              ('Supplier credit', lambda o: rs(o.credit_total)), ('Kept by supplier', lambda o: rs(o.deduction_total) if o.deduction_total else '-')],
         actions=lambda o: [dict(label='🖨️ Note', url=f"/purchase_returns/{o.pk}/note/", target='_blank')],
     ),
     'writeoffs': dict(

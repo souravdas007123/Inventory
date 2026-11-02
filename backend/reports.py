@@ -74,10 +74,12 @@ def profit_and_loss(month, year):
                    .aggregate(s=Sum('amount'))['s'])
     writeoffs = dec(StockWriteOff.objects.filter(date__month=month, date__year=year)
                     .aggregate(s=Sum('cost'))['s'])
+    deductions = return_deductions(month, year)
 
     gross = sales - cogs
     return dict(sales=sales, cogs=cogs, gross=gross, purchases=purchases,
-                expenses=expenses, writeoffs=writeoffs, net=gross - expenses - writeoffs)
+                expenses=expenses, writeoffs=writeoffs, deductions=deductions,
+                net=gross - expenses - writeoffs - deductions)
 
 
 # ======================================================
@@ -340,15 +342,23 @@ def _pct(value, peak):
     return int(round(float(value / peak) * 100)) if peak and peak > 0 and value > 0 else 0
 
 
+def return_deductions(month, year):
+    """What suppliers kept from the purchase returns of this month (debit note value minus the credit they gave): a loss."""
+    from django.db.models import F
+    return dec(PurchaseReturnItem.objects.filter(purchase_return__date__month=month, purchase_return__date__year=year)
+               .aggregate(s=Sum(F('amount') - F('credit')))['s'])
+
+
 def expense_overview(today, gross_month):
     """Expenses today / this month, expenses by type, write-offs and the net profit of this month.
 
-    Net profit = gross profit - expenses - write-offs, exactly as on the Profit & Loss page."""
+    Net profit = gross profit - expenses - write-offs - supplier return deductions, exactly as on the Profit & Loss page."""
     from .models import Expense, StockWriteOff
     month_exp = Expense.objects.filter(date__month=today.month, date__year=today.year)
     expenses_month = dec(month_exp.aggregate(s=Sum('amount'))['s'])
     writeoffs_month = dec(StockWriteOff.objects.filter(date__month=today.month, date__year=today.year)
                           .aggregate(s=Sum('cost'))['s'])
+    deductions_month = return_deductions(today.month, today.year)
     labels = dict(Expense.EXPENSES_TYPES)
     by_type = list(month_exp.values('name').annotate(s=Sum('amount')).order_by('-s'))
     peak = max([dec(r['s']) for r in by_type] + [ZERO])
@@ -357,7 +367,8 @@ def expense_overview(today, gross_month):
         expenses_today=dec(Expense.objects.filter(date=today).aggregate(s=Sum('amount'))['s']),
         expenses_month=expenses_month,
         writeoffs_month=writeoffs_month,
-        net_month=gross_month - expenses_month - writeoffs_month,
+        deductions_month=deductions_month,
+        net_month=gross_month - expenses_month - writeoffs_month - deductions_month,
         expense_rows=[dict(label=labels.get(r['name'], r['name']), amount=dec(r['s']), pct=_pct(dec(r['s']), peak)) for r in by_type],
     )
 

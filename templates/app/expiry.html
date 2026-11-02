@@ -1,4 +1,5 @@
 {% extends "app/base.html" %}
+{% load l10n %}
 {% block title %}Expiry Returns{% endblock %}
 {% block content %}
 <div class="head"><h1>⏳ Expiry Returns</h1>
@@ -7,6 +8,7 @@
   Batches that are <b>expired</b> or expire within <b>{{ days }} days</b>, grouped by the supplier they were bought from. Tick what you want to send back and press
   <b>Return</b>: a debit note is made for each original invoice, the stock is reduced and the supplier balance goes down. Expired batches are ticked for you;
   tick near-expiry ones only after the supplier has agreed. Only whole purchase units (full strips / boxes) can go back.
+  If the supplier keeps a part of the value, change <b>Supplier credit</b> of that medicine (a % or a ₹ amount): the supplier balance goes down by the credit only, and what the supplier keeps is shown as a loss in the Profit &amp; Loss report.
   Use <b>WhatsApp</b> to ask the supplier first.
 </div>
 {% if suppliers %}
@@ -22,7 +24,7 @@
     </div>
   </div>
   <div class="tw"><table class="t stack">
-    <thead><tr><th></th><th>Medicine</th><th>Batch</th><th>Expiry</th><th>Can return</th><th>Invoice</th><th>Value</th></tr></thead>
+    <thead><tr><th></th><th>Medicine</th><th>Batch</th><th>Expiry</th><th>Can return</th><th>Invoice</th><th>Value</th><th>Supplier credit</th></tr></thead>
     <tbody>
     {% for inv in g.invoices %}{% for x in inv.items %}<tr>
       <td data-label=""><input type="checkbox" name="batch" value="{{ x.batch_id }}" {% if x.expired and x.returnable %}checked{% endif %} {% if not x.returnable %}disabled{% endif %}></td>
@@ -32,9 +34,13 @@
       <td data-label="Can return">{% if x.returnable %}<b>{{ x.units }} {{ x.unit }}</b>{% if x.loose %}<br><small style="color:var(--mute)">+ {{ x.loose }} loose, cannot be returned</small>{% endif %}{% else %}<small style="color:var(--mute)">Less than 1 {{ x.unit|default:"unit" }} left</small>{% endif %}</td>
       <td data-label="Invoice">{{ inv.invoice }}<br><small style="color:var(--mute)">{{ inv.invoice_date|date:"d M Y" }}</small></td>
       <td data-label="Value">{% if x.returnable %}₹{{ x.value }}{% else %}-{% endif %}</td>
+      <td data-label="Supplier credit">{% if x.returnable %}<span style="display:inline-flex;gap:4px;align-items:center;white-space:nowrap">
+        <input type="number" class="cr-pct" min="0" max="100" step="0.01" name="credit_pct_{{ x.batch_id }}" value="100" data-full="{{ x.value|unlocalize }}" style="width:76px" aria-label="Supplier credit percent">%
+        <input type="number" class="cr-amt" min="0" step="0.01" name="credit_amt_{{ x.batch_id }}" style="width:100px" aria-label="Supplier credit in rupees">₹</span>{% else %}-{% endif %}</td>
     </tr>{% endfor %}{% endfor %}
     </tbody>
   </table></div>
+  <div class="credit-sum msg info" hidden style="margin-top:10px"></div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px">
     <input type="text" name="reason" value="Expired / near expiry" maxlength="255" style="flex:1;min-width:200px" aria-label="Reason">
     <button class="btn" data-confirm="Return the ticked batches to {{ g.supplier }}? Stock and the supplier balance will change." data-confirm-yes="Yes, return">📤 Return ticked batches</button>
@@ -45,3 +51,11 @@
 <div class="card"><div class="empty">Nothing is expired or about to expire in the next {{ days }} days. 🎉</div></div>
 {% endif %}
 {% endblock %}
+{% block scripts %}{% if suppliers %}<script>{% include "app/_credit.js" %}
+document.querySelectorAll('form.card').forEach(function (form) {
+  if (!form.querySelector('.cr-pct')) return;
+  const box = tr => tr.querySelector('input[name="batch"]');
+  creditInit(form, 'tbody tr', tr => { const p = tr.querySelector('.cr-pct'); return p ? (parseFloat(p.dataset.full) || 0) : 0; },
+             tr => { const b = box(tr); return !!(b && b.checked && !b.disabled); });
+});
+</script>{% endif %}{% endblock %}

@@ -5,7 +5,7 @@ import json
 import logging
 import re
 from datetime import date as date_cls, datetime as datetime_cls, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from urllib.parse import urlencode
 
 from django.contrib import messages
@@ -106,7 +106,9 @@ def _supplier_statement(supplier):
         total = sum((i.purchase_price or zero for i in p.items.all()), zero)
         entries.append((p.invoice_date, 0, f"Purchase {p.invoice_number}", total, zero))
     for r in PurchaseReturn.objects.filter(purchase__supplier=supplier).select_related('purchase').prefetch_related('items'):
-        entries.append((r.date, 1, f"Return {r.note_number} (invoice {r.purchase.invoice_number})", zero, r.total))
+        kept = r.deduction_total
+        entries.append((r.date, 1, f"Return {r.note_number} (invoice {r.purchase.invoice_number})"
+                        + (f" \u00b7 supplier kept \u20b9{kept:,.2f}" if kept else ''), zero, r.credit_total))
     for pay in supplier.payments.all():
         entries.append((pay.payment_date, 2, f"Payment ({pay.payment_mode or '-'})" + (f" \u00b7 {pay.note}" if pay.note else ''), zero, pay.amount))
     entries.sort(key=lambda e: (e[0] or date_cls.min, e[1]))
@@ -141,6 +143,34 @@ def supplier_ledger(request, pk):
 # ======================================================
 # SALES RETURN / PURCHASE RETURN (credit note / debit note)
 # ======================================================
+
+def _read_credit(request, key, name):
+    """The supplier credit typed for one returned line: 'credit_pct_<key>' (percent) and 'credit_amt_<key>' (rupees).
+    Returns (percent or None, rupees or None, error or None). Blank percent = 100. A typed rupee amount wins over the percent."""
+    def number(raw, what):
+        raw = (raw or '').strip().replace(',', '')
+        if not raw:
+            return None, None
+        try:
+            d = Decimal(raw)
+        except InvalidOperation:
+            return None, f"'{name}': the supplier {what} must be a number."
+        if not d.is_finite() or d < 0:
+            return None, f"'{name}': the supplier {what} cannot be negative."
+        return d, None
+
+    amt, err = number(request.POST.get(f'credit_amt_{key}'), 'credit amount')
+    if err:
+        return None, None, err
+    pct, err = number(request.POST.get(f'credit_pct_{key}'), 'credit %')
+    if err:
+        return None, None, err
+    if pct is not None and pct > 100:
+        return None, None, f"'{name}': the supplier credit % cannot be more than 100."
+    if amt is not None and amt > Decimal('9999999999.99'):
+        return None, None, f"'{name}': the supplier credit amount is too large."
+    return pct, amt, None
+
 
 def _read_return_qtys(request, rows):
     """Reads 'qty_<item pk>' from POST. Returns (qtys: {item: qty}, errors)."""
@@ -181,6 +211,15 @@ def sales_return_new(request, pk):
         qtys, errors = _read_return_qtys(request, rows)
         if not errors and not qtys:
             errors.append('Enter a return qty for at least one item.')
+        credits = {}
+        for r in rows:
+            r['credit_pct'] = request.POST.get(f"credit_pct_{r['item'].pk}", '').strip()
+            r['credit_amt'] = request.POST.get(f"credit_amt_{r['item'].pk}", '').strip()
+            if r['item'] in qtys:
+                pct, amt, err = _read_credit(request, r['item'].pk, r['name'])
+                if err:
+                    errors.append(err)
+                credits[r['item']] = (pct, amt)
         for e in errors:
             messages.error(request, e)
         if not errors:
@@ -215,6 +254,7 @@ def purchase_return_new(request, pk):
         batch = getattr(it, 'batch_record', None)
         in_stock = (batch.qty // (it.unit_factor or 1)) if batch else 0
         rows.append(dict(item=it, name=it.product.name, unit=it.unit or '', sold=it.qty, returned=returned,
+                         price=it.purchase_price or 0, pqty=it.qty or 1,
                          left=max(min((it.qty or 0) - returned, in_stock), 0),
                          note=f"This batch currently has {batch.qty if batch else 0} (base unit) left"))
 
@@ -222,6 +262,15 @@ def purchase_return_new(request, pk):
         qtys, errors = _read_return_qtys(request, rows)
         if not errors and not qtys:
             errors.append('Enter a return qty for at least one item.')
+        credits = {}
+        for r in rows:
+            r['credit_pct'] = request.POST.get(f"credit_pct_{r['item'].pk}", '').strip()
+            r['credit_amt'] = request.POST.get(f"credit_amt_{r['item'].pk}", '').strip()
+            if r['item'] in qtys:
+                pct, amt, err = _read_credit(request, r['item'].pk, r['name'])
+                if err:
+                    errors.append(err)
+                credits[r['item']] = (pct, amt)
         for e in errors:
             messages.error(request, e)
         if not errors:
@@ -232,9 +281,15 @@ def purchase_return_new(request, pk):
                     pr.full_clean()
                     pr.save()
                     for it, q in qtys.items():
-                        PurchaseReturnItem(purchase_return=pr, purchase_item=it, qty=q).save()
+                        pct, amt = credits[it]
+                        line = PurchaseReturnItem(purchase_return=pr, purchase_item=it, qty=q,
+                                                  credit_percent=Decimal('100') if pct is None else pct)
+                        line.credit_override = amt
+                        line.save()
                 auditlog.record(request, 'RETURN', 'Purchase return', pr.note_number)
-                messages.success(request, f"{pr.note_number} created. Stock and supplier balance adjusted ✅")
+                kept = pr.deduction_total
+                messages.success(request, f"{pr.note_number} created. Stock and supplier balance adjusted ✅"
+                                 + (f" The supplier kept \u20b9{kept:,.2f}; it is shown as a loss in the Profit & Loss report." if kept else ''))
                 return redirect('purchase_return_note', pk=pr.pk)
             except ValidationError as e:
                 messages.error(request, ' '.join(e.messages))
@@ -270,6 +325,7 @@ def purchase_return_note(request, pk):
         kind='debit', title='DEBIT NOTE', number=pr.note_number, date=pr.date, party=sup.company,
         party_gstin=sup.gstin or '', ref=f"Purchase invoice {pr.purchase.invoice_number}", reason=pr.reason,
         extra='', lines=lines, taxable=pr.taxable, total=pr.total, shop=ShopProfile.get(),
+        credit_line=(f"\u20b9{pr.credit_total:,.2f} (the supplier keeps \u20b9{pr.deduction_total:,.2f})" if pr.deduction_total else ''),
         back_url='/purchase_returns/'))
 
 
@@ -915,12 +971,19 @@ def _expiry_make_returns(request, today):
         return redirect('expiry')
     reason = ' '.join(request.POST.get('reason', '').split())[:255] or 'Expired / near expiry'
     batches = _expiry_batches(Batch.objects.filter(pk__in=ids, qty__gt=0, purchase_item__isnull=False, product__isnull=False))
-    by_purchase = {}
+    by_purchase, credits, errors = {}, {}, []
     for b in batches:
         pi = b.purchase_item
         units, _loose = expiry_returns.returnable_units(b.qty, pi.unit_factor)
         if units > 0:
-            by_purchase.setdefault(pi.purchase_id, (pi.purchase, []))[1].append((pi, units))
+            by_purchase.setdefault(pi.purchase_id, (pi.purchase, []))[1].append((pi, units, b.pk))
+            pct, amt, err = _read_credit(request, b.pk, f"{b.product.name or b.product} ({b.batch_number})")
+            if err:
+                errors.append(err)
+            credits[b.pk] = (pct, amt)
+    if errors:
+        messages.error(request, 'Nothing was returned: ' + ' '.join(errors))
+        return redirect('expiry')
     if not by_purchase:
         messages.error(request, 'Nothing could be returned. These batches may already be sold, returned, or less than one full unit.')
         return redirect('expiry')
@@ -929,16 +992,25 @@ def _expiry_make_returns(request, today):
         with transaction.atomic():
             for purchase, lines in by_purchase.values():
                 ret = PurchaseReturn.objects.create(purchase=purchase, date=today, reason=reason)
-                for pi, units in lines:
-                    PurchaseReturnItem(purchase_return=ret, purchase_item=pi, qty=units).save()
+                for pi, units, batch_id in lines:
+                    pct, amt = credits[batch_id]
+                    line = PurchaseReturnItem(purchase_return=ret, purchase_item=pi, qty=units,
+                                              credit_percent=Decimal('100') if pct is None else pct)
+                    line.credit_override = amt
+                    line.save()
                 made.append(ret)
     except ValidationError as e:
         messages.error(request, 'Nothing was returned: ' + ' '.join(e.messages))
         return redirect('expiry')
     total = sum((r.total for r in made), Decimal('0'))
+    credit = sum((r.credit_total for r in made), Decimal('0'))
     for r in made:
         auditlog.record(request, 'CREATE', 'Purchase Return', f"{r} (expiry return)")
-    messages.success(request, f"{len(made)} debit note(s) created, worth \u20b9{total:,.2f}. Stock is reduced and the supplier balance is updated.")
+    msg = f"{len(made)} debit note(s) created, worth \u20b9{total:,.2f}. Stock is reduced and the supplier balance is updated."
+    if credit != total:
+        msg = (f"{len(made)} debit note(s) created, worth \u20b9{total:,.2f}. The supplier credits \u20b9{credit:,.2f} and keeps "
+               f"\u20b9{total - credit:,.2f} (shown as a loss in the Profit & Loss report). Stock is reduced and the supplier balance is updated.")
+    messages.success(request, msg)
     return redirect('list', key='purchase_returns')
 
 

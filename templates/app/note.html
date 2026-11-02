@@ -48,7 +48,7 @@ table{width:100%;border-collapse:collapse}
   </div>
   <div class="box">
     <b>{% if kind == 'credit' %}Customer{% else %}Supplier{% endif %}:</b> {{ party }}{% if party_gstin %} &nbsp;·&nbsp; <b>GSTIN:</b> {{ party_gstin }}{% endif %}<br>
-    <b>Against:</b> {{ ref }}{% if reason %}<br><b>Reason:</b> {{ reason }}{% endif %}{% if extra %}<br><b>Refund:</b> {{ extra }}{% endif %}
+    <b>Against:</b> {{ ref }}{% if reason %}<br><b>Reason:</b> {{ reason }}{% endif %}{% if extra %}<br><b>Refund:</b> {{ extra }}{% endif %}{% if credit_line %}<br><b>Credit from supplier:</b> {{ credit_line }}{% endif %}
   </div>
   <table class="items">
     <thead><tr><th class="c">#</th><th>Item</th><th class="r">Qty</th><th class="r">Taxable</th><th class="r">GST</th><th class="r">Amount</th></tr></thead>

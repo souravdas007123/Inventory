@@ -1,4 +1,5 @@
 {% extends "app/base.html" %}
+{% load l10n %}
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
 <div class="head">
@@ -20,15 +21,33 @@
   </div>
   <h3>Quantity being returned</h3>
   <div class="tw"><table class="t">
-    <thead><tr><th>Item</th><th>{% if kind == 'sales' %}Sold{% else %}Purchased{% endif %}</th><th>Already returned</th><th>Can still return</th><th>Return qty</th></tr></thead>
+    <thead><tr><th>Item</th><th>{% if kind == 'sales' %}Sold{% else %}Purchased{% endif %}</th><th>Already returned</th><th>Can still return</th><th>Return qty</th>{% if kind == 'purchase' %}<th>Supplier credit (%)</th><th>Supplier credit (₹)</th>{% endif %}</tr></thead>
     <tbody>
     {% for r in rows %}<tr>
       <td>{{ r.name }}{% if r.note %}<br><small>{{ r.note }}</small>{% endif %}</td>
       <td>{{ r.sold }} {{ r.unit }}</td><td>{{ r.returned }}</td><td>{{ r.left }}</td>
-      <td>{% if r.left > 0 %}<input type="number" min="0" max="{{ r.left }}" name="qty_{{ r.item.pk }}" value="{{ r.value }}" placeholder="0" style="max-width:110px">{% else %}-{% endif %}</td>
+      <td>{% if r.left > 0 %}<input type="number" min="0" max="{{ r.left }}" name="qty_{{ r.item.pk }}" value="{{ r.value }}" placeholder="0" style="max-width:110px"{% if kind == 'purchase' %} data-credit-trigger data-price="{{ r.price|unlocalize }}" data-pqty="{{ r.pqty }}"{% endif %}>{% else %}-{% endif %}</td>
+      {% if kind == 'purchase' %}{% if r.left > 0 %}
+      <td data-label="Supplier credit (%)"><input type="number" class="cr-pct" min="0" max="100" step="0.01" name="credit_pct_{{ r.item.pk }}" value="{{ r.credit_pct|default:'100' }}" style="max-width:100px" aria-label="Supplier credit percent"></td>
+      <td data-label="Supplier credit (₹)"><input type="number" class="cr-amt" min="0" step="0.01" name="credit_amt_{{ r.item.pk }}" value="{{ r.credit_amt }}" placeholder="0.00" style="max-width:130px" aria-label="Supplier credit in rupees"></td>
+      {% else %}<td>-</td><td>-</td>{% endif %}{% endif %}
     </tr>{% endfor %}
     </tbody>
   </table></div>
+  {% if kind == 'purchase' %}
+  <div class="credit-sum msg info" hidden style="margin-top:12px"></div>
+  <small style="color:var(--mute);display:block;margin-top:8px">Does the supplier keep a part of the value (for example for expired goods)? Change the <b>%</b> (or type the <b>₹</b> amount) of that line. The debit note stays at the full value; the supplier balance goes down by the credit only, and what the supplier keeps is shown as a loss in the Profit &amp; Loss report. Leave 100% if the supplier credits everything.</small>
+  {% endif %}
   <div class="bar"><button class="btn">↩ Save return</button><a class="btn ghost" href="{{ back_url }}">Cancel</a></div>
 </form>
 {% endblock %}
+{% block scripts %}{% if kind == 'purchase' %}<script>{% include "app/_credit.js" %}
+(function () {
+  const form = document.querySelector('form.card[method="post"]'); if (!form) return;
+  const qtyOf = tr => { const q = tr.querySelector('[name^="qty_"]'); return q ? (parseFloat(q.value) || 0) : 0; };
+  const fullOf = tr => { const q = tr.querySelector('[name^="qty_"]'); if (!q || !q.dataset.price) return 0;
+    const n = qtyOf(tr), p = parseFloat(q.dataset.price), pq = parseFloat(q.dataset.pqty) || 1;
+    return n > 0 && isFinite(p) ? Math.round((p * n / pq + Number.EPSILON) * 100) / 100 : 0; };
+  creditInit(form, 'tbody tr', fullOf, tr => qtyOf(tr) > 0);
+})();
+</script>{% endif %}{% endblock %}
