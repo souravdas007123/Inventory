@@ -16,7 +16,7 @@ ACCENT = '#0f766e'
 
 
 def _html(preheader, title, intro, blocks, button=None, small=''):
-    """blocks: [('p', text) | ('steps', [text, ...]) | ('box', [(label, value), ...])]. All text is plain and escaped here."""
+    """blocks: [('p', text) | ('steps', [text, ...]) | ('links', [(label, url), ...]) | ('box', [(label, value), ...])]. All text is plain and escaped here."""
     body = []
     for kind, data in blocks:
         if kind == 'p':
@@ -28,6 +28,10 @@ def _html(preheader, title, intro, blocks, button=None, small=''):
                 f'<td style="padding:0 0 10px;font-size:15px;line-height:1.5;color:#334155">{escape(t)}</td></tr>'
                 for i, t in enumerate(data, 1))
             body.append(f'<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 10px">{items}</table>')
+        elif kind == 'links':
+            items = ''.join(f'<li style="margin:0 0 6px"><a href="{escape(url)}" style="color:{ACCENT};font-weight:bold">{escape(label)}</a></li>'
+                            for label, url in data)
+            body.append(f'<ul style="margin:0 0 16px;padding-left:20px;font-size:14px;line-height:1.5;color:#334155">{items}</ul>')
         elif kind == 'box':
             rows = ''.join(f'<tr><td style="padding:4px 12px 4px 0;font-size:14px;color:#64748b">{escape(a)}</td>'
                            f'<td style="padding:4px 0;font-size:14px;color:#0f172a;font-weight:bold">{escape(b)}</td></tr>' for a, b in data)
@@ -64,6 +68,10 @@ def _text(title, intro, blocks, button=None, small=''):
             lines += [data, '']
         elif kind == 'steps':
             lines += [f'{i}. {t}' for i, t in enumerate(data, 1)] + ['']
+        elif kind == 'links':
+            for label, url in data:
+                lines += [f'- {label}:', f'  {url}']
+            lines.append('')
         elif kind == 'box':
             lines += [f'{a}: {b}' for a, b in data] + ['']
     if button:
@@ -111,11 +119,19 @@ def welcome_message(shop, login_email, today=None, via_google=False):
     box.append(('Sign in with', f'Google ({login_email})' if via_google else login_email))
     if ends:
         box.append(('Free trial until', ends))
-    steps = ['After you sign in, open "Setup guide" in the menu. It lists what to enter and import first, in the right order.',
-             'Add your medicines and suppliers (bring them in at once with Import / Export).',
-             'Enter your opening stock as a purchase, so each batch and its expiry date is tracked.',
-             'Make your first bill from Billing. Print it or send it to the customer on WhatsApp.',
-             'Open Sign-in security and turn on 2-step sign-in to keep your shop safe.']
+    steps = ['Fill in your shop details. Open Shop Settings and enter the address, phone, GSTIN and Drug Licence number: they are printed on every bill.',
+             'Add your suppliers. Import them from Excel (download the template first) or add them one by one. A supplier must exist before you enter stock.',
+             'Enter your opening stock. Import your supplier bills from Excel (Import / Export, then Stock Entry) or enter a purchase. '
+             'A medicine that is not in your list yet is created from these rows, so you need no separate product list. Always fill in the expiry date: expiry alerts and returns depend on it.',
+             'Make your first bill. Scan the barcode or type the medicine name, press Enter to move on and F9 to save. Print it, or send it to the customer on WhatsApp.',
+             'Keep your shop safe. Turn on 2-step sign-in in Sign-in security. A backup is taken every day, and you can download your own copy from the Backup page.']
+    later = ['Customers who buy on credit, past expenses and staff logins (give each person their own role) can all be added later.',
+             'Handy screens: Expiry Returns (send expired stock back to the supplier), Reorder Suggestions (what to buy next) and Profit & Loss.']
+    links = ([('Setup guide: your first steps, ticking themselves as you go', address + 'setup/'),
+              ('Help and user guide', address + 'help/'),
+              ('Import / Export: templates and uploads', address + 'import/'),
+              ('Sign-in security: turn on 2-step sign-in', address + 'security/'),
+              ('Support tickets: write to us from inside your shop', address + 'support/')] if address else [])
     contact = [c for c in _contact_lines() if not c.startswith('Please contact')]
     help_line = ('Stuck anywhere? Open "Support tickets" inside your shop and write to us, we reply there and by e-mail.'
                  + (' You can also reach us here: ' + '; '.join(contact) if contact else ''))
@@ -126,8 +142,11 @@ def welcome_message(shop, login_email, today=None, via_google=False):
         [('box', box), ('p', ('You signed up with Google, so there is no password: choose Continue with Google on the sign-in page. '
                 'You can set a password any time with "Forgot your password?". We never e-mail passwords.') if via_google
                 else 'Your password is the one you chose while signing up. We never e-mail passwords.'),
-         ('p', 'Get going in five steps:'), ('steps', steps), ('p', help_line),
-         ('p', 'Tip: open your shop on your phone and choose "Add to Home screen" to use it like an app, including the camera barcode scan.')],
+         ('p', 'Your first day, step by step:'), ('steps', steps)]
+        + [('p', t) for t in later]
+        + ([('p', 'Quick links (sign in first):'), ('links', links)] if links else [])
+        + [('p', help_line),
+           ('p', 'Tip: open your shop on your phone and choose "Add to Home screen" to use it like an app, including the camera barcode scan.')],
         button=('Open my shop', address + 'login/') if address else None,
         small='Your data belongs to you. You can download a full copy any time from the Backup page.')
     return f'Welcome to MedSync, {shop.name} is ready', text, html

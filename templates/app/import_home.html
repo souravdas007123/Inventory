@@ -6,8 +6,13 @@
 <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))">
   {% for it in items %}
   <div class="card" style="display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;min-height:22px">
+      {% if it.step %}<span class="badge grey">{{ it.step }}</span>{% endif %}
+      {% if it.required %}<span class="badge amber">Required</span>{% else %}<span class="badge grey">Optional</span>{% endif %}
+    </div>
     <h3 style="margin:0">{{ it.icon }} {{ it.title }}</h3>
     <p style="margin:0;color:var(--mute);flex:1">{{ it.desc }}</p>
+    {% if it.why %}<p style="margin:0;font-size:13px"><b>{% if it.required %}Why now:{% else %}When:{% endif %}</b> {{ it.why }}</p>{% endif %}
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <a class="btn" href="{% url 'import' it.key %}">⬆ Import</a>
       <a class="btn ghost" href="{% url 'import' it.key %}?template=1">Template</a>
@@ -16,13 +21,12 @@
   </div>
   {% endfor %}
 </div>
-<div class="card" style="margin-top:14px"><h3 style="margin-top:0">Recommended order</h3>
+<div class="card" style="margin-top:14px"><h3 style="margin-top:0">Where to start</h3>
   <ol style="margin:0;padding-left:20px;line-height:1.8">
-    <li><i>(Optional)</i> Import <b>Units, Categories, Brands</b>. They are also created automatically during the Products import</li>
-    <li>Import <b>Suppliers</b></li>
-    <li>Import <b>Products</b> (name, unit, GST, MRP, pack)</li>
-    <li><b>Stock Entry</b> se supplier bills / opening stock chadhayein</li>
-    <li>Import <b>Customers</b> (any time)</li>
+    <li>Import <b>Suppliers</b>: required before any stock can be entered.</li>
+    <li>Import <b>Stock Entry</b> (your supplier bills / opening stock). Medicines that are not in Products yet are created from these rows, so you do not need a separate product list first.</li>
+    <li><i>(Optional)</i> Import <b>Products</b> to add medicines that have no stock yet, or to fill in MRP, barcode and packs.</li>
+    <li><i>(Optional, any time)</i> <b>Customers</b>, <b>Expenses</b>, and <b>Units, Categories, Brands</b> (these are also created automatically).</li>
   </ol>
   <p style="color:var(--mute);margin:10px 0 0">On every list page (Products, Bills, Purchases...), the <b>⬇ Excel</b> / <b>CSV</b> button downloads the whole list.</p>
 </div>

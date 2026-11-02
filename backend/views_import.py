@@ -102,11 +102,36 @@ def _match_columns(request, ctx, imp, kind):
     _preview_or_match(ctx, imp, kind, payload, token, mapping, saved=False)
 
 
+# The order a new shop should follow on the Import / Export page: what is needed first comes first.
+# (kind, step label, required?, why). A stock entry creates the medicines it does not find yet, so Products is not needed before it.
+IMPORT_GUIDE = [
+    ('suppliers', 'Step 1', True, 'Needed first: every stock entry belongs to a supplier, and the supplier must exist before you import stock.'),
+    ('stock', 'Step 2', True, 'This brings in your medicines (a name that is not in Products yet is created from the row) and your opening stock, '
+                              'so billing can start. Fill in the expiry date of every row.'),
+    ('products', 'Step 3', False, 'Add medicines that are not in stock yet, or fill in the MRP, barcode and packs of the ones you already have.'),
+    ('customers', '', False, 'Only for customers who buy on credit. Can be done at any time.'),
+    ('expenses', '', False, 'Only to bring in past expenses, so Profit & Loss is complete.'),
+    ('categories', '', False, 'Also created automatically by the Products and Stock imports.'),
+    ('brands', '', False, 'Also created automatically by the Products and Stock imports.'),
+    ('units', '', False, 'The usual units (Tablet, Strip, Box ...) are already there.'),
+]
+
+
+def import_cards():
+    """The cards of the Import / Export page in the order of IMPORT_GUIDE; an importer that is not in the guide comes last."""
+    guide = {k: (step, required, why) for k, step, required, why in IMPORT_GUIDE}
+    order = {k: i for i, (k, *_rest) in enumerate(IMPORT_GUIDE)}
+    cards = []
+    for k, imp in IMPORTERS.items():
+        step, required, why = guide.get(k, ('', False, ''))
+        cards.append(dict(key=k, can_export=bool(imp['export']), step=step, required=required, why=why,
+                          **{kk: v for kk, v in imp.items() if kk in ('title', 'icon', 'desc')}))
+    return sorted(cards, key=lambda c: order.get(c['key'], len(order)))
+
+
 @access.owner_required
 def import_home(request):
-    return page(request, 'app/import_home.html', active='import',
-                items=[dict(key=k, can_export=bool(imp['export']), **{kk: v for kk, v in imp.items() if kk in ('title', 'icon', 'desc')})
-                       for k, imp in IMPORTERS.items()])
+    return page(request, 'app/import_home.html', active='import', items=import_cards())
 
 
 @access.owner_required
