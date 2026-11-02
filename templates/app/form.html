@@ -46,16 +46,23 @@
     {% if not form.instance.pk %}<button type="button" class="btn ghost sm" id="copy-last">↻ Copy items from this supplier's last invoice</button>{% endif %}<small id="copy-msg" style="color:var(--mute)"></small></div>{% endif %}
   {{ fs.management_form }}{{ fs.non_form_errors }}
   <div class="tw"><table class="t stack{% if key == 'purchases' %} hide-extra{% endif %}" id="items-table">
-    <thead><tr>{% for f in fs.empty_form.visible_fields %}<th>{{ f.label }}</th>{% endfor %}</tr></thead>
+    <thead><tr>{% for f in fs.empty_form.visible_fields %}<th{% if f.name == 'DELETE' %} class="delcol"{% endif %}>{{ f.label }}</th>{% endfor %}</tr></thead>
     <tbody id="rows">
       {% for r in fs %}<tr>{% for h in r.hidden_fields %}{{ h }}{% endfor %}{{ r.non_field_errors }}
-        {% for f in r.visible_fields %}<td data-label="{{ f.label }}">{{ f }}{{ f.errors }}</td>{% endfor %}</tr>{% endfor %}
+        {% for f in r.visible_fields %}{% if f.name == 'DELETE' %}<td class="delcol" data-label="{{ f.label }}">{{ f }}</td>{% else %}<td data-label="{{ f.label }}">{% if forloop.first %}<div class="pcell">{{ f }}<button type="button" class="rowdel" title="Remove this row" aria-label="Remove this row">✕</button></div>{% else %}{{ f }}{% endif %}{{ f.errors }}</td>{% endif %}{% endfor %}</tr>{% endfor %}
     </tbody>
   </table></div>
   <button type="button" class="btn ghost" id="add" style="margin-top:10px">+ Add row</button>
   {% if key == 'purchases' %}<button type="button" class="btn ghost" id="toggle-extra" style="margin-top:10px">▸ More details (rack, row, location, composition)</button>{% endif %}
   {% if key == 'bills' or key == 'purchases' %}
   <style>
+    .delcol{display:none !important}
+    .pcell{display:flex;gap:6px;align-items:center}.pcell select{flex:1;min-width:0}
+    .rowdel{flex:none;border:1px solid var(--line);background:transparent;color:#c0392b;border-radius:8px;width:32px;height:32px;font:inherit;font-weight:700;cursor:pointer;line-height:1}
+    .rowdel:hover,.rowdel:focus-visible{background:#c0392b;color:#fff;outline:none}
+    tr.row-deleted td{opacity:.45}tr.row-deleted td select,tr.row-deleted td input{text-decoration:line-through;pointer-events:none}
+    tr.row-deleted td .rowdel{opacity:1;pointer-events:auto;background:var(--pri);color:#fff;border-color:var(--pri)}
+    @media(max-width:820px){.rowdel{width:40px;height:40px}}
     .upills{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
     .upill{border:1px solid var(--pri);background:transparent;color:var(--pri);border-radius:999px;padding:4px 10px;min-height:28px;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
     .upill.on{background:var(--pri);color:#fff}
@@ -83,7 +90,7 @@
   </div>
   {% endif %}
   <template id="tpl"><tr>{% for h in fs.empty_form.hidden_fields %}{{ h }}{% endfor %}
-    {% for f in fs.empty_form.visible_fields %}<td data-label="{{ f.label }}">{{ f }}</td>{% endfor %}</tr></template>
+    {% for f in fs.empty_form.visible_fields %}{% if f.name == 'DELETE' %}<td class="delcol" data-label="{{ f.label }}">{{ f }}</td>{% else %}<td data-label="{{ f.label }}">{% if forloop.first %}<div class="pcell">{{ f }}<button type="button" class="rowdel" title="Remove this row" aria-label="Remove this row">✕</button></div>{% else %}{{ f }}{% endif %}</td>{% endif %}{% endfor %}</tr></template>
   </div>
   {% endif %}
 
@@ -304,18 +311,19 @@ rowsBody.addEventListener('input', e => {
   const tr = e.target.closest('tr'); clearTimeout(batchTimer); batchTimer = setTimeout(() => showBatches(tr), 200);
 });
 rowsBody.querySelectorAll('tr').forEach(tr => { if (rowField(tr, 'product') && rowField(tr, 'product').value) showBatches(tr); });
+const isGone = tr => { const d = tr.querySelector('[name$="-DELETE"]'); return !!(d && d.checked); };      // a saved row marked with ✕
 function addProduct(p, jump) {
   const toQty = tr => { if (!jump) return; const q = rowField(tr, 'qty'); if (q) { q.focus(); q.select(); } };
   for (const tr of rowsBody.querySelectorAll('tr')) {          // if the row already exists, qty +1
     const sel = rowField(tr, 'product');
-    if (sel && sel.value === String(p.id)) {
+    if (sel && !isGone(tr) && sel.value === String(p.id)) {
       const q = rowField(tr, 'qty'); q.value = (parseInt(q.value || '0', 10) + 1); showBatches(tr); toQty(tr); return;
     }
   }
   let target = null;                                           // find an empty row
   for (const tr of rowsBody.querySelectorAll('tr')) {
     const sel = rowField(tr, 'product');
-    if (sel && !sel.value) { target = tr; break; }
+    if (sel && !sel.value && !isGone(tr)) { target = tr; break; }
   }
   if (!target) {
     document.getElementById('add').click();
@@ -622,7 +630,7 @@ if (scan) {
     if (nm.endsWith('-purchase_price')) { e.target.dataset.auto = '0'; e.target.classList.remove('autofill'); }
     const tr = e.target.closest('tr'); if (tr && !tr.classList.contains('hintrow')) later(tr);
   });
-  const dataRows = () => rowsBody.querySelectorAll('tr:not(.hintrow)');
+  const dataRows = () => [...rowsBody.querySelectorAll('tr:not(.hintrow)')].filter(tr => { const d = tr.querySelector('[name$="-DELETE"]'); return !(d && d.checked); });
   // ---- Repeat order: copy product / qty / unit of the supplier's latest invoice (prices stay empty on purpose) ----
   const copyBtn = document.getElementById('copy-last'), copyMsg = document.getElementById('copy-msg');
   if (copyBtn) copyBtn.addEventListener('click', async () => {
@@ -636,7 +644,7 @@ if (scan) {
     if (!data) { say('Could not load the last invoice. Please try again.'); return; }
     if (!data.found) { say('No earlier invoice found for this supplier.'); return; }
     const have = new Set([...dataRows()].map(tr => (field(tr, 'product') || {}).value).filter(Boolean));
-    const known = new Set([...field(dataRows()[0], 'product').options].map(o => o.value));
+    const known = new Set([...rowsBody.querySelector('select[name$="-product"]').options].map(o => o.value));
     let added = 0;
     for (const it of data.items) {
       if (have.has(it.product) || !known.has(it.product)) continue;
@@ -804,6 +812,37 @@ document.getElementById('add').onclick = () => {
     document.getElementById('tpl').innerHTML.replace(/__prefix__/g, n));
   total.value = n + 1;
 };
+// ✕ on a row: a new row is simply removed (the last one is cleared instead, so the form never has no row); a saved row is
+// marked for deletion (it is removed when the form is saved) and the same button then brings it back.
+document.getElementById('rows').addEventListener('click', e => {
+  const b = e.target.closest('.rowdel'); if (!b) return;
+  const tr = b.closest('tr'), del = tr.querySelector('[name$="-DELETE"]'), idf = tr.querySelector('[name$="-id"]');
+  const fire = (el, t) => el.dispatchEvent(new Event(t, {bubbles: true}));
+  if (idf && idf.value) {
+    del.checked = !del.checked;
+    tr.classList.toggle('row-deleted', del.checked);
+    b.textContent = del.checked ? '↶' : '✕'; b.title = b.ariaLabel = del.checked ? 'Bring this row back' : 'Remove this row';
+    const hx = tr.nextElementSibling; if (hx && hx.classList.contains('hintrow')) hx.style.display = del.checked ? 'none' : '';
+    fire(del, 'change'); return;
+  }
+  const rows = [...document.querySelectorAll('#rows tr:not(.hintrow)')];
+  if (rows.length > 1) {
+    const hr = tr.nextElementSibling; if (hr && hr.classList.contains('hintrow')) hr.remove();
+    tr.remove();
+  } else {
+    tr.querySelectorAll('input,select,textarea').forEach(el => {
+      if (el.type === 'hidden') return;
+      if (el.type === 'checkbox') el.checked = false; else el.value = '';
+      fire(el, 'input'); fire(el, 'change');
+    });
+  }
+  const sc = document.getElementById('scan') || document.getElementById('pq'); if (sc) sc.focus();
+});
+// a saved row that was already marked (the page came back with an error) still shows as removed
+document.querySelectorAll('#rows tr').forEach(tr => {
+  const d = tr.querySelector('[name$="-DELETE"]'), b = tr.querySelector('.rowdel');
+  if (d && d.checked && b) { tr.classList.add('row-deleted'); b.textContent = '↶'; b.title = 'Bring this row back'; }
+});
 </script>{% endif %}
 <script>
 // Ctrl+S (Cmd+S) saves the form
