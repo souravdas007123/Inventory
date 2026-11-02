@@ -74,7 +74,7 @@ Menu: **Master Data → Import / Export** (`/import/`).
 - Rows with errors are skipped and the reason is shown. In Stock Entry, if any row of an invoice is invalid the whole invoice is skipped; the same supplier invoice number cannot be entered twice.
 - Update mode: when "Update records that already exist" is ticked, rows are matched by name / barcode / phone / company and only the filled-in columns are changed.
 - Every list page has **⬇ Excel / CSV** (the whole list, matching the current search). Exports of Products / Customers / Suppliers can be imported back.
-- Recommended order for Stock Entry: Suppliers → Products → Stock Entry.
+- Recommended order: Suppliers (required) → Stock Entry (required; it also creates the medicines it does not find) → Products (optional). The page shows this order with Step and Required / Optional badges.
 - Limits: 5 MB, 3000 rows (Stock Entry 1500). Preview data is kept in the server's temp folder (cleaned within 24 hours).
 
 ## Backup, Audit Log, Login lock
