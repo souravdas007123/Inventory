@@ -37,7 +37,7 @@ class RemoveRowButtonTests(StockMixin, TestCase):
         for url in ('/bills/new/', '/purchases/new/'):
             page = self.c.get(url).content.decode()
             self.assertEqual(page.count('class="rowdel"'), 2, url)         # the first row and the template of a new row
-            self.assertIn('class="delcol"', page)                          # the tick box column is kept but hidden
+            self.assertIn('class="delcell"', page)                          # the cross sits in the last column (the tick box is hidden)
 
     def test_a_saved_row_can_still_be_removed_through_the_hidden_tick(self):
         purchase, item = self.buy(qty=4, invoice='X-1')

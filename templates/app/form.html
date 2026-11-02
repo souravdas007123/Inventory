@@ -46,18 +46,17 @@
     {% if not form.instance.pk %}<button type="button" class="btn ghost sm" id="copy-last">↻ Copy items from this supplier's last invoice</button>{% endif %}<small id="copy-msg" style="color:var(--mute)"></small></div>{% endif %}
   {{ fs.management_form }}{{ fs.non_form_errors }}
   <div class="tw"><table class="t stack{% if key == 'purchases' %} hide-extra{% endif %}" id="items-table">
-    <thead><tr>{% for f in fs.empty_form.visible_fields %}<th{% if f.name == 'DELETE' %} class="delcol"{% endif %}>{{ f.label }}</th>{% endfor %}</tr></thead>
+    <thead><tr>{% for f in fs.empty_form.visible_fields %}{% if f.name == 'DELETE' %}<th class="delcell">Remove</th>{% else %}<th>{{ f.label }}</th>{% endif %}{% endfor %}</tr></thead>
     <tbody id="rows">
       {% for r in fs %}<tr>{% for h in r.hidden_fields %}{{ h }}{% endfor %}{{ r.non_field_errors }}
-        {% for f in r.visible_fields %}{% if f.name == 'DELETE' %}<td class="delcol" data-label="{{ f.label }}">{{ f }}</td>{% else %}<td data-label="{{ f.label }}">{% if forloop.first %}<div class="pcell">{{ f }}<button type="button" class="rowdel" title="Remove this row" aria-label="Remove this row">✕</button></div>{% else %}{{ f }}{% endif %}{{ f.errors }}</td>{% endif %}{% endfor %}</tr>{% endfor %}
+        {% for f in r.visible_fields %}{% if f.name == 'DELETE' %}<td class="delcell" data-label="Remove">{{ f }}<button type="button" class="rowdel" title="Remove this row" aria-label="Remove this row">✕</button></td>{% else %}<td data-label="{{ f.label }}">{{ f }}{{ f.errors }}</td>{% endif %}{% endfor %}</tr>{% endfor %}
     </tbody>
   </table></div>
   <button type="button" class="btn ghost" id="add" style="margin-top:10px">+ Add row</button>
   {% if key == 'purchases' %}<button type="button" class="btn ghost" id="toggle-extra" style="margin-top:10px">▸ More details (rack, row, location, composition)</button>{% endif %}
   {% if key == 'bills' or key == 'purchases' %}
   <style>
-    .delcol{display:none !important}
-    .pcell{display:flex;gap:6px;align-items:center}.pcell select{flex:1;min-width:0}
+    .delcell input[type=checkbox]{display:none}.delcell{text-align:center}
     .rowdel{flex:none;border:1px solid var(--line);background:transparent;color:#c0392b;border-radius:8px;width:32px;height:32px;font:inherit;font-weight:700;cursor:pointer;line-height:1}
     .rowdel:hover,.rowdel:focus-visible{background:#c0392b;color:#fff;outline:none}
     tr.row-deleted td{opacity:.45}tr.row-deleted td select,tr.row-deleted td input{text-decoration:line-through;pointer-events:none}
@@ -90,7 +89,7 @@
   </div>
   {% endif %}
   <template id="tpl"><tr>{% for h in fs.empty_form.hidden_fields %}{{ h }}{% endfor %}
-    {% for f in fs.empty_form.visible_fields %}{% if f.name == 'DELETE' %}<td class="delcol" data-label="{{ f.label }}">{{ f }}</td>{% else %}<td data-label="{{ f.label }}">{% if forloop.first %}<div class="pcell">{{ f }}<button type="button" class="rowdel" title="Remove this row" aria-label="Remove this row">✕</button></div>{% else %}{{ f }}{% endif %}</td>{% endif %}{% endfor %}</tr></template>
+    {% for f in fs.empty_form.visible_fields %}{% if f.name == 'DELETE' %}<td class="delcell" data-label="Remove">{{ f }}<button type="button" class="rowdel" title="Remove this row" aria-label="Remove this row">✕</button></td>{% else %}<td data-label="{{ f.label }}">{{ f }}</td>{% endif %}{% endfor %}</tr></template>
   </div>
   {% endif %}
 
@@ -489,11 +488,11 @@ if (scan) {
     const table = document.getElementById('items-table'), btn = document.getElementById('toggle-extra');
     if (!table || !btn) return;
     const st = document.createElement('style');
-    st.textContent = '#items-table.hide-extra th:nth-child(n+8),#items-table.hide-extra td:nth-child(n+8){display:none}@media(min-width:821px){#items-table input,#items-table select{min-width:60px}#items-table input[type=date]{min-width:118px}#items-table th{white-space:normal;line-height:1.2}#items-table tbody tr:not(.hintrow) td:first-child select{min-width:170px}#items-table th:first-child,#items-table tbody tr:not(.hintrow) td:first-child{position:sticky;left:0;z-index:1;background:var(--card)}}';
+    st.textContent = '#items-table.hide-extra th:nth-of-type(n+8):not(.delcell),#items-table.hide-extra td:nth-of-type(n+8):not(.delcell){display:none}@media(min-width:821px){#items-table input,#items-table select{min-width:60px}#items-table input[type=date]{min-width:118px}#items-table th{white-space:normal;line-height:1.2}#items-table tbody tr:not(.hintrow) td:first-of-type select{min-width:170px}#items-table th:first-child,#items-table tbody tr:not(.hintrow) td:first-of-type{position:sticky;left:0;z-index:1;background:var(--card)}#items-table th.delcell,#items-table td.delcell{position:sticky;right:0;z-index:1;background:var(--card);box-shadow:-6px 0 6px -6px rgba(0,0,0,.25)}}';
     document.head.appendChild(st);
     const setOpen = open => { table.classList.toggle('hide-extra', !open); btn.textContent = (open ? '▾ Hide' : '▸ More') + ' details (rack, row, location, composition)'; };
     btn.addEventListener('click', () => setOpen(table.classList.contains('hide-extra')));
-    const filled = [...table.querySelectorAll('tbody tr:not(.hintrow) td:nth-child(n+8)')]
+    const filled = [...table.querySelectorAll('tbody tr:not(.hintrow) td:nth-of-type(n+8):not(.delcell)')]
       .some(td => td.querySelector('.errorlist') || [...td.querySelectorAll('input,select,textarea')].some(i => i.value));
     if (filled) setOpen(true);                        // never hide values that already exist or have errors
   })();
