@@ -55,3 +55,45 @@ class RemoveRowButtonTests(StockMixin, TestCase):
         r = self.c.post('/purchases/%d/' % purchase.pk, data)
         self.assertEqual(r.status_code, 302, getattr(r, 'content', b'')[:300])
         self.assertEqual(list(purchase.items.values_list('pk', flat=True)), [item.pk])
+
+
+@override_settings(**SAFE)
+class ReportAdminAddressTests(TestCase):
+    def test_a_made_up_report_address_is_not_found_instead_of_a_crash(self):
+        c = Client()
+        c.force_login(get_user_model().objects.create_superuser('boss', 'b@x.com', 'pw'))
+        for url in ('/admin/backend/financialreport/1/', '/admin/backend/financialreport/1/change/',
+                    '/admin/backend/financialreport/1/history/'):
+            r = c.get(url)
+            self.assertLess(r.status_code, 500, url)
+        self.assertEqual(c.get('/admin/backend/financialreport/').status_code, 200)        # the report itself still works
+
+
+@override_settings(**SAFE)
+class HugeIdTests(StockMixin, TestCase):
+    """A typed-in id that no database could hold (it crashes `pk__in`) is ignored like any other wrong id."""
+    H = '99999999999999999999'
+
+    def setUp(self):
+        super().setUp()
+        self.c = Client()
+        self.c.force_login(get_user_model().objects.create_superuser('boss', 'b@x.com', 'pw'))
+
+    def test_gst_rates(self):
+        r = self.c.get('/api/gst_rates/', {'ids': f'{self.H},{self.product.pk},-3,x'})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json(), {'rates': {str(self.product.pk): 12}})
+
+    def test_expiry_return(self):
+        r = self.c.post('/expiry/', {'batch': [self.H]}, follow=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Tick at least one batch')
+
+    def test_reorder_order(self):
+        r = self.c.post('/reorder/', {'pick': [self.H], f'qty_{self.H}': '5'}, follow=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Select at least one product')
+
+    def test_real_ids_still_work_next_to_a_huge_one(self):
+        r = self.c.get('/api/gst_rates/', {'ids': f'{self.H},{self.product.pk}'})
+        self.assertEqual(r.json()['rates'], {str(self.product.pk): 12})

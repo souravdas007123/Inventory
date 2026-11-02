@@ -762,10 +762,21 @@ def product_lookup(request):
     return JsonResponse({'results': results, 'exact': exact})
 
 
+MAX_ID = 2 ** 62          # a database id is never this big; a bigger typed-in number must be ignored (it would crash the database call)
+
+
+def _db_id(raw):
+    """int(raw) when raw is a sensible database id, else None."""
+    raw = str(raw).strip()
+    if raw.isdecimal() and len(raw) <= 19 and 0 < int(raw) < MAX_ID:
+        return int(raw)
+    return None
+
+
 @access.perm_required(('add', 'bill'), ('change', 'bill'), ('add', 'purchase'), ('change', 'purchase'))
 def gst_rates(request):
     """GST % of the given products, for the live amount preview on the bill / purchase screens. One light query."""
-    ids = [int(x) for x in request.GET.get('ids', '').split(',') if x.strip().isdecimal()][:200]
+    ids = [i for i in map(_db_id, request.GET.get('ids', '').split(',')) if i][:200]
     rows = Product.objects.filter(pk__in=ids).values_list('pk', 'gst_rate')
     return JsonResponse({'rates': {str(pk): int(rate or 0) for pk, rate in rows}})      # int(): the same rule the saved bill uses
 
@@ -813,7 +824,11 @@ def _reorder_suggestions(days, cover, today):
     on_order = {r['product_id']: r['s'] for r in PurchaseOrderItem.objects.filter(
         purchase_order__status__in=['PENDING', 'SENT']).values('product_id').annotate(s=Sum('order_qty'))}
     products, defaults = [], {}
-    for p in Product.objects.exclude(is_active=False).select_related('unit').prefetch_related('unit_conversions__unit'):
+    # Only a product that sold in the period, has expired stock, or is at / under its reorder level can ever be suggested
+    # (reorder.suggest skips every other one), so the others are not even loaded: a big shop has thousands of them.
+    candidates = (models.Q(pk__in=sales.values('product_id')) | models.Q(stock_qty__lte=models.F('reorder_level'))
+                  | models.Q(pk__in=Batch.objects.filter(qty__gt=0, expire_date__lt=today, product__isnull=False).values('product_id')))
+    for p in Product.objects.exclude(is_active=False).filter(candidates).select_related('unit').prefetch_related('unit_conversions__unit'):
         packs = [c for c in p.unit_conversions.all() if c.factor > 1]
         pack = max(packs, key=lambda c: c.factor) if packs else None
         products.append(dict(id=p.pk, name=p.name or str(p), unit=p.unit.name if p.unit_id else '',
@@ -844,7 +859,7 @@ def reorder_view(request):
             raise PermissionDenied
         picked = {}
         for raw in request.POST.getlist('pick'):
-            if raw.isdecimal():
+            if _db_id(raw):
                 try:
                     qty = int(request.POST.get(f'qty_{raw}', '0') or 0)
                 except ValueError:
@@ -965,7 +980,7 @@ def _expiry_rows(batches):
 
 def _expiry_make_returns(request, today):
     """Books a purchase return (debit note) per original invoice for the ticked batches, all or nothing."""
-    ids = [int(x) for x in request.POST.getlist('batch') if x.isdecimal()]
+    ids = [i for i in map(_db_id, request.POST.getlist('batch')) if i]
     if not ids:
         messages.error(request, 'Tick at least one batch to return.')
         return redirect('expiry')

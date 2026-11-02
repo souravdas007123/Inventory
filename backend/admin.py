@@ -366,6 +366,9 @@ class FinancialReportAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
+    def get_object(self, request, object_id, from_field=None):
+        return None                 # the report has no table: a typed-in /<id>/ address must say "not found", not crash
+
     def changelist_view(self, request, extra_context=None):
         if not self.has_view_permission(request):
             raise PermissionDenied

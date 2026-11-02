@@ -19,7 +19,7 @@ from django.utils import timezone
 from django.utils.html import format_html, format_html_join
 from django.views.decorators.http import require_POST
 
-from . import access, auditlog, backup, billview, checks, levels, notify, onboarding, recurring, supplier_prices, tenancy
+from . import access, auditlog, backup, billview, checks, fastwidgets, levels, notify, onboarding, recurring, supplier_prices, tenancy
 from .models import (
     AuditLog, HeldBill, Batch, Bill, Brand, Category, Customer, CustomerPayment, Employee, Expense, InvoiceItem, Order, Payment,
     Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, RecurringExpense,
@@ -519,7 +519,7 @@ PER_OPTS = (10, 25, 50, 100)
 def date_cb(field, **kw):
     if isinstance(field, models.DateField):
         kw['widget'] = forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d')
-    return field.formfield(**kw)
+    return fastwidgets.speed_up(field.formfield(**kw))
 
 
 def page(request, tpl, **ctx):
