@@ -1,5 +1,6 @@
 import calendar
 import logging
+import re
 from urllib.parse import urlencode
 from datetime import timedelta
 from decimal import ROUND_HALF_UP, Decimal
@@ -12,7 +13,7 @@ from django.core.paginator import Paginator
 from django.db import IntegrityError, models, transaction
 from django.db.models import F, ProtectedError, Q, Sum
 from django.forms import DateInput, inlineformset_factory, modelform_factory
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -21,7 +22,7 @@ from django.views.decorators.http import require_POST
 
 from . import access, auditlog, backup, billview, checks, fastwidgets, levels, notify, onboarding, recurring, supplier_prices, tenancy
 from .models import (
-    AuditLog, HeldBill, Batch, Bill, Brand, Category, Customer, CustomerPayment, Employee, Expense, InvoiceItem, Order, Payment,
+    AuditLog, HeldBill, OfflineBill, Batch, Bill, Brand, Category, Customer, CustomerPayment, Employee, Expense, InvoiceItem, Order, Payment,
     Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, RecurringExpense,
     Sale, SalesReturn, ShopProfile, StockAudit, StockWriteOff, Supplier, Transaction, Unit,
 )
@@ -39,6 +40,8 @@ NAV = [
     {'key': 'batches', 'url': '/batches/', 'label': 'Batch & Expiry', 'icon': '⏳', 'group': ''},
     {'key': 'customers', 'url': '/customers/', 'label': 'Customers (Credit)', 'icon': '👥', 'group': 'Customers'},
     {'key': 'customer_payments', 'url': '/customer_payments/', 'label': 'Credit Receipts', 'icon': '💰', 'group': 'Customers'},
+    {'key': 'history', 'url': '/history/', 'label': 'Customer History', 'icon': '🕘', 'group': 'Customers'},
+    {'key': 'reminders', 'url': '/reminders/', 'label': 'Payment Reminders', 'icon': '🔔', 'group': 'Customers'},
     {'key': 'orders', 'url': '/orders/', 'label': 'Customer Orders', 'icon': '🛒', 'group': 'Customers'},
     {'key': 'refill', 'url': '/refill/', 'label': 'Refill Reminders', 'icon': '💊', 'group': 'Customers'},
     {'key': 'sales_returns', 'url': '/sales_returns/', 'label': 'Sales Returns', 'icon': '↩️', 'group': 'Customers'},
@@ -59,6 +62,8 @@ NAV = [
     {'key': 'gst', 'url': '/gst/', 'label': 'GST Reports', 'icon': '🧮', 'group': 'Accounts', 'staff': True},
     {'key': 'gstr2b', 'url': '/gstr2b/', 'label': 'GSTR-2B Check', 'icon': '🧾', 'group': 'Accounts', 'staff': True},
     {'key': 'ca_export', 'url': '/ca_export/', 'label': 'CA / Accountant Export', 'icon': '📤', 'group': 'Accounts', 'staff': True},
+    {'key': 'finder', 'url': '/finder/', 'label': 'Medicine Finder', 'icon': '🔎', 'group': 'Stock'},
+    {'key': 'movement', 'url': '/movement/', 'label': 'Fast & Dead Stock', 'icon': '🚚', 'group': 'Stock', 'staff': True},
     {'key': 'drug_register', 'url': '/drug_register/', 'label': 'Drug Register (H/H1)', 'icon': '📒', 'group': 'Stock'},
     {'key': 'writeoffs', 'url': '/writeoffs/', 'label': 'Stock Write-off', 'icon': '🗑️', 'group': 'Stock'},
     {'key': 'stock_audits', 'url': '/stock_audits/', 'label': 'Stock Audit', 'icon': '🔎', 'group': 'Stock', 'staff': True},
@@ -783,6 +788,44 @@ def purchase_check_warnings(fs, obj):
     return checks.purchase_warnings(lines, history, timezone.localdate())
 
 
+_OFFLINE_ID = re.compile(r'[0-9a-fA-F-]{8,36}')
+
+
+def _offline_id(raw):
+    """The one-time key of a new-bill form (see OfflineBill), or '' when it is missing or not a key."""
+    raw = (raw or '').strip()
+    return raw.lower() if _OFFLINE_ID.fullmatch(raw) else ''
+
+
+def _bill_done(request, bill, sync, duplicate):
+    """The answer for a bill that is saved (or was saved before): the invoice page, or JSON for the offline sync."""
+    if sync:
+        return JsonResponse(dict(ok=True, duplicate=duplicate, bill_id=bill.pk, number=bill.display_number,
+                                 url=reverse('invoice', args=[bill.pk])))
+    if duplicate:
+        messages.info(request, 'This bill was already saved. Here it is.')
+    return redirect('invoice', pk=bill.pk)
+
+
+def _sync_errors(request, form, fs):
+    """Why a bill sent from the offline queue could not be saved, in plain words (a short list)."""
+    from django.contrib.messages import get_messages
+    out = [str(m) for m in get_messages(request) if m.level >= messages.ERROR]
+    out += [str(e) for e in form.non_field_errors()]
+    out += [f"{form.fields[n].label or n}: {' '.join(e)}" for n, e in form.errors.items() if n != '__all__' and n in form.fields]
+    if fs is not None:
+        out += [str(e) for e in fs.non_form_errors()]
+        for i, errs in enumerate(fs.errors, 1):
+            out += [f"Row {i}, {n}: {' '.join(e)}" for n, e in errs.items() if n != '__all__']
+            out += [f"Row {i}: {e}" for e in errs.get('__all__', [])]
+    seen, uniq = set(), []
+    for e in out:
+        if e not in seen:
+            seen.add(e)
+            uniq.append(e)
+    return uniq[:8] or ['The bill could not be saved.']
+
+
 @login_required
 def edit(request, key, pk=None):
     cfg = get_cfg(key, request, 'change' if pk else 'add')
@@ -792,6 +835,13 @@ def edit(request, key, pk=None):
     if key == 'bills' and obj:  # A Final bill cannot be edited (GST record). If there is a mistake, cancel it and create a new one.
         messages.warning(request, 'This bill is final and cannot be edited. If there is a mistake, cancel it and create a new bill.')
         return redirect('invoice', pk=obj.pk)
+    new_bill = key == 'bills' and not obj and request.method == 'POST'
+    sync = new_bill and request.headers.get('X-Offline-Sync') == '1'      # a bill sent from the offline queue: answer in JSON
+    offline_id = _offline_id(request.POST.get('offline_id')) if new_bill else ''
+    if offline_id:
+        first = OfflineBill.objects.filter(uuid=offline_id).select_related('bill').first()
+        if first:                                           # the same form again (double click, retry, or sent twice): never a second bill
+            return _bill_done(request, first.bill, sync, True)
     Form = modelform_factory(cfg['model'], fields=cfg['fields'], formfield_callback=date_cb)
     inl = cfg.get('inline')
 
@@ -880,13 +930,18 @@ def edit(request, key, pk=None):
                         fs.save()
                     if key == 'bills':
                         form.instance.after_items_saved()  # checks such as credit limit (rolled back on failure)
+                        if offline_id:
+                            OfflineBill.objects.create(uuid=offline_id, bill=form.instance)
                     if po and po.status != 'CANCELLED':
                         po.status = 'COMPLETED'
                         po.save(update_fields=['status'])
                 auditlog.record(request, 'EDIT' if obj else 'CREATE', cfg['one'], str(form.instance))
-                messages.success(request, f"{cfg['one']} saved ✅")
+                if not sync:
+                    messages.success(request, f"{cfg['one']} saved ✅")
                 if key == 'bills' and not obj and held_id:       # this bill was resumed from "hold": it is done now
                     HeldBill.objects.filter(pk=held_id).delete()
+                if sync:
+                    return _bill_done(request, form.instance, True, False)
                 if po and po.status == 'COMPLETED':
                     short = po_shortfall(po_items, form.instance)
                     if short:
@@ -899,11 +954,16 @@ def edit(request, key, pk=None):
             except ProtectedError:
                 messages.error(request, 'This record is linked to another record (such as a return or write-off), so it cannot be changed.')
             except IntegrityError:
+                first = OfflineBill.objects.filter(uuid=offline_id).select_related('bill').first() if offline_id else None
+                if first:                                   # two copies of the same form arrived together: the other one won
+                    return _bill_done(request, first.bill, sync, True)
                 messages.error(request, 'Duplicate entry (this record already exists).')
             if obj is None:  # after a rollback, treat the instance as "new" again
                 form.instance.pk = None
                 form.instance._state.adding = True
 
+    if sync:                                                 # the bill could not be saved: say why, so it can be fixed on the screen
+        return JsonResponse(dict(ok=False, errors=_sync_errors(request, form, fs)), status=422)
     title = f"Edit {cfg['one']}" if obj else f"New {cfg['one']}"
     quick = {}
     if key == 'expenses':      # lets the form fill the amount from the employee's salary

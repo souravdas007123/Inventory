@@ -1,0 +1,31 @@
+{% extends "app/base.html" %}
+{% block title %}Customer History{% endblock %}
+{% block content %}
+<div class="head"><h1>🕘 Customer History</h1></div>
+<div class="msg info">Find what a customer, a patient or a doctor's prescriptions were given before. Fill in one or more boxes. On the bill itself, pick a customer and their last purchases appear under the customer box.</div>
+<form method="get" class="card" style="margin-bottom:14px">
+  <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
+    <div class="fld" style="margin:0"><label for="customer">Customer name or phone</label><input id="customer" name="customer" value="{{ cust }}" maxlength="100"></div>
+    <div class="fld" style="margin:0"><label for="patient">Patient name</label><input id="patient" name="patient" value="{{ patient }}" maxlength="100"></div>
+    <div class="fld" style="margin:0"><label for="doctor">Doctor name</label><input id="doctor" name="doctor" value="{{ doctor }}" maxlength="100"></div>
+  </div>
+  <div class="bar" style="margin-top:10px"><button class="btn">🔍 Search</button>{% if searched %}<a class="btn ghost" href="{% url 'history' %}">Clear</a>{% endif %}</div>
+</form>
+<div class="card">
+  {% if rows %}
+  <div style="margin-bottom:10px;color:var(--mute)">{{ rows|length }} bill{{ rows|length|pluralize }}{% if capped %} (the latest 100; narrow the search to see older ones){% endif %}</div>
+  <div class="tw"><table class="t stack">
+    <thead><tr><th>Date</th><th>Bill</th><th>Customer</th><th>Patient / Doctor</th><th>Medicines</th><th>Total</th></tr></thead>
+    <tbody>{% for r in rows %}<tr>
+      <td data-label="Date">{{ r.bill.date|date:"d M Y" }}</td>
+      <td data-label="Bill"><a class="link" href="/bills/{{ r.bill.pk }}/invoice/">{{ r.bill.display_number }}</a></td>
+      <td data-label="Customer">{{ r.bill.customer_name }}</td>
+      <td data-label="Patient / Doctor">{% if r.bill.patient_name %}{{ r.bill.patient_name }}{% endif %}{% if r.bill.doctor_name %}<br><small style="color:var(--mute)">Dr. {{ r.bill.doctor_name }}</small>{% endif %}{% if not r.bill.patient_name and not r.bill.doctor_name %}-{% endif %}</td>
+      <td data-label="Medicines">{{ r.meds|default:"-" }}</td>
+      <td data-label="Total">₹{{ r.bill.grand_total }}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% elif searched %}<div class="empty">No bill matches this search.</div>
+  {% else %}<div class="empty">Type a customer, patient or doctor above to see their bills.</div>{% endif %}
+</div>
+{% endblock %}

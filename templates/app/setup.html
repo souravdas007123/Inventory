@@ -1,8 +1,10 @@
 {% extends "app/base.html" %}
+{% load static %}
 {% block title %}Setup guide{% endblock %}
 {% block content %}
 <div class="head"><h1>🚀 Setup guide</h1></div>
 <div class="msg info">Follow these steps in order and your shop is ready in a short time. Each step ticks itself when the data is there, so you can stop and come back any time. Nothing here changes your data. The buttons open the normal pages.</div>
+{% include "app/_tutorial.html" %}
 {% if g.problem %}<div class="msg warning">We could not check your progress just now. The steps below are still correct. Please try again in a minute.</div>{% endif %}
 
 <div class="card" style="margin-bottom:14px">

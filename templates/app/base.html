@@ -1,4 +1,4 @@
-<!doctype html>
+{% load static %}<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -309,6 +309,7 @@ document.addEventListener('click',function(e){var s=document.getElementById('sid
   window.addEventListener('pageshow', stop);
 })();
 </script>
+{% if user.is_authenticated and can_bill %}<script src="{% static 'js/offline-db.js' %}"></script><script src="{% static 'js/offline.js' %}" data-user="{{ user.pk }}"></script>{% endif %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

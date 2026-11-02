@@ -37,7 +37,12 @@ class InstallableAppTests(TestCase):
         self.assertEqual(resp['Service-Worker-Allowed'], '/')
         self.assertIn('no-cache', resp['Cache-Control'])
         body = resp.content.decode()
-        self.assertNotIn('caches.', body)                 # nothing private is stored on the phone
+        # Only two things are ever kept on the phone: the empty New Bill page and the small script files. No other page, no API answer.
+        self.assertEqual(sorted(set(re.findall(r"caches\.open\(([A-Z]+)\)", body))), ['PAGES', 'STATIC'])
+        self.assertEqual(len(re.findall(r"(?<!MSDB)\.put\(", body)), 2)      # two cache writes (MSDB.put is the on-device queue)
+        self.assertIn("url.search === ''", body)            # never a page that carries a held bill
+        self.assertIn("indexOf('/static/js/')", body)
+        self.assertNotIn("'/api/", body.replace("importScripts('/static/js/offline-db.js')", ''))
         self.assertIn('No internet', body)
 
     def test_the_service_worker_is_valid_javascript(self):

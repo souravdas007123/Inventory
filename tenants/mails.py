@@ -127,7 +127,8 @@ def welcome_message(shop, login_email, today=None, via_google=False):
              'Keep your shop safe. Turn on 2-step sign-in in Sign-in security. A backup is taken every day, and you can download your own copy from the Backup page.']
     later = ['Customers who buy on credit, past expenses and staff logins (give each person their own role) can all be added later.',
              'Handy screens: Expiry Returns (send expired stock back to the supplier), Reorder Suggestions (what to buy next) and Profit & Loss.']
-    links = ([('Setup guide: your first steps, ticking themselves as you go', address + 'setup/'),
+    links = ([('Watch the 90-second tutorial video (no sign-in needed)', address + 'static/video/medsync-getting-started.mp4'),
+              ('Setup guide: your first steps, ticking themselves as you go', address + 'setup/'),
               ('Help and user guide', address + 'help/'),
               ('Import / Export: templates and uploads', address + 'import/'),
               ('Sign-in security: turn on 2-step sign-in', address + 'security/'),

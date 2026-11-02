@@ -1,0 +1,30 @@
+{% extends "app/base.html" %}
+{% block title %}Medicine Finder{% endblock %}
+{% block content %}
+<div class="head"><h1>💊 Medicine Finder</h1></div>
+<div class="msg info">Type a medicine name or a salt (for example <i>Paracetamol</i>). For each medicine you see the other medicines with exactly the same composition, in stock first and cheapest first. This is how you offer a customer another brand when theirs is not available.</div>
+<form method="get" class="card" style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:end">
+  <div class="fld" style="margin:0;flex:1;min-width:220px"><label for="q">Medicine or salt</label><input id="q" name="q" value="{{ q }}" maxlength="100" autofocus autocomplete="off"></div>
+  <button class="btn">🔍 Find</button>{% if searched %}<a class="btn ghost" href="{% url 'finder' %}">Clear</a>{% endif %}
+</form>
+{% for r in results %}
+<div class="card" style="margin-bottom:14px">
+  <h3 style="margin:0">{{ r.product.name }} {% if r.product.sellable > 0 %}<span class="badge green">In stock: {{ r.product.stock_display }}</span>{% else %}<span class="badge red">Out of stock</span>{% endif %}</h3>
+  <div style="color:var(--mute);margin:2px 0 10px">{% if r.product.composition %}{{ r.product.composition }}{% else %}No composition written for this medicine{% endif %}{% if r.product.mrp %} · MRP ₹{{ r.product.mrp }}{% if r.product.unit %} per {{ r.product.unit.name }}{% endif %}{% endif %}</div>
+  {% if r.subs %}
+  <div class="tw"><table class="t stack">
+    <thead><tr><th>Same salt</th><th>Availability</th><th>MRP</th><th>Schedule</th></tr></thead>
+    <tbody>{% for s in r.subs %}<tr>
+      <td data-label="Same salt"><b>{{ s.name }}</b></td>
+      <td data-label="Availability">{% if s.sellable > 0 %}<span class="badge green">{{ s.stock_display }}</span>{% else %}<span class="badge grey">Out of stock</span>{% endif %}</td>
+      <td data-label="MRP">{% if s.mrp %}₹{{ s.mrp }}{% if s.unit %} per {{ s.unit.name }}{% endif %}{% else %}-{% endif %}</td>
+      <td data-label="Schedule">{% if s.schedule and s.schedule != 'NONE' %}Sch {{ s.schedule }}{% else %}-{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% elif r.product.composition %}<div class="empty" style="padding:8px 0">No other medicine with exactly this composition.</div>
+  {% else %}<div class="empty" style="padding:8px 0">Write the composition in Products to see substitutes.</div>{% endif %}
+</div>
+{% empty %}
+{% if searched %}<div class="card"><div class="empty">No medicine found for “{{ q }}”.</div></div>{% endif %}
+{% endfor %}
+{% endblock %}

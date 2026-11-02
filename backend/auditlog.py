@@ -10,4 +10,9 @@ def record(who, action, target='', detail=''):
         AuditLog.objects.create(user=name[:150], action=str(action)[:20], target=str(target)[:60],
                                 detail=str(detail)[:500])
     except Exception:   # noqa: BLE001 - a logging failure must never block billing/stock work
+        return
+    try:
+        from . import staff_alerts
+        staff_alerts.after(user, str(action)[:20], str(target)[:60], str(detail)[:500])
+    except Exception:   # noqa: BLE001 - an alert that cannot be sent must never block the work either
         pass

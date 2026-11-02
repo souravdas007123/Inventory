@@ -56,7 +56,7 @@ def owner_required(view):
 # Menu entries that are not a plain list of one model (everything else follows its model's "view" permission)
 NAV_RULES = {
     'dashboard': ('view', 'sale'), 'drug_register': ('view', 'bill'), 'supplier_prices': ('view', 'purchase'),
-    'reorder': ('view', 'purchaseorder'), 'refill': ('view', 'bill'), 'expiry': ('add', 'purchasereturn'), 'salary': ('view', 'employee'),
+    'reorder': ('view', 'purchaseorder'), 'refill': ('view', 'bill'), 'reminders': ('view', 'customer'), 'history': ('view', 'bill'), 'finder': ('view', 'product'), 'expiry': ('add', 'purchasereturn'), 'salary': ('view', 'employee'),
     'import': 'owner', 'report': 'owner', 'gst': 'owner', 'ca_export': 'owner', 'health': 'owner', 'audit': 'owner', 'users': 'owner', 'gstr2b': 'owner', 'backup': 'owner', 'shop': 'owner', 'reset': 'owner', 'setup': 'owner',
     'stock_audits': 'owner',
 }
@@ -92,6 +92,7 @@ def template_context(request):
     from . import tenancy
     ctx = {'is_owner': is_owner(user), 'nav': nav_for(user), 'shop_note': tenancy.shop_note(request),
            'platform_url': tenancy.platform_panel_url(user), 'platform_notice': ''}
+    ctx['can_bill'] = can(user, 'add', 'bill')          # offline billing is switched on for people who can make bills
     ctx['support_unread'] = ctx['open_tickets'] = ctx['payments_waiting'] = 0
     ctx['maintenance_banner'] = ctx['maintenance_bar'] = ''
     if tenancy.on_shop_site():

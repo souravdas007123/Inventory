@@ -43,7 +43,7 @@
 </div>
 {% if setup %}<div class="card" style="margin-bottom:14px" id="setup">
 <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><div><h3 style="margin:0">Get your shop ready</h3><span style="color:var(--mute);font-size:13px">{{ setup.done }} of {{ setup.total }} steps done</span></div>
-<div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm" href="/setup/">Open the setup guide</a>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm" href="/setup/">Open the setup guide</a><a class="btn ghost sm" href="/help/#video">▶ Watch the 90-second video</a>
 <form method="post" action="{% url 'hide_setup' %}" style="margin:0">{% csrf_token %}<button class="btn ghost sm">Hide for now</button></form></div></div>
 <div class="hbar" style="margin:10px 0 12px" role="progressbar" aria-valuenow="{{ setup.percent }}" aria-valuemin="0" aria-valuemax="100"><span style="width:{{ setup.percent }}%"></span></div>
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px">

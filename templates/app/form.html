@@ -15,6 +15,7 @@
 {% endif %}
 <form method="post" class="card">{% csrf_token %}
   {% if key == 'bills' and held_id %}<input type="hidden" name="held_id" value="{{ held_id }}">{% endif %}
+  {% if key == 'bills' and not form.instance.pk %}<input type="hidden" name="offline_id" id="offline_id" value="">{% endif %}
   {% if note %}<div class="msg success">{{ note }}</div>{% endif %}
   {{ form.non_field_errors }}
   {% if warnings %}<div class="msg warning" id="warn-box"><b>Please double-check before saving:</b>
@@ -275,10 +276,20 @@ function drawAlts(tr, p, box) {
   const f = uSel && uSel.value && p.factors[uSel.value] ? p.factors[uSel.value] : 1;
   const need = Math.round((parseFloat(qEl && qEl.value) || 0) * f), avail = +p.available_qty || 0;
   const out = avail <= 0, short = !out && need > avail;
-  if (!out && !short) return;
   const alts = p.alts || [];
+  if (!out && !short) {                                           // enough stock: the same-salt list is there on request (a customer may want a cheaper brand)
+    if (!alts.length) return;
+    const t = document.createElement('button'); t.type = 'button'; t.className = 'btn ghost sm';
+    t.textContent = '↔ Same salt in stock (' + alts.length + ')'; t.title = 'Show other medicines with the same salt, cheapest first';
+    t.onclick = () => { t.remove(); listAlts(tr, alts, box, false, 'Same salt in stock (cheapest first). One tap adds it as a new row:'); };
+    box.appendChild(t);
+    return;
+  }
   if (!alts.length) { bchip(box, out ? 'Out of stock, and no other medicine with the same salt is available.' : 'Only ' + avail + ' ' + unit + ' available, and no other medicine with the same salt is available.', 'red'); return; }
-  bchip(box, out ? 'Out of stock. Same salt available (cheapest first):' : 'Only ' + avail + ' ' + unit + ' available. The same salt can cover the rest:', 'amber');
+  listAlts(tr, alts, box, out, out ? 'Out of stock. Same salt available (cheapest first):' : 'Only ' + avail + ' ' + unit + ' available. The same salt can cover the rest:');
+}
+function listAlts(tr, alts, box, out, heading) {
+  bchip(box, heading, 'amber');
   alts.forEach(a => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost sm';
     b.textContent = a.name + ' · ' + a.stock + (a.mrp ? ' · MRP ₹' + (+a.mrp).toFixed(2) + (a.unit_name ? ' per ' + a.unit_name : '') : '') + (a.schedule && a.schedule !== 'NONE' ? ' · Sch ' + a.schedule : '');
@@ -431,6 +442,40 @@ if (holdBtn) holdBtn.addEventListener('click', async () => {
   phone.inputMode = 'numeric'; phone.placeholder = 'Type the phone number to find the customer';
   const info = document.createElement('small'); info.id = 'cust-info';
   fld.append(lab, phone, info); custSel.closest('.fld').after(fld);
+  // What this customer bought before: the usual medicines (one tap adds a row) and the last few bills
+  const hist = document.createElement('div'); hist.id = 'cust-history'; hist.style.cssText = 'grid-column:1/-1;display:none;margin:0 0 4px';
+  fld.after(hist);
+  let histFor = '';
+  function histBtn(text, title, fn) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost sm'; b.textContent = text; b.title = title; b.onclick = fn; return b;
+  }
+  async function addMedicine(pid) {
+    const info = await getInfo(pid);
+    if (!info) { appAlert('Could not load this medicine. Please try again.'); return; }
+    addProduct(info, true);
+  }
+  async function loadHistory(id) {
+    histFor = String(id); hist.textContent = ''; hist.style.display = 'none';
+    let d = null;
+    try { const r = await fetch('/api/customer_history/?id=' + encodeURIComponent(id), {credentials: 'same-origin'}); d = r.ok ? await r.json() : null; } catch (e) { d = null; }
+    if (!d || !d.found || histFor !== String(id) || (!d.usual.length && !d.bills.length)) return;
+    const head = document.createElement('div'); head.style.cssText = 'font-size:12px;color:var(--mute);margin:2px 0 4px'; head.textContent = 'Usually buys (tap to add to this bill):';
+    const chips = document.createElement('div'); chips.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px';
+    d.usual.forEach(u => chips.appendChild(histBtn('+ ' + u.name, 'Bought ' + u.times + ' time' + (u.times > 1 ? 's' : '') + ', last on ' + u.last, () => addMedicine(u.pid))));
+    const more = document.createElement('details'); more.style.marginTop = '6px';
+    const sum = document.createElement('summary'); sum.style.cssText = 'cursor:pointer;font-size:13px;font-weight:600'; sum.textContent = 'Last ' + d.bills.length + ' bill' + (d.bills.length > 1 ? 's' : '');
+    more.appendChild(sum);
+    d.bills.forEach(b => {
+      const row = document.createElement('div'); row.style.cssText = 'border-top:1px solid var(--line);padding:6px 0;font-size:13px';
+      const t = document.createElement('div'); t.style.fontWeight = '600'; t.textContent = b.date + ' · ' + b.number + ' · ₹' + b.total; row.appendChild(t);
+      const list = document.createElement('div'); list.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-top:4px';
+      b.items.forEach(i => list.appendChild(histBtn('+ ' + i.name + ' × ' + i.qty + ' ' + i.unit, 'Add this medicine to the bill', () => addMedicine(i.pid))));
+      if (b.more) { const m = document.createElement('small'); m.style.color = 'var(--mute)'; m.textContent = '+ ' + b.more + ' more'; list.appendChild(m); }
+      row.appendChild(list); more.appendChild(row);
+    });
+    if (d.usual.length) hist.append(head, chips);
+    hist.appendChild(more); hist.style.display = '';
+  }
   let autoName = '';
   const say = (text, cls) => {
     info.textContent = '';
@@ -453,6 +498,7 @@ if (holdBtn) holdBtn.addEventListener('click', async () => {
     custSel.value = String(c.id);
     if (!nameBox.value.trim() || nameBox.value.trim() === 'Cash' || nameBox.value === autoName) { nameBox.value = c.name; autoName = c.name; }
     show(c);
+    if (histFor !== String(c.id)) loadHistory(c.id);
   }
   let timer;
   phone.addEventListener('input', () => {
@@ -465,7 +511,7 @@ if (holdBtn) holdBtn.addEventListener('click', async () => {
     }, 250);
   });
   custSel.addEventListener('change', async () => {
-    if (!custSel.value) { say(''); return; }
+    if (!custSel.value) { say(''); histFor = ''; hist.textContent = ''; hist.style.display = 'none'; return; }
     const c = await get('id=' + encodeURIComponent(custSel.value));
     if (c && c.found && custSel.value === String(c.id)) pick(c);
   });

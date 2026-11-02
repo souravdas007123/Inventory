@@ -1,7 +1,9 @@
 {% extends "app/base.html" %}
+{% load static %}
 {% block title %}Help and support{% endblock %}
 {% block content %}
 <div class="head"><h1>🛟 Help and support</h1></div>
+{% include "app/_tutorial.html" %}
 {% if tickets_on %}<div class="card" style="margin-bottom:14px">
   <h3 style="margin-top:0">Send us a support ticket</h3>
   <p style="margin:0 0 10px;color:var(--mute)">Something is not working? Write to us from here. Your message reaches the MedSync team directly and the reply appears in the app.</p>

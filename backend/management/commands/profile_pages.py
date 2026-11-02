@@ -17,7 +17,8 @@ from django.test import Client
 from django.test.utils import CaptureQueriesContext
 
 PAGES = ['/', '/products/', '/sales/', '/purchases/', '/batches/', '/customers/', '/suppliers/', '/expenses/',
-         '/report/', '/gst/', '/expiry/', '/reorder/', '/refill/', '/health/', '/supplier_prices/', '/drug_register/']
+         '/report/', '/gst/', '/expiry/', '/reorder/', '/refill/', '/health/', '/supplier_prices/', '/drug_register/',
+         '/movement/', '/reminders/', '/history/?customer=a', '/finder/?q=para', '/api/offline_catalog/']
 
 
 def _shape(sql):

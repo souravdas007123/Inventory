@@ -735,6 +735,29 @@ def _batch_info(product_ids):
     return out
 
 
+def _lookup_dict(p, extra=None):
+    """One medicine as the bill screen needs it (the same shape for the live lookup and for the offline copy)."""
+    return dict(id=p.pk, name=p.name or str(p), composition=p.composition or '', barcode=p.barcode or '',
+                mrp=str(p.mrp) if p.mrp is not None else '', rate1=_bill_rate(p), factors=_unit_factors(p),
+                unit_id=p.unit_id, units=_unit_list(p),
+                stock=p.stock_display(), stock_qty=p.stock_qty, available_qty=p.available_qty(), schedule=p.schedule,
+                unit_name=p.unit.name if p.unit_id else '', **(extra or {}))
+
+
+CATALOG_MAX = 6000
+
+
+@access.perm_required(('add', 'bill'))
+def offline_catalog(request):
+    """Every active medicine, as the bill screen needs it, so billing can go on without internet. Kept on the device only."""
+    qs = Product.objects.exclude(is_active=False)
+    total = qs.count()
+    products = qs.select_related('unit').prefetch_related('unit_conversions__unit', 'batches').order_by('name')[:CATALOG_MAX]
+    resp = JsonResponse(dict(ts=timezone.now().isoformat(), truncated=total > CATALOG_MAX, results=[_lookup_dict(p) for p in products]))
+    resp['Cache-Control'] = 'no-store'
+    return resp
+
+
 @access.perm_required(('add', 'bill'), ('change', 'bill'))
 def product_lookup(request):
     q = request.GET.get('q', '').strip()
@@ -749,11 +772,7 @@ def product_lookup(request):
     qs = qs.select_related('unit').prefetch_related('unit_conversions__unit', 'batches').order_by('name')[:8]
     products = list(qs)
     batch_info = _batch_info([p.pk for p in products]) if pid.isdecimal() else {}     # only when one product is picked
-    results = [dict(id=p.pk, name=p.name or str(p), composition=p.composition or '', barcode=p.barcode or '',
-                    mrp=str(p.mrp) if p.mrp is not None else '', rate1=_bill_rate(p), factors=_unit_factors(p),
-                    unit_id=p.unit_id, units=_unit_list(p),
-                    stock=p.stock_display(), stock_qty=p.stock_qty, available_qty=p.available_qty(), schedule=p.schedule,
-                    unit_name=p.unit.name if p.unit_id else '', **batch_info.get(p.pk, {})) for p in products]
+    results = [_lookup_dict(p, batch_info.get(p.pk, {})) for p in products]
     if pid.isdecimal() and results:       # a picked product: the same-salt medicines that can be sold instead (shown when it is out / short)
         results[0]['alts'] = [dict(id=a.pk, name=a.name or str(a), stock=a.stock_display(a.available_qty()), available_qty=a.available_qty(),
                                    mrp=str(a.mrp) if a.mrp is not None else '', unit_name=a.unit.name if a.unit_id else '',
@@ -1064,7 +1083,7 @@ def product_preview(request, pk):
 
 
 HOLD_LIMIT = 30                  # most bills that can be on hold at the same time
-HOLD_DROP = {'csrfmiddlewaretoken', 'held_id', 'confirm_warnings'}
+HOLD_DROP = {'csrfmiddlewaretoken', 'held_id', 'confirm_warnings', 'offline_id'}
 ITEM_PRODUCT = re.compile(r'^[\w]+-\d+-product$')
 
 

@@ -65,6 +65,7 @@ class Customer(models.Model):
                                        help_text="Credit limit. 0 = no limit")
     is_active = models.BooleanField(default=True)
     created_at = models.DateField(auto_now_add=True, null=True)
+    last_reminded = models.DateField(null=True, blank=True, editable=False, help_text="The day a payment reminder was last sent on WhatsApp")
 
     def clean(self):
         vcheck.check_phone(self, 'phone')
@@ -781,6 +782,18 @@ class ImportLayout(models.Model):
 # ======================================================
 # HELD BILLS (a bill in progress that is parked and opened again later)
 # ======================================================
+
+class OfflineBill(models.Model):
+    """The one-time key of a new-bill form. A bill form carries a fresh key; if the same form reaches the server twice (a double
+    click, a retry, or a bill that was saved on a phone without internet and sent later) the second one finds the first bill
+    instead of making another."""
+    uuid = models.CharField(max_length=36, unique=True)
+    bill = models.OneToOneField('Bill', on_delete=models.CASCADE, related_name='offline_key')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.uuid} -> bill #{self.bill_id}"
+
 
 class HeldBill(models.Model):
     """What was typed on the new-bill screen, parked. No stock is touched; the bill is created only when it is saved after resuming."""

@@ -1,0 +1,33 @@
+{% extends "app/base.html" %}
+{% block title %}Payment Reminders{% endblock %}
+{% block content %}
+<div class="head"><h1>🔔 Payment Reminders</h1></div>
+<div class="msg info">
+  Customers who owe you money on credit, with the biggest amount first. <b>Due since</b> is the date of their oldest unpaid credit bill.
+  Press <b>WhatsApp</b>: WhatsApp opens with a polite message already written, and you only press Send. Nothing is sent without you.
+  The day you pressed it is remembered here.
+</div>
+<form method="get" class="card" style="margin-bottom:14px;display:flex;gap:14px;flex-wrap:wrap;align-items:end">
+  <div class="fld" style="margin:0"><label for="days">Due for at least</label>
+    <select id="days" name="days" onchange="this.form.submit()">{% for d in choices %}<option value="{{ d }}" {% if d == min_days %}selected{% endif %}>{% if d == 0 %}Any time{% else %}{{ d }} days{% endif %}</option>{% endfor %}</select></div>
+  <label style="display:flex;gap:6px;align-items:center;margin:0 0 8px"><input type="checkbox" name="skip" value="1" {% if skip %}checked{% endif %} onchange="this.form.submit()"> Hide customers reminded in the last {{ recent_days }} days</label>
+  <noscript><button class="btn">Show</button></noscript>
+</form>
+<div class="card">
+  {% if rows %}
+  <div style="margin-bottom:10px;color:var(--mute)">{{ rows|length }} customer{{ rows|length|pluralize }} · <b>₹{{ total|floatformat:2 }}</b> to collect{% if no_phone %} · <span class="badge amber">{{ no_phone }} without a phone number</span>{% endif %}</div>
+  <div class="tw"><table class="t stack">
+    <thead><tr><th>Customer</th><th>Owes</th><th>Due since</th><th>Last reminder</th><th></th></tr></thead>
+    <tbody>{% for r in rows %}<tr>
+      <td data-label="Customer"><b>{{ r.customer.name }}</b>{% if r.customer.phone %}<br><small style="color:var(--mute)">{{ r.customer.phone }}</small>{% endif %}</td>
+      <td data-label="Owes"><b>₹{{ r.balance|floatformat:2 }}</b></td>
+      <td data-label="Due since">{{ r.since|date:"d M Y" }} <span class="badge {% if r.days >= 30 %}red{% elif r.days >= 7 %}amber{% else %}grey{% endif %}">{{ r.days }} day{{ r.days|pluralize }}</span></td>
+      <td data-label="Last reminder">{% if r.reminded %}{{ r.reminded|date:"d M Y" }}{% else %}<span style="color:var(--mute)">never</span>{% endif %}</td>
+      <td data-label="" style="white-space:nowrap"><a class="btn ghost sm" href="/customers/{{ r.customer.pk }}/ledger/">📒 Ledger</a>
+        {% if r.phone_ok %}<form method="post" action="{% url 'reminder_send' r.customer.pk %}" target="_blank" style="display:inline">{% csrf_token %}<button class="btn sm">💬 WhatsApp</button></form>
+        {% else %}<span class="badge amber" title="Add a phone number in Customers">No phone</span>{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="empty">No customer owes you money{% if min_days or skip %} with these filters{% endif %}. 🎉</div>{% endif %}
+</div>
+{% endblock %}

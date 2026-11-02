@@ -573,3 +573,23 @@ For updates that need a short break. Platform panel, **Maintenance** (`/superadm
 
 Menu: **Setup guide** (owner only, `/setup/`). It tells a new shop what to enter and import, in the order that works: shop details, suppliers, medicines, opening stock (with batch and expiry), first bill. Every step has "why it matters", tips, and buttons to the page, the Excel template and the import. Steps tick themselves from the shop's data; nothing is written. Below that: "Also worth doing" (GSTIN and Drug Licence, credit customers, what you owe suppliers, staff logins, 2-step sign-in, a backup copy) and "Check your data" (medicines without a unit or MRP, batches with stock but no expiry date, suppliers without a phone number), each with a link to fix it.
 The dashboard card "Get your shop ready" now has five steps and a button to the guide. A brand new shop (nothing done yet) also gets a one-time welcome note (remembered in the browser). Products cannot be added one by one: they are created by the Products import or by the stock entry/import, and the guide says so. No migration; the code is `backend/onboarding.py`.
+
+## Fast & Dead Stock, Payment Reminders, Customer History, Medicine Finder
+
+- **Fast & Dead Stock** (`/movement/`, owner only): per medicine, what sold in the last 30 / 60 / 90 / 180 days, how many days the stock lasts at that pace, the last sale, the cost value and the nearest expiry. Fast = lasts 30 days or less, Slow = more than 120 days, Dead = nothing sold (a medicine whose stock all came in inside the period is "New"). Excel / CSV download. Code: `backend/movement.py`.
+- **Payment Reminders** (`/reminders/`): customers who owe money, biggest first, with the date of their oldest unpaid credit bill (receipts are applied to the oldest bills first). The WhatsApp button opens `wa.me` with the message written; nothing is sent by the server and no WhatsApp Business API is needed. It records the day (`Customer.last_reminded`). Code: `backend/reminders.py`.
+- **Customer History**: on the bill, picking a customer shows their usual medicines (one tap adds a row) and last 5 bills (`/api/customer_history/`). `/history/` finds bills by customer, patient or doctor.
+- **Medicine Finder** (`/finder/`) and the "Same salt in stock" button on the bill: same-composition medicines, in stock first, cheapest first. Code: `backend/finder.py`.
+- **Staff action alerts**: when staff (not owners) delete a record, make a return, write stock off, apply a stock audit and so on, the owner gets an e-mail (at most 3 per person in 10 minutes). Code: `backend/staff_alerts.py`, called from `auditlog.record`.
+- **Tutorial video**: `backend/static/video/medsync-getting-started.mp4` (captions, no sound), on the Help and Setup pages and linked from the welcome e-mail.
+
+## Offline billing
+
+Open **New Bill** once while online. The page and a copy of the medicine list (`/api/offline_catalog/`) are then kept on that device, and billing continues without internet:
+
+- Medicines are searched from the on-device copy. A bill made offline is saved on the device (IndexedDB queue); a badge at the bottom left shows what is waiting.
+- When the internet is back the bills are sent one by one (`POST /bills/new/` with `X-Offline-Sync`, answered in JSON). The invoice number and the stock allocation are given by the server at that moment, so an offline bill has no invoice number until it is sent. If it cannot be saved (for example the stock ran out meanwhile) the badge turns red and **Fix and save** puts it on hold and opens it on the New Bill page.
+- Every new-bill form carries a one-time key (`OfflineBill`): the same form arriving twice (double click, retry, a lost answer) never makes a second bill.
+- Signing out removes the page copy and the medicine list from the device. Bills still waiting stay until they are sent or discarded.
+- The service worker keeps only the plain New Bill page and the files in `/static/js/`; no other page and no API answer.
+- Not covered: editing existing bills, purchases and every other page need internet.

@@ -1,0 +1,41 @@
+{% extends "app/base.html" %}
+{% block title %}Fast & Dead Stock{% endblock %}
+{% block content %}
+<div class="head"><h1>📦 Fast &amp; Dead Stock</h1>
+  <div class="bar"><a class="btn ghost sm" href="?days={{ days }}&show={{ shown }}&export=xlsx">⬇ Excel</a><a class="btn ghost sm" href="?days={{ days }}&show={{ shown }}&export=csv">CSV</a></div></div>
+<div class="msg info">
+  Shows which medicines sell quickly and which ones hold your money. It looks at what was billed in the last <b>{{ days }} days</b>.
+  <b>Fast</b>: the stock lasts {{ fast_cover }} days or less at that pace. <b>Slow</b>: it lasts more than {{ slow_cover }} days.
+  <b>Dead</b>: nothing was sold in this period. <b>New</b>: not sold yet, but all the stock came in during this period, so it is too early to say.
+  The value is what the stock cost you.
+</div>
+<form method="get" class="card" style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:end">
+  <div class="fld" style="margin:0"><label for="days">Sales of the last</label>
+    <select id="days" name="days" onchange="this.form.submit()">{% for p in periods %}<option value="{{ p }}" {% if p == days %}selected{% endif %}>{{ p }} days</option>{% endfor %}</select></div>
+  <div class="fld" style="margin:0"><label for="show">Show</label>
+    <select id="show" name="show" onchange="this.form.submit()"><option value="">All</option>{% for key, label in classes %}<option value="{{ key }}" {% if key == shown %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+  <noscript><button class="btn">Show</button></noscript>
+</form>
+<div class="stats" style="margin-bottom:14px">
+  {% for c in cards %}<a class="card stat" href="?days={{ days }}&show={{ c.key }}"><small>{{ c.label }}</small><b>{{ c.count }}</b><span class="sub">₹{{ c.value|floatformat:0 }} in stock</span></a>{% endfor %}
+</div>
+{% if tied %}<div class="msg warning">₹{{ tied|floatformat:0 }} of your money is in Slow and Dead stock. Consider returning it to the supplier before it expires, or offering it first at the counter.</div>{% endif %}
+<div class="card">
+  {% if found > show_max %}<div class="msg warning">Showing the first {{ show_max }} of {{ found }} medicines (dead and slow first). Use the filter above, or download the Excel file to see all of them.</div>{% endif %}
+  {% if rows %}
+  <div class="tw"><table class="t stack">
+    <thead><tr><th>Medicine</th><th>Class</th><th>Stock</th><th>Sold ({{ days }} d)</th><th>Stock lasts</th><th>Last sold</th><th>Value</th><th>Expiry</th></tr></thead>
+    <tbody>{% for r in rows %}<tr>
+      <td data-label="Medicine"><b>{{ r.name }}</b></td>
+      <td data-label="Class"><span class="badge {% if r.cls == 'fast' %}green{% elif r.cls == 'dead' %}red{% elif r.cls == 'slow' %}amber{% else %}grey{% endif %}">{{ r.label }}</span></td>
+      <td data-label="Stock">{{ r.stock }}</td>
+      <td data-label="Sold">{{ r.sold }}</td>
+      <td data-label="Stock lasts">{% if r.cover is not None %}{{ r.cover }} day{{ r.cover|pluralize }}{% else %}-{% endif %}</td>
+      <td data-label="Last sold">{% if r.last_sold %}{{ r.last_sold|date:"d M Y" }}{% else %}never{% endif %}</td>
+      <td data-label="Value">{% if r.value is not None %}₹{{ r.value|floatformat:2 }}{% else %}-{% endif %}</td>
+      <td data-label="Expiry">{% if r.expiry %}{{ r.expiry|date:"d M Y" }}{% else %}-{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="empty">Nothing to show here. 🎉</div>{% endif %}
+</div>
+{% endblock %}

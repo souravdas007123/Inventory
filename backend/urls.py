@@ -2,7 +2,7 @@ from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.urls import path
 
-from . import blog, helpviews, landing, legal, passwordreset, pwa, security, twofactor, views, views_extra, views_import
+from . import blog, helpviews, landing, legal, passwordreset, pwa, security, twofactor, views, views_extra, views_import, views_new
 
 # NOTE: specific paths must always come BEFORE the generic '<str:key>/...' patterns below.
 urlpatterns = [
@@ -60,6 +60,7 @@ urlpatterns = [
     path('ca_export/', views_extra.ca_export_view, name='ca_export'),
     path('drug_register/', views_extra.drug_register_view, name='drug_register'),
     path('api/customer_lookup/', views_extra.customer_lookup, name='customer_lookup'),
+    path('api/offline_catalog/', views_extra.offline_catalog, name='offline_catalog'),
     path('api/product_find/', views_extra.product_find, name='product_find'),
     path('api/product_preview/<int:pk>/', views_extra.product_preview, name='product_preview'),
     path('api/purchase_preview/<int:pk>/', views_extra.purchase_preview, name='purchase_preview'),
@@ -69,6 +70,12 @@ urlpatterns = [
     path('api/last_purchase/', views_extra.last_purchase, name='last_purchase'),
     path('api/supplier_price_hint/', views_extra.supplier_price_hint, name='supplier_price_hint'),
     path('reorder/', views_extra.reorder_view, name='reorder'),
+    path('movement/', views_new.movement_view, name='movement'),
+    path('finder/', views_new.finder_view, name='finder'),
+    path('history/', views_new.history_view, name='history'),
+    path('api/customer_history/', views_new.customer_history, name='customer_history'),
+    path('reminders/', views_new.reminders_view, name='reminders'),
+    path('reminders/<int:pk>/send/', views_new.reminder_send, name='reminder_send'),
     path('refill/', views_extra.refill_view, name='refill'),
     path('expiry/', views_extra.expiry_view, name='expiry'),
     path('salary/', views_extra.salary_view, name='salary'),

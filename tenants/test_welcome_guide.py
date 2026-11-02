@@ -34,6 +34,14 @@ class GuideTests(SimpleTestCase):
             self.assertIn(f'href="http://x.localhost/{path}"', html, path)
         self.assertIn('http://x.localhost/login/', html)
 
+    def test_the_tutorial_video_is_the_first_link_and_needs_no_sign_in(self):
+        _, text, html = welcome()
+        video = 'http://x.localhost/static/video/medsync-getting-started.mp4'
+        self.assertIn(video, text)
+        self.assertIn(f'href="{video}"', html)
+        self.assertLess(text.index(video), text.index('http://x.localhost/setup/'))
+        self.assertIn('no sign-in needed', text)
+
     def test_without_a_shop_address_there_are_no_links_at_all(self):
         _, text, html = welcome(address='')
         self.assertNotIn('Quick links', text)
