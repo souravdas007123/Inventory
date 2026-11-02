@@ -61,7 +61,7 @@
     <input type="hidden" name="action" value="commit"><input type="hidden" name="token" value="{{ token }}">
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
       <button class="btn" {% if not ok_count %}disabled style="opacity:.5;cursor:not-allowed"{% endif %}>✅ Import {{ ok_count }} rows</button>
-      <a class="btn ghost" href="{% url 'import' kind %}">Cancel / dusri file</a>
+      <a class="btn ghost" href="{% url 'import' kind %}">Cancel / choose another file</a>
     </div>
     {% if not ok_count %}<p style="color:var(--red);margin:10px 0 0">No valid rows were found. Please fix the file and upload it again.</p>{% endif %}
   </form>
