@@ -739,10 +739,19 @@ def _supplier_for(product_ids, defaults, today):
     return out
 
 
+REORDER_WINDOWS = (15, 30, 60, 90)
+AUTO = 0                                   # "days" value of the Auto view: every window is looked at, the busiest one counts
+
+
 def _reorder_suggestions(days, cover, today):
-    since = today - timedelta(days=days)
-    sold = {r['product_id']: r['s'] for r in InvoiceItem.objects.filter(
-        bill__status='FINAL', bill__date__gte=since, product__isnull=False).values('product_id').annotate(s=Sum('base_qty'))}
+    """days = one of REORDER_WINDOWS, or AUTO: each product is judged by the window in which it sells fastest, so a product that
+    needs ordering under any window is listed (a short window shows a recent rush, a long one a steady seller)."""
+    windows = REORDER_WINDOWS if days == AUTO else (days,)
+    sales = InvoiceItem.objects.filter(bill__status='FINAL', bill__date__gte=today - timedelta(days=max(windows)), product__isnull=False)
+    sold_by = {w: {} for w in windows}
+    for w in windows:
+        for r in sales.filter(bill__date__gte=today - timedelta(days=w)).values('product_id').annotate(s=Sum('base_qty')):
+            sold_by[w][r['product_id']] = r['s']
     expired = {r['product_id']: r['s'] for r in Batch.objects.filter(
         qty__gt=0, expire_date__lt=today, product__isnull=False).values('product_id').annotate(s=Sum('qty'))}
     on_order = {r['product_id']: r['s'] for r in PurchaseOrderItem.objects.filter(
@@ -755,7 +764,13 @@ def _reorder_suggestions(days, cover, today):
                              stock_qty=p.stock_qty, reorder_level=p.reorder_level,
                              pack_name=pack.unit.name if pack else '', pack_factor=pack.factor if pack else 0))
         defaults[p.pk] = p.default_supplier_id
-    rows = reorder.suggest(products, sold, expired, on_order, days=days, cover=cover)
+    best = {}
+    for w in windows:
+        for r in reorder.suggest(products, sold_by[w], expired, on_order, days=w, cover=cover):
+            r['window'] = w
+            if r['id'] not in best or r['per_day'] > best[r['id']]['per_day']:      # a faster seller needs ordering sooner and more
+                best[r['id']] = r
+    rows = sorted(best.values(), key=lambda r: (r['days_left'] if r['days_left'] is not None else Decimal('9999'), r['name'].lower()))
     sup = _supplier_for([r['id'] for r in rows], defaults, today)
     names = dict(Supplier.objects.filter(pk__in={s for s in sup.values() if s}).values_list('pk', 'company'))
     for r in rows:
@@ -815,11 +830,11 @@ def reorder_view(request):
             messages.warning(request, 'No supplier known yet (set a Default Supplier on the product): ' + ', '.join(no_supplier) + '.')
         return redirect('list', key='purchase_orders') if made else redirect('reorder')
 
-    days = _choice(request.GET.get('days'), (15, 30, 60, 90), 30)
+    days = AUTO if request.GET.get('days', 'auto') == 'auto' else _choice(request.GET.get('days'), REORDER_WINDOWS, AUTO)
     cover = _choice(request.GET.get('cover'), (15, 30, 45, 60), 30)
     rows = _reorder_suggestions(days, cover, today)
     return page(request, 'app/reorder.html', active='reorder', rows=rows, days=days, cover=cover,
-                days_opts=(15, 30, 60, 90), cover_opts=(15, 30, 45, 60), urgent=sum(1 for r in rows if r['urgent']))
+                days_opts=REORDER_WINDOWS, cover_opts=(15, 30, 45, 60), urgent=sum(1 for r in rows if r['urgent']))
 
 
 # ======================================================
