@@ -82,6 +82,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'backend.nulstrip.StripNulMiddleware',          # PostgreSQL cannot store NUL bytes
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
