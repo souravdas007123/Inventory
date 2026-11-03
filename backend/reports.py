@@ -391,13 +391,14 @@ def dashboard_overview(today=None, include_money=False):
     out['gst_month'] = dec(Sale.objects.filter(date__gte=month_start, date__lte=today).aggregate(s=Sum('gst'))['s'])
 
     # ---- Credit (to collect from customers) ----
-    credit_ids = Customer.objects.filter(bills__payment_mode='CREDIT', bills__status='FINAL').distinct()[:300]
+    credit_ids = list(Customer.objects.filter(bills__payment_mode='CREDIT', bills__status='FINAL').distinct()[:300])
+    Customer.bulk_balances(credit_ids)   # a few queries for all of them, not three per customer
     first_credit = dict(Bill.objects.filter(status='FINAL', payment_mode='CREDIT', customer__isnull=False)
                         .values_list('customer_id').annotate(d=Min('date')).order_by())
     shop_name = ShopProfile.get().name
     owing = []
     for c in credit_ids:
-        bal = c.balance()
+        bal = c._balance
         if bal > 0:
             since = first_credit.get(c.pk)
             owing.append(dict(pk=c.pk, name=c.name, phone=c.phone or '', balance=bal,

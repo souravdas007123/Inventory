@@ -23,7 +23,9 @@ def daily_summary(day):
     top = (InvoiceItem.objects.filter(bill__date=day, bill__status='FINAL', product__isnull=False)
            .values('product__name').annotate(t=Sum('total'), q=Sum('qty')).order_by('-t')[:5])
     alerts = notify.collect_alerts()
-    outstanding = sum((c.balance() for c in Customer.objects.filter(is_active=True)), ZERO)
+    active = list(Customer.objects.filter(is_active=True))
+    Customer.bulk_balances(active)
+    outstanding = sum((c._balance for c in active), ZERO)
     return dict(
         day=day, bills=len(bills),
         sales=Sale.objects.filter(date=day).aggregate(s=Sum('total'))['s'] or ZERO,
