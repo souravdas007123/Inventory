@@ -124,7 +124,7 @@ def welcome_message(shop, login_email, today=None, via_google=False):
              'Enter your opening stock. Import your supplier bills from Excel (Import / Export, then Stock Entry) or enter a purchase. '
              'A medicine that is not in your list yet is created from these rows, so you need no separate product list. Always fill in the expiry date: expiry alerts and returns depend on it.',
              'Make your first bill. Scan the barcode or type the medicine name, press Enter to move on and F9 to save. Print it, or send it to the customer on WhatsApp.',
-             'Keep your shop safe. Turn on 2-step sign-in in Sign-in security. A backup is taken every day, and you can download your own copy from the Backup page.']
+             'Keep your shop safe. Turn on 2-step sign-in from the Sign-in security page. A backup is taken every day, and you can download your own copy from the Backup page.']
     later = ['Customers who buy on credit, past expenses and staff logins (give each person their own role) can all be added later.',
              'Handy screens: Expiry Returns (send expired stock back to the supplier), Reorder Suggestions (what to buy next) and Profit & Loss.']
     links = ([('Watch the 90-second tutorial video (no sign-in needed)', address + 'static/video/medsync-getting-started.mp4'),
