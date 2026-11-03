@@ -15,7 +15,7 @@
 .hs-bar.amber i{background:var(--amber)}.hs-bar.red i{background:var(--red)}
 .hs-chk{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--line)}.hs-chk:first-of-type{border-top:0}
 .hs-ico{flex:none;width:22px;text-align:center;font-weight:700}
-.hs-ico.ok{color:var(--green)}.hs-ico.warn{color:var(--amber)}.hs-ico.bad{color:var(--red)}.hs-ico.info,.hs-ico.unknown{color:var(--mute)}
+.hs-ico.ok{color:var(--grn-t)}.hs-ico.warn{color:var(--amb-t)}.hs-ico.bad{color:var(--red-t)}.hs-ico.info,.hs-ico.unknown{color:var(--mute)}
 .hs-chk ul{margin:4px 0 0 18px;color:var(--mute);font-size:13px}
 .hs-hist{display:flex;gap:3px;align-items:flex-end;height:60px}.hs-hist i{flex:1;background:var(--pri);border-radius:3px 3px 0 0;min-width:4px;opacity:.85}
 </style>
@@ -28,7 +28,7 @@
     <div style="flex:1;min-width:240px">
       <h2 style="margin:0 0 4px">{{ data.label }}</h2>
       <p style="color:var(--mute);margin:0 0 10px">Measured {% if checked %}{{ checked|date:"d M Y, H:i" }}{% endif %} on this server in {{ data.took_ms }} ms. Every point lost has a reason below. Nothing here changes your data.</p>
-      {% if data.unchecked %}<p style="color:var(--amber);margin:0">{{ data.unchecked }} check(s) could not run and are left out of the score.</p>{% endif %}
+      {% if data.unchecked %}<p style="color:var(--amb-t);margin:0">{{ data.unchecked }} check(s) could not run and are left out of the score.</p>{% endif %}
     </div>
     <div class="hs-secs">
       {% for s in data.sections %}<div class="hs-sec"><small>{{ s.title }} · {{ s.weight }}%</small>

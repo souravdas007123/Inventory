@@ -12,7 +12,7 @@
     <td data-label="Last sign-in">{% if r.last_login %}{{ r.last_login|date:"d M Y, h:i A" }}{% else %}Never{% endif %}</td>
     <td data-label="Last action">{% if r.last_action %}{{ r.last_action }}<br><small style="color:var(--mute)">{{ r.last_action_at|date:"d M Y, h:i A" }}</small>{% else %}-{% endif %}</td>
     <td data-label="Actions (7 days)" style="text-align:right">{{ r.week }}</td>
-    <td data-label="Failed sign-ins (7 days)" style="text-align:right">{% if r.failed %}<b style="color:var(--red)">{{ r.failed }}</b>{% else %}0{% endif %}</td>
+    <td data-label="Failed sign-ins (7 days)" style="text-align:right">{% if r.failed %}<b style="color:var(--red-t)">{{ r.failed }}</b>{% else %}0{% endif %}</td>
   </tr>
   {% empty %}<tr><td colspan="6">No users.</td></tr>{% endfor %}
 </table></div></div>

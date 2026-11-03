@@ -13,7 +13,7 @@
       <select name="days" onchange="this.form.submit()" style="width:auto"><option value="auto" {% if not days %}selected{% endif %}>Auto (all products)</option>{% for o in days_opts %}<option value="{{ o }}" {% if o == days %}selected{% endif %}>{{ o }} days</option>{% endfor %}</select></label>
     <label style="display:flex;align-items:center;gap:6px;white-space:nowrap">Keep stock for
       <select name="cover" onchange="this.form.submit()" style="width:auto">{% for o in cover_opts %}<option value="{{ o }}" {% if o == cover %}selected{% endif %}>{{ o }} days</option>{% endfor %}</select></label>
-    {% if rows %}<span style="color:var(--mute)">{{ rows|length }} product{{ rows|length|pluralize }} to order{% if urgent %} · <b style="color:var(--red)">{{ urgent }} urgent</b>{% endif %}</span>{% endif %}
+    {% if rows %}<span style="color:var(--mute)">{{ rows|length }} product{{ rows|length|pluralize }} to order{% if urgent %} · <b style="color:var(--red-t)">{{ urgent }} urgent</b>{% endif %}</span>{% endif %}
   </form>
 
   {% if rows %}

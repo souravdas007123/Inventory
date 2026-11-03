@@ -18,7 +18,7 @@
   <h3 style="margin-top:0">Your tickets</h3>
   <div class="tw"><table class="t">
     <thead><tr><th>No.</th><th>Subject</th><th>Status</th><th>Last update</th></tr></thead>
-    {% for t in tickets %}<tr><td>#{{ t.pk }}</td><td><a href="{% url 'support_ticket' t.pk %}">{{ t.subject }}</a>{% if t.shop_unread %} <b style="color:var(--pri)">New reply</b>{% endif %}</td>
+    {% for t in tickets %}<tr><td>#{{ t.pk }}</td><td><a href="{% url 'support_ticket' t.pk %}">{{ t.subject }}</a>{% if t.shop_unread %} <b style="color:var(--prit)">New reply</b>{% endif %}</td>
       <td>{{ t.get_status_display }}</td><td>{{ t.updated_at|date:"d M Y, h:i A" }}</td></tr>
     {% empty %}<tr><td class="empty" colspan="4">You have not sent any ticket yet.</td></tr>{% endfor %}
   </table></div>

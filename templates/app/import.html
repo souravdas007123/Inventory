@@ -63,7 +63,7 @@
       <button class="btn" {% if not ok_count %}disabled style="opacity:.5;cursor:not-allowed"{% endif %}>✅ Import {{ ok_count }} rows</button>
       <a class="btn ghost" href="{% url 'import' kind %}">Cancel / choose another file</a>
     </div>
-    {% if not ok_count %}<p style="color:var(--red);margin:10px 0 0">No valid rows were found. Please fix the file and upload it again.</p>{% endif %}
+    {% if not ok_count %}<p style="color:var(--red-t);margin:10px 0 0">No valid rows were found. Please fix the file and upload it again.</p>{% endif %}
   </form>
 
   <div class="card"><h3 style="margin-top:0">Rows {% if truncated %}<small style="color:var(--mute);font-weight:400">(first {{ rows|length }}, rows with errors shown first)</small>{% endif %}</h3>
@@ -73,7 +73,7 @@
         <td>{{ r.n }}</td>
         <td>{% if r.action == 'error' %}<span class="badge red">Error</span>{% elif r.action == 'create' %}<span class="badge green">New</span>{% elif r.action == 'update' %}<span class="badge blue">Update</span>{% else %}<span class="badge grey">Skip</span>{% endif %}</td>
         <td>{{ r.label }}</td>
-        <td>{% for e in r.errors %}<div style="color:var(--red)">{{ e }}</div>{% endfor %}{% for w in r.warnings %}<div style="color:var(--amber)">{{ w }}</div>{% endfor %}</td>
+        <td>{% for e in r.errors %}<div style="color:var(--red-t)">{{ e }}</div>{% endfor %}{% for w in r.warnings %}<div style="color:var(--amb-t)">{{ w }}</div>{% endfor %}</td>
       </tr>{% endfor %}
     </table></div></div>
 
