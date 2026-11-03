@@ -13,7 +13,7 @@ class Command(BaseCommand):
             "~/.virtualenvs/inv/bin/python ~/Inventory/manage.py daily_tasks")
 
     def add_arguments(self, parser):
-        parser.add_argument('--keep', type=int, default=14, help='How many latest backups to keep (default 14)')
+        parser.add_argument('--keep', type=int, default=backup.KEEP, help=f'How many latest backups to keep (default {backup.KEEP})')
         parser.add_argument('--skip-backup', action='store_true', help='Do not take a backup')
         parser.add_argument('--skip-email', action='store_true', help='Do not email the summary')
         parser.add_argument('--print', action='store_true', dest='print_only', help='Print the summary instead of emailing it')

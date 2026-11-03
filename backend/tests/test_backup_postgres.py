@@ -122,3 +122,36 @@ class ShopBackupScopeTests(SimpleTestCase):
     def test_current_schema_is_empty_when_many_shops_is_off(self):
         with override_settings(MULTI_SHOP=False):
             self.assertEqual(backup.current_schema(), '')
+
+
+class RetentionTests(SimpleTestCase):
+    """Only the latest 7 backups of a shop are kept; the older ones go, and one shop never removes another shop's files."""
+
+    def names(self, schema, n):
+        stem = f'medsync_{schema}_' if schema else 'medsync_'
+        return [f'{stem}202610{d:02d}_020000.pgdump' for d in range(1, n + 1)]
+
+    def test_the_default_is_seven(self):
+        import inspect
+        self.assertEqual(backup.KEEP, 7)
+        self.assertEqual(inspect.signature(backup.make_backup).parameters['keep'].default, 7)
+
+    def test_a_new_backup_removes_the_oldest_beyond_seven_of_that_shop_only(self):
+        with tempfile.TemporaryDirectory() as tmp, override_settings(BACKUP_DIR=tmp, MULTI_SHOP=True):
+            for n in self.names('s_a', 10) + self.names('s_b', 10) + self.names('', 10):
+                (Path(tmp) / n).write_bytes(b'PGDMP')
+            with mock.patch.object(backup, 'current_schema', return_value='s_a'):
+                backup.prune(backup.KEEP)
+                self.assertEqual(len(backup.list_backups()), 7)
+                self.assertEqual(backup.list_backups()[-1]['name'], 's_a'.join(['medsync_', '_20261004_020000.pgdump']))    # the 3 oldest are gone
+            left = sorted(p.name for p in Path(tmp).iterdir())
+            self.assertEqual(sum(n.startswith('medsync_s_a_') for n in left), 7)
+            self.assertEqual(sum(n.startswith('medsync_s_b_') for n in left), 10)       # another shop's files are untouched
+            self.assertEqual(sum(n.startswith('medsync_2026') for n in left), 10)       # and so are the main shop's
+
+    def test_the_commands_and_the_page_use_the_same_number(self):
+        from django.core.management import get_commands, load_command_class
+        for name in ('backup_db', 'daily_tasks'):
+            cmd = load_command_class(get_commands()[name], name)
+            parser = cmd.create_parser('manage.py', name)
+            self.assertEqual(parser.parse_args([]).keep, 7)

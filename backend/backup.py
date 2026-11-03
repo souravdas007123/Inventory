@@ -19,6 +19,9 @@ from django.conf import settings
 NAME_RE = re.compile(r'^medsync_\d{8}_\d{6}\.(sqlite3\.gz|pgdump)$')
 
 
+KEEP = 7            # how many backups are kept for each shop: one week of nightly backups
+
+
 class BackupError(Exception):
     pass
 
@@ -120,7 +123,7 @@ def _backup_postgres(target, schema=''):
         raise BackupError(f"pg_dump failed: {(done.stderr or 'no message').strip()[:250]}")
 
 
-def make_backup(keep=14):
+def make_backup(keep=KEEP):
     if is_postgres():
         schema = current_schema()
         stem = f'medsync_{schema}_' if schema else 'medsync_'

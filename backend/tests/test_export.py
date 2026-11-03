@@ -63,6 +63,12 @@ class DataExportTests(TestCase):
         self.client.force_login(self.owner)
         self.assertContains(self.client.get('/backup/'), 'Download my data')
 
+    def test_the_backup_page_says_how_many_backups_are_kept(self):
+        self.client.force_login(self.owner)
+        page = self.client.get('/backup/').content.decode()
+        self.assertIn('latest 7 are kept', page)
+        self.assertNotIn('latest 14', page)
+
 
 class SafeValueTests(TestCase):
     def test_formula_text_is_neutralised_but_numbers_and_empty_values_are_kept(self):

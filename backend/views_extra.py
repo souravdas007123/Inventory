@@ -1290,7 +1290,7 @@ def backup_page(request):
         extra = restoreviews.shop_context(request)
     return page(request, 'app/backup.html', active='backup', backups=backup.list_backups(),
                 folder=str(backup.backup_dir()), postgres=backup.is_postgres(),
-                hosted=hosted, **extra)
+                hosted=hosted, keep=backup.KEEP, **extra)
 
 
 @staff_required

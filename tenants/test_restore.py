@@ -80,7 +80,7 @@ class World:
         self.data[parked] = self.data.pop(live)
         self.data[live] = self.data.pop(other)
 
-    def make_backup(self, keep=14):
+    def make_backup(self, keep=7):
         self.calls.append(('safety_backup',))
         if 'safety' in self.fail:
             raise backup.BackupError('disk full')

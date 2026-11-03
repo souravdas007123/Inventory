@@ -15,7 +15,7 @@ class Command(BaseCommand):
             "reminders for plans that are ending. Example cron: 30 2 * * * <venv>/bin/python manage.py shops_daily")
 
     def add_arguments(self, parser):
-        parser.add_argument('--keep', type=int, default=14, help='How many latest backups to keep for each shop (default 14)')
+        parser.add_argument('--keep', type=int, default=backup.KEEP, help=f'How many latest backups to keep for each shop (default {backup.KEEP})')
         parser.add_argument('--skip-backup', action='store_true', help='Do not take backups')
         parser.add_argument('--skip-email', action='store_true', help="Do not e-mail the shops' daily summaries")
         parser.add_argument('--skip-reminders', action='store_true', help='Do not send plan reminders')
