@@ -38,7 +38,16 @@ class Command(BaseCommand):
             if not shops:
                 raise CommandError(f"No shop with the schema name '{opts['only']}'.")
         done = 0
+        try:
+            from tenants import restore
+            restore.cleanup()                           # saved copies from earlier restores, older than 7 days
+        except Exception as e:
+            self.stderr.write(self.style.ERROR(f'Cleaning old restore copies failed: {e}'))
         for shop in shops:
+            if shop.restoring:                          # its data is being swapped right now: skip, tomorrow is fine
+                self.stdout.write(f'[{shop.schema_name}] skipped: being restored.')
+                done += 1
+                continue
             main = shop.schema_name == 'public'
             name = 'main shop' if main else shop.schema_name
             state = 'active' if main else tenancy.shop_state(shop)

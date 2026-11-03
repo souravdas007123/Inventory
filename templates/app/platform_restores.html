@@ -1,0 +1,32 @@
+{% extends "app/platform_base.html" %}
+{% block title %}Restores{% endblock %}
+{% block nav_restore %} on{% endblock %}
+{% block content %}
+<h1>Restores</h1>
+<p class="sub">A shop asks to go back to one of its own backups. Nothing changes until you press <b>Restore now</b>. Before it starts, a new backup of the shop is saved. The shop's current data is only renamed, not deleted, and is kept for {{ keep_days }} days so you can undo. If anything goes wrong the shop is put back exactly as it was.</p>
+{% if waiting %}<div class="warnbar"><b>{{ waiting }} restore request{{ waiting|pluralize }} waiting for you.</b></div>{% endif %}
+<div class="tw"><table>
+<thead><tr><th>Asked on</th><th>Shop</th><th>Backup</th><th>Status</th><th>Do</th></tr></thead>
+<tbody>{% for r in rows %}<tr>
+<td>{{ r.created_at|date:"d M Y, H:i" }}</td>
+<td><span class="n">{{ r.shop.name }}</span><br><span class="mut">{{ r.requested_by }}</span></td>
+<td>{{ r.backup_name }}{% if r.note %}<br><span class="mut">Reason: {{ r.note }}</span>{% endif %}{% if r.safety_backup %}<br><span class="mut">Saved before restore: {{ r.safety_backup }}</span>{% endif %}</td>
+<td><span class="tag {% if r.status == 'requested' %}t-locked{% elif r.status == 'running' %}t-trial{% elif r.status == 'done' %}t-active{% else %}t-paused{% endif %}">{{ r.get_status_display }}</span>{% if r.message %}<br><span class="mut">{{ r.message }}</span>{% endif %}{% if r.stuck %}<br><b>This looks stuck.</b>{% endif %}</td>
+<td>
+{% if r.status == 'requested' %}
+<form method="post" action="{% url 'platform_restore_action' r.pk %}" style="display:grid;gap:6px;max-width:260px">{% csrf_token %}<input type="hidden" name="action" value="start">
+<label for="c{{ r.pk }}" class="mut">Type <b>{{ r.word }}</b> to restore this shop. Everything entered after this backup will be removed.</label>
+<input id="c{{ r.pk }}" name="confirm" autocomplete="off" autocapitalize="none" spellcheck="false" size="18"><button class="btn">Restore now</button></form>
+<form method="post" action="{% url 'platform_restore_action' r.pk %}" style="display:grid;gap:6px;max-width:260px;margin-top:8px">{% csrf_token %}<input type="hidden" name="action" value="reject">
+<input name="reason" maxlength="200" placeholder="Reason (the shop sees it)" aria-label="Reason"><button class="btn line">Decline</button></form>
+{% elif r.stuck %}
+<form method="post" action="{% url 'platform_restore_action' r.pk %}">{% csrf_token %}<input type="hidden" name="action" value="recover"><button class="btn">Recover (put the shop back)</button></form>
+{% elif r.can_undo %}
+<form method="post" action="{% url 'platform_restore_action' r.pk %}" style="display:grid;gap:6px;max-width:260px">{% csrf_token %}<input type="hidden" name="action" value="undo">
+<label for="u{{ r.pk }}" class="mut">Type <b>{{ r.word }}</b> to undo and go back to the data from before.</label>
+<input id="u{{ r.pk }}" name="confirm" autocomplete="off" autocapitalize="none" spellcheck="false" size="18"><button class="btn line">Undo this restore</button></form>
+{% endif %}
+</td>
+</tr>{% empty %}<tr><td colspan="5" class="mut">No shop has asked for a restore yet.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

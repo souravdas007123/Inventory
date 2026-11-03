@@ -85,6 +85,16 @@ def _count_waiting_payments(user):
         return 0
 
 
+def _count_restores(user):
+    """Restore requests waiting for the platform owner (0 for others, or when unreadable)."""
+    try:
+        from tenants.models import RestoreRequest
+        from tenants.platform import is_platform_admin
+        return RestoreRequest.objects.filter(status='requested').count() if is_platform_admin(user) else 0
+    except Exception:
+        return 0
+
+
 def template_context(request):
     """Adds `is_owner` and the menu (only what this user may open) to every template."""
     user = request.user
@@ -93,7 +103,7 @@ def template_context(request):
     ctx = {'is_owner': is_owner(user), 'nav': nav_for(user), 'shop_note': tenancy.shop_note(request),
            'platform_url': tenancy.platform_panel_url(user), 'platform_notice': ''}
     ctx['can_bill'] = can(user, 'add', 'bill')          # offline billing is switched on for people who can make bills
-    ctx['support_unread'] = ctx['open_tickets'] = ctx['payments_waiting'] = 0
+    ctx['support_unread'] = ctx['open_tickets'] = ctx['payments_waiting'] = ctx['restores_waiting'] = 0
     ctx['maintenance_banner'] = ctx['maintenance_bar'] = ''
     if tenancy.on_shop_site():
         from tenants import maintenance, site
@@ -103,6 +113,7 @@ def template_context(request):
     elif getattr(settings, 'MULTI_SHOP', False) and tenancy.is_platform() and user.is_authenticated:
         ctx['open_tickets'] = _count_tickets(request, user, platform=True)
         ctx['payments_waiting'] = _count_waiting_payments(user)
+        ctx['restores_waiting'] = _count_restores(user)
         from tenants import maintenance
         ctx['maintenance_bar'] = maintenance.platform_bar()
     return ctx

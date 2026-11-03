@@ -85,6 +85,20 @@ def find_pg_dump():
     return found[0] if found else ''
 
 
+def find_pg_restore():
+    """Full path of pg_restore: the PG_RESTORE setting, the PATH, or the folder that holds pg_dump. '' when not found."""
+    for cand in (os.environ.get('PG_RESTORE', '').strip().strip('"'), shutil.which('pg_restore') or ''):
+        if cand and Path(cand).is_file():
+            return cand
+    dump = find_pg_dump()
+    if dump:
+        for name in ('pg_restore', 'pg_restore.exe'):
+            sibling = Path(dump).with_name(name)
+            if sibling.is_file():
+                return str(sibling)
+    return ''
+
+
 def _backup_postgres(target, schema=''):
     exe = find_pg_dump()
     if not exe:
@@ -137,9 +151,10 @@ def make_backup(keep=14):
     return target
 
 
-def list_backups():
+def list_backups(schema=None):
+    """The backups of the open shop, or of the shop with this schema name when `schema` is given."""
     out = []
-    name_re = _name_re()
+    name_re = _name_re(schema)
     for f in sorted(backup_dir().glob('medsync_*'), reverse=True):
         if name_re.match(f.name):
             st = f.stat()
@@ -157,9 +172,9 @@ def prune(keep):
                 pass
 
 
-def backup_path(name):
+def backup_path(name, schema=None):
     """Path of a backup created by this app only (guards against path traversal)."""
-    if not _name_re().match(name or ''):
+    if not _name_re(schema).match(name or ''):
         return None
     p = backup_dir() / name
     return p if p.is_file() else None

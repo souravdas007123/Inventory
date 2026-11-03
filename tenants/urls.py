@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import google, invoiceviews, mainlogin, maintenance_admin, payadmin, payshop, plan, platform, server_admin, support, supportadmin, views
+from . import google, invoiceviews, mainlogin, maintenance_admin, payadmin, payshop, plan, platform, restoreviews, server_admin, support, supportadmin, views
 
 urlpatterns = [
     path('signup/', views.signup, name='signup'),
@@ -25,6 +25,10 @@ urlpatterns = [
     path('superadmin/payments/<int:pk>/approve/', payadmin.approve, name='platform_payment_approve'),
     path('superadmin/payments/<int:pk>/reject/', payadmin.reject, name='platform_payment_reject'),
     path('superadmin/', platform.dashboard, name='platform'),
+    path('restore/request/', restoreviews.request_restore, name='restore_request'),
+    path('restore/<int:pk>/cancel/', restoreviews.cancel_request, name='restore_cancel'),
+    path('superadmin/restores/', restoreviews.restore_list, name='platform_restores'),
+    path('superadmin/restores/<int:pk>/action/', restoreviews.restore_action, name='platform_restore_action'),
     path('support/', support.ticket_list, name='support'),
     path('support/<int:pk>/', support.ticket_detail, name='support_ticket'),
     path('superadmin/support/', supportadmin.ticket_list, name='platform_support'),

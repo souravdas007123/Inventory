@@ -20,6 +20,7 @@ class Shop(TenantMixin):
     paid_until = models.DateField(null=True, blank=True)
     is_paused = models.BooleanField(default=False, help_text='Tick to switch the shop off without deleting anything.')
     email_verified = models.BooleanField(default=False)
+    restoring = models.BooleanField(default=False, help_text='On only while a backup is being restored: the shop shows a "please wait" page.')
     created_on = models.DateTimeField(auto_now_add=True)
     notes = models.TextField(blank=True, default='')
     last_reminder = models.CharField(max_length=40, blank=True, default='')      # e.g. 'trial7:2026-11-21'; see tenancy.reminder_key
@@ -255,3 +256,30 @@ class Invoice(models.Model):
 
     def __str__(self):
         return self.number
+
+
+class RestoreRequest(models.Model):
+    """A shop's wish to go back to one of its own backups, and what happened to it. The shop only asks; the platform owner
+    decides and starts it (see restore.py). The data of the shop as it was before the restore is kept in a separate schema
+    (old_schema) for a few days, so a restore can be undone."""
+    STATUSES = [('requested', 'Waiting'), ('running', 'Restoring now'), ('done', 'Restored'), ('failed', 'Did not work'),
+                ('rejected', 'Declined'), ('cancelled', 'Cancelled'), ('undone', 'Undone')]
+    OPEN = ('requested', 'running')
+
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='restores')
+    backup_name = models.CharField(max_length=80)
+    note = models.CharField(max_length=300, blank=True, default='')               # why the shop wants it
+    requested_by = models.CharField(max_length=150, blank=True, default='')
+    status = models.CharField(max_length=10, choices=STATUSES, default='requested')
+    message = models.TextField(blank=True, default='')                           # the result, or why it failed or was declined
+    safety_backup = models.CharField(max_length=80, blank=True, default='')      # backup of the shop's data taken just before the restore
+    old_schema = models.CharField(max_length=63, blank=True, default='')         # where the data from before the restore is kept
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+
+    def __str__(self):
+        return f'{self.shop} restore {self.backup_name} ({self.get_status_display()})'

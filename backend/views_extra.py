@@ -1283,9 +1283,14 @@ def backup_page(request):
             return redirect('backup_download', name=path.name)
         messages.success(request, f"Backup created: {path.name}")
         return redirect('backup')
+    hosted = tenancy.on_shop_site()
+    extra = {}
+    if hosted:
+        from tenants import restoreviews
+        extra = restoreviews.shop_context(request)
     return page(request, 'app/backup.html', active='backup', backups=backup.list_backups(),
                 folder=str(backup.backup_dir()), postgres=backup.is_postgres(),
-                hosted=tenancy.on_shop_site())
+                hosted=hosted, **extra)
 
 
 @staff_required

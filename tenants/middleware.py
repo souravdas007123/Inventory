@@ -36,6 +36,8 @@ class ShopAccessMiddleware:
                               'you were given, or open the main site to create your own shop.', 404,
                               link_url=self._main_site(request), link_text='Open MedSync')
         if shop is not None and getattr(shop, 'schema_name', 'public') != getattr(settings, 'PUBLIC_SCHEMA_NAME', 'public'):
+            if getattr(shop, 'restoring', False) and request.path not in MAINTENANCE_OPEN and not request.path.startswith('/icon-'):
+                return self._restoring()
             if maintenance.is_active() and request.path not in MAINTENANCE_OPEN and not request.path.startswith('/icon-'):
                 return self._maintenance()
             state = tenancy.shop_state(shop)
@@ -54,6 +56,14 @@ class ShopAccessMiddleware:
             return [c for c in _contact_lines() if not c.startswith('Please contact')]
         except Exception:
             return []
+
+    def _restoring(self):
+        """A plain 503 page while this shop's data is being restored from a backup (a few minutes). Needs no database."""
+        response = self._page('Your shop is being restored', 'Your data is being restored from a backup. This takes a few minutes. '
+                              'Please wait and then reload this page. Nothing you do now would be kept.', 503)
+        response['Retry-After'] = '60'
+        response['Cache-Control'] = 'no-store'
+        return response
 
     def _maintenance(self):
         """A plain 503 page. It needs no database, session or user, so it works while the update is running."""

@@ -33,8 +33,29 @@
       <td><a class="btn ghost sm" href="{% url 'backup_download' b.name %}">⬇ Download</a></td></tr>
     {% empty %}<tr><td class="empty" colspan="4">No backups have been created yet.</td></tr>{% endfor %}
   </table></div>
-  {% if hosted %}<p style="color:var(--mute);margin:12px 0 0">To restore your data from a backup, contact MedSync support and tell us the file name. Please do not ask for a restore before you have downloaded a copy of your current data.</p>
+  {% if hosted %}<p style="color:var(--mute);margin:12px 0 0">To go back to one of these backups, use <b>Restore from a backup</b> below.</p>
   {% elif postgres %}<p style="color:var(--mute);margin:12px 0 0">To restore: create an empty database, then run <code>pg_restore -U &lt;user&gt; -h localhost -d &lt;database&gt; --no-owner &lt;backup file&gt;</code>. Make a separate backup of the current data first.</p>
   {% else %}<p style="color:var(--mute);margin:12px 0 0">To restore: unzip the backup file (.gz), place it in the location of <code>db.sqlite3</code>, then reload the site. Make a separate copy of the current file first.</p>{% endif %}
 </div>
+{% if hosted %}<div class="card" style="margin-top:14px">
+  <h3 style="margin-top:0">Restore from a backup</h3>
+  {% if restoring_now %}<div class="msg info">Your data is being restored right now. Please wait a few minutes.</div>{% endif %}
+  <p style="color:var(--mute);margin:0 0 10px">Made a big mistake? You can ask us to put your shop back to one of the backups above. We check it with you first and then restore it. Before anything is changed, a new backup of your current data is saved, and the data from before the restore is kept for 7 days, so a restore can be undone.</p>
+  <div class="msg info"><b>Be careful:</b> everything you enter after the backup was made (bills, purchases, stock changes) will be gone after the restore.</div>
+  {% if restore_open %}<p style="margin:10px 0 0"><b>You already have a restore request. See it below.</b></p>
+  {% elif restore_backups %}<form method="post" action="{% url 'restore_request' %}" style="display:grid;gap:10px;max-width:560px;margin-top:10px">{% csrf_token %}
+    <div class="fld"><label for="rs-backup">Which backup?</label>
+      <select id="rs-backup" name="backup" required>{% for b in restore_backups %}<option value="{{ b.name }}">{{ b.when|date:"d M Y, h:i A" }} ({{ b.size_kb }} KB)</option>{% endfor %}</select></div>
+    <div class="fld"><label for="rs-note">What went wrong? (optional)</label><input id="rs-note" name="note" maxlength="300" placeholder="For example: I deleted all products by mistake"></div>
+    <label style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" name="understand" value="1" required style="margin-top:4px"> <span>I understand that everything entered after this backup will be removed.</span></label>
+    <div><button class="btn">Ask us to restore</button></div>
+  </form>{% else %}<p style="color:var(--mute);margin:10px 0 0">There is no backup to restore yet. Create one above first.</p>{% endif %}
+  {% if restores %}<div class="tw" style="margin-top:14px"><table class="t">
+    <thead><tr><th>Asked on</th><th>Backup</th><th>Status</th><th></th></tr></thead>
+    {% for r in restores %}<tr><td>{{ r.created_at|date:"d M Y, h:i A" }}</td><td>{{ r.backup_name }}</td>
+      <td><b>{{ r.get_status_display }}</b>{% if r.message %}<br><span style="color:var(--mute)">{{ r.message }}</span>{% endif %}</td>
+      <td>{% if r.status == 'requested' %}<form method="post" action="{% url 'restore_cancel' r.pk %}">{% csrf_token %}<button class="btn ghost sm">Cancel</button></form>{% endif %}</td></tr>
+    {% endfor %}
+  </table></div>{% endif %}
+</div>{% endif %}
 {% endblock %}
