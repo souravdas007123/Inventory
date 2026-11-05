@@ -48,7 +48,7 @@ class SignupFlowTests(TransactionTestCase):
     def test_the_form_opens(self):
         resp = self.client.get('/signup/')
         self.assertContains(resp, 'Create your shop')
-        self.assertContains(resp, 'Rs 500 a month or Rs 5000 a year')
+        self.assertContains(resp, 'Rs 590 a month or Rs 5900 a year')
 
     def test_mistakes_are_explained_and_nothing_is_saved(self):
         for changes, field in (({'subdomain': 'admin'}, 'subdomain'), ({'subdomain': 'a b'}, 'subdomain'),
@@ -496,8 +496,8 @@ class PlatformPanelTests(TransactionTestCase):
         end = tenancy.add_months(self.today, 1)
         self.assertEqual((self.shop.plan, self.shop.paid_until), ('monthly', end))
         pay = Payment.objects.get()
-        self.assertEqual((pay.amount, pay.plan, pay.period_from, pay.period_to), (500, 'monthly', self.today, end))
-        self.assertTrue(any('Payment of Rs 500' in m for m in msgs), msgs)
+        self.assertEqual((pay.amount, pay.plan, pay.period_from, pay.period_to), (590, 'monthly', self.today, end))
+        self.assertTrue(any('Payment of Rs 590' in m for m in msgs), msgs)
         self.assertContains(resp, 't-active')                  # the shop is now a paying one
 
     def test_a_second_payment_continues_from_the_old_end_date(self):
@@ -582,8 +582,8 @@ class WebsiteSettingsTests(TransactionTestCase):
     def test_the_home_page_shows_the_standard_plans_until_something_is_edited(self):
         self.client.logout()
         page = self.client.get('/').content.decode()
-        self.assertIn('Rs 500', page)
-        self.assertIn('Rs 5000', page)
+        self.assertIn('Rs 590', page)
+        self.assertIn('Rs 5900', page)
         self.assertIn('save Rs 1000', page)
         self.assertNotIn('class="ann"', page)
         self.assertIn('about Rs 417 a month', page)
@@ -593,7 +593,7 @@ class WebsiteSettingsTests(TransactionTestCase):
         import re
         ld = json.loads(re.search(r'<script type="application/ld\+json">(.*?)</script>', page, re.S).group(1))
         offers = ld['@graph'][0]['offers']
-        self.assertEqual([o['price'] for o in offers], ['500', '5000'])
+        self.assertEqual([o['price'] for o in offers], ['590', '5900'])
 
     def test_saved_settings_appear_on_the_home_page_and_the_sign_up_page(self):
         resp = self.save()
@@ -638,7 +638,7 @@ class WebsiteSettingsTests(TransactionTestCase):
         self.save(price_monthly='', price_yearly='', announcement='')
         self.client.logout()
         page = self.client.get('/').content.decode()
-        self.assertIn('Rs 500', page)
+        self.assertIn('Rs 590', page)
         self.assertNotIn('class="ann"', page)
 
     def test_a_notice_with_html_is_shown_as_plain_text(self):
@@ -747,7 +747,7 @@ class PlanRemindersAndBackupsTests(TransactionTestCase):
         self.assertEqual(msg.to, ['asha@example.com'])
         self.assertIn('ends in 5 days', msg.subject)
         self.assertIn('Hello Asha Rao', msg.body)
-        self.assertIn('Rs 500 a month or Rs 5000 a year', msg.body)
+        self.assertIn('Rs 590 a month or Rs 5900 a year', msg.body)
         self.assertIn(f'http://{self.HOST}/', msg.body)
         self.assertEqual(reminders.send_due(self.today)['sent'], [])             # the same day again: nothing
         self.assertEqual(len(mail.outbox), 1)
@@ -809,8 +809,8 @@ class PlanRemindersAndBackupsTests(TransactionTestCase):
         self.assertContains(page, 'Plan and payments')
         self.assertContains(page, 'Free trial')
         self.assertContains(page, '5 days left')
-        self.assertContains(page, 'Rs 500')
-        self.assertContains(page, 'Rs 5000')
+        self.assertContains(page, 'Rs 590')
+        self.assertContains(page, 'Rs 5900')
         self.assertContains(page, 'Rs 700.00')                                     # the recorded payment
         self.assertContains(self.client.get('/', HTTP_HOST=self.HOST), 'Plan &amp; Payments')       # menu entry
         connection.set_schema_to_public()

@@ -261,7 +261,7 @@ GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '').strip()
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '').strip()
 
 # Auto-renewing plans with Razorpay Subscriptions (main site + shops, needs MULTI_SHOP=1). Empty keys = no "Subscribe" button (UPI still works).
-# The two plan ids (plan_xxxx) are the Razorpay plans Rs 500 / 1 month and Rs 5000 / 1 year made in the Razorpay dashboard.
+# The two plan ids (plan_xxxx) are the Razorpay plans Rs 590 / 1 month and Rs 5900 / 1 year (each includes 18% GST) made in the Razorpay dashboard.
 RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID', '').strip()
 RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET', '').strip()
 RAZORPAY_WEBHOOK_SECRET = os.environ.get('RAZORPAY_WEBHOOK_SECRET', '').strip()
@@ -269,7 +269,7 @@ RAZORPAY_PLAN_MONTHLY = os.environ.get('RAZORPAY_PLAN_MONTHLY', '').strip()
 RAZORPAY_PLAN_YEARLY = os.environ.get('RAZORPAY_PLAN_YEARLY', '').strip()
 INVOICE_PREFIX = 'MS'                                                # invoice numbers look like MS/2026-27/0001
 GST_PERCENT = 18                                                     # prices include this GST; shown split on the plan page
-PLAN_PRICES = {'monthly': 500, 'yearly': 5000}                       # rupees
+PLAN_PRICES = {'monthly': 590, 'yearly': 5900}                       # rupees, GST included (Rs 500 + 18% = Rs 590; Rs 5000 + 18% = Rs 5900)
 
 if MULTI_SHOP:
     if not os.environ.get('DB_NAME'):

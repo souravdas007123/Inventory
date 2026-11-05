@@ -286,7 +286,7 @@ class SettleTests(PayTestBase):
         from tenants import platform
         req = RequestFactory().post('/x/', dict(action='paid', plan='monthly', amount='', note='cash'))
         msg = platform._apply(req, self.shop, self.today)
-        self.assertIn('Payment of Rs 500', msg)
+        self.assertIn('Payment of Rs 590', msg)
         self.assertEqual((self.shop.plan, self.shop.paid_until), ('monthly', tenancy.add_months(self.today, 1)))
         self.assertEqual(self.shop.payments.get().note, 'cash')
 
@@ -321,8 +321,8 @@ class AutoPayTests(PayTestBase):
         data = r.json()
         a = AutoPay.objects.get()
         self.assertEqual((data['ok'], data['key'], data['subscription_id']), (True, KEY, 'sub_XYZ'))
-        self.assertEqual((a.plan, a.amount, a.status, a.razorpay_subscription_id), ('yearly', Decimal('5000'), 'created', 'sub_XYZ'))
-        self.assertEqual(cp.call_args.args, ('yearly', Decimal('5000')))          # the Razorpay plan is checked against our price
+        self.assertEqual((a.plan, a.amount, a.status, a.razorpay_subscription_id), ('yearly', Decimal('5900'), 'created', 'sub_XYZ'))
+        self.assertEqual(cp.call_args.args, ('yearly', Decimal('5900')))          # the Razorpay plan is checked against our price
         self.assertEqual(cs.call_args.args[0], 'yearly')
         self.assertNotIn(SECRET, r.content.decode())                              # the secret never leaves the server
         self.assertIn('renews every year', data['description'])
@@ -331,7 +331,7 @@ class AutoPayTests(PayTestBase):
         self.on_shop()
         with mock.patch('tenants.razorpay.check_plan'), mock.patch('tenants.razorpay.create_subscription', return_value='sub_1'):
             self.client.post('/plan/pay/autopay/', dict(plan='monthly', amount='1', plan_id='plan_other'))
-        self.assertEqual(AutoPay.objects.get().amount, Decimal('500'))
+        self.assertEqual(AutoPay.objects.get().amount, Decimal('590'))
 
     def test_a_wrong_plan_an_unready_plan_and_a_failing_service(self):
         self.on_shop()
@@ -369,13 +369,13 @@ class AutoPayTests(PayTestBase):
         self.assertEqual((r.status_code, r.json()), (200, {'ok': True}))
         a = AutoPay.objects.get()
         o = PlanOrder.objects.get()
-        self.assertEqual((a.status, o.status, o.razorpay_payment_id, o.autopay_id, o.amount, o.method), ('active', 'paid', 'pay_777', a.pk, Decimal('500'), 'razorpay'))
+        self.assertEqual((a.status, o.status, o.razorpay_payment_id, o.autopay_id, o.amount, o.method), ('active', 'paid', 'pay_777', a.pk, Decimal('590'), 'razorpay'))
         self.shop.refresh_from_db()
         self.assertEqual((self.shop.plan, self.shop.paid_until), ('monthly', tenancy.add_months(self.today, 1)))
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('MS/', mail.outbox[0].body)                                # the invoice number
-        self.assertIn('CGST (9%): Rs 38.13', mail.outbox[0].body)
-        self.assertIn('SGST (9%): Rs 38.13', mail.outbox[0].body)
+        self.assertIn('CGST (9%): Rs 45.00', mail.outbox[0].body)
+        self.assertIn('SGST (9%): Rs 45.00', mail.outbox[0].body)
         self.assertIn('renews on its own', mail.outbox[0].body)
 
     def test_a_forged_or_foreign_confirmation_changes_nothing(self):
@@ -581,10 +581,10 @@ class UpiFlowTests(PayTestBase):
         r = self.client.post('/plan/pay/upi/', dict(plan='yearly'))
         o = PlanOrder.objects.get()
         self.assertRedirects(r, f'/plan/pay/upi/{o.pk}/', fetch_redirect_response=False)
-        self.assertEqual((o.method, o.status, o.amount, o.plan), ('upi', 'created', Decimal('5000'), 'yearly'))
+        self.assertEqual((o.method, o.status, o.amount, o.plan), ('upi', 'created', Decimal('5900'), 'yearly'))
         page = self.client.get(f'/plan/pay/upi/{o.pk}/').content.decode()
         self.assertIn('medsync@okhdfcbank', page)
-        self.assertIn('Rs 5000.00', page)
+        self.assertIn('Rs 5900.00', page)
         self.assertIn(o.reference, page)
         self.assertIn('<svg', page)
         self.assertIn('upi://pay?pa=medsync@okhdfcbank', page)
@@ -695,22 +695,22 @@ class PlanPageTests(PayTestBase):
         html = self.page().content.decode()
         self.assertIn('id="paysum"', html)
         end = tenancy.add_months(self.today, 1)
-        for text in ('"total": "500.00"', '"total": "5000.00"', f'"days": {(end - self.today).days}', f'"end": "{end:%d %b %Y}"',
-                     '["Price without GST", "Rs 423.74"]', '["CGST (9%)", "Rs 38.13"]', '["SGST (9%)", "Rs 38.13"]', '["Total to pay now", "Rs 500.00"]',
-                     '["Price without GST", "Rs 4237.30"]', 'Continue to payment'):
+        for text in ('"total": "590.00"', '"total": "5900.00"', f'"days": {(end - self.today).days}', f'"end": "{end:%d %b %Y}"',
+                     '["Price without GST", "Rs 500.00"]', '["CGST (9%)", "Rs 45.00"]', '["SGST (9%)", "Rs 45.00"]', '["Total to pay now", "Rs 590.00"]',
+                     '["Price without GST", "Rs 5000.00"]', 'Continue to payment'):
             self.assertIn(text, html)
 
     def test_the_popup_follows_the_state_and_country_of_the_customer(self):
         Shop.objects.filter(pk=self.shop.pk).update(bill_state='27')                     # another state: IGST
         self.shop.refresh_from_db()
         html = self.page().content.decode()
-        self.assertIn('["IGST (18%)", "Rs 76.27"]', html)
+        self.assertIn('["IGST (18%)", "Rs 90.00"]', html)
         self.assertNotIn('CGST', html.split('id="paysum-data"')[1].split('</script>')[0])
         Shop.objects.filter(pk=self.shop.pk).update(bill_country='US', bill_state='')    # another country: export, no tax
         self.shop.refresh_from_db()
         html = self.page().content.decode()
         self.assertIn('["Tax (export of service, zero-rated)", "Rs 0.00"]', html)
-        self.assertIn('["Total to pay now", "Rs 500.00"]', html)
+        self.assertIn('["Total to pay now", "Rs 590.00"]', html)
 
     def test_without_invoice_details_the_pay_buttons_wait(self):
         self.set_upi()
