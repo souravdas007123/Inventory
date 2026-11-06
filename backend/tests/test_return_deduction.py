@@ -118,7 +118,6 @@ class PageTests(Base):
             self.assertIn(needle, html)
 
     def test_the_sales_return_form_has_none_of_it(self):
-        from backend.models import Bill
         bill, _ = self.sell(qty=3)
         html = self.client.get('/bills/%d/return/' % bill.pk).content.decode()
         self.assertNotIn('credit_pct_', html)
@@ -161,7 +160,7 @@ class PageTests(Base):
         self.assertIn('560.00', note)                            # the debit note value is unchanged
         lst = self.client.get('/purchase_returns/').content.decode()
         self.assertIn('Kept by supplier', lst)
-        ledger = self.client.get('/suppliers/%d/ledger/' % self.supplier.pk) if False else None
+        self.client.get('/suppliers/%d/ledger/' % self.supplier.pk) if False else None
         rows, balance = views_extra._supplier_statement(Supplier.objects.get(pk=self.supplier.pk))
         self.assertEqual(balance, D('112.00'))
         self.assertEqual(balance, self.owed())                   # the statement and the stored balance agree

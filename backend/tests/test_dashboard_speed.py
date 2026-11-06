@@ -1,6 +1,5 @@
 """The Dashboard and the daily summary work out every customer's balance at once, so more credit customers do not mean more
 queries, and the figures are the same as working each customer out alone."""
-from datetime import date
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model

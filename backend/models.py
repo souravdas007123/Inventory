@@ -13,7 +13,6 @@ from django.utils import timezone
 from . import gstin as gstin_check
 from . import locks
 from . import validators as vcheck
-from . import supplier_prices
 
 TWO = Decimal('0.01')
 RATE_Q = Decimal('0.0001')   # per base unit rate up to 4 decimals (keeps COGS accurate for cheap tablets)
@@ -1139,11 +1138,11 @@ class InvoiceItem(models.Model):
             self.taxable_value = taxable
             self.gst = gst
             if self.is_igst:
-                self.cgst = Decimal('0')
-                self.sgst = Decimal('0')
+                self.cgst = Decimal('0.00')
+                self.sgst = Decimal('0.00')
                 self.igst = gst
             else:
-                self.igst = Decimal('0')
+                self.igst = Decimal('0.00')
                 self.cgst = (gst / 2).quantize(TWO)
                 self.sgst = gst - self.cgst
             self.total = (taxable + gst).quantize(TWO)

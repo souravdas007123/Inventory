@@ -15,7 +15,7 @@ from django.views.decorators.http import require_POST
 from backend import access, auditlog, backup, tenancy
 
 from . import restore, support
-from .models import RestoreRequest, Shop
+from .models import RestoreRequest
 from .platform import platform_admin_required, shop_name_to_type
 
 log = logging.getLogger(__name__)

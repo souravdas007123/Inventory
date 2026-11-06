@@ -8,7 +8,7 @@ from django.core.cache import cache
 from django.test import TestCase
 
 from backend import levels
-from backend.models import Product, ProductUnit, PurchaseOrder, PurchaseOrderItem, Supplier, Unit
+from backend.models import Product, ProductUnit, PurchaseOrder, PurchaseOrderItem
 
 from .helpers import StockMixin, today
 

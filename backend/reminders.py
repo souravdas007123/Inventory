@@ -1,7 +1,6 @@
 """Payment reminders: the customers who owe you money, how long it has been due, and a WhatsApp message for each.
 
 The oldest unpaid credit bill is found by applying every receipt (and credit adjustment) to the oldest bills first."""
-from datetime import timedelta
 from decimal import Decimal
 
 from django.utils import timezone

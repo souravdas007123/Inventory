@@ -62,7 +62,6 @@ class OnlyPossibleProductsTests(StockMixin, TestCase):
 
     def everything(self, days, cover):
         """The old way: every active product goes through reorder.suggest()."""
-        from decimal import Decimal
         from django.db.models import Sum
         from backend import reorder
         from backend.models import Batch, InvoiceItem, PurchaseOrderItem

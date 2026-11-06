@@ -3,7 +3,6 @@
 PostgreSQL rejects it with a DataError; SQLite accepts it, so these tests check that the
 text the views receive is already clean (that is what protects PostgreSQL).
 """
-from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
