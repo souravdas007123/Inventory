@@ -122,7 +122,7 @@
 {% endif %}
 {% endblock %}
 
-{% block scripts %}{% if key == 'bills' or key == 'purchases' %}<script>{% include "app/live_calc.js" %}</script>{% endif %}{% if warnings %}
+{% block scripts %}{% if lazy %}<script>{% include "app/lazyselect.js" %}</script>{% endif %}{% if key == 'bills' or key == 'purchases' %}<script>{% include "app/live_calc.js" %}</script>{% endif %}{% if warnings %}
 <script>
 // Once the entry is changed, the warnings no longer apply: the button goes back to a normal Save (which checks again).
 (function () {
@@ -689,7 +689,8 @@ if (scan) {
     if (!data) { say('Could not load the last invoice. Please try again.'); return; }
     if (!data.found) { say('No earlier invoice found for this supplier.'); return; }
     const have = new Set([...dataRows()].map(tr => (field(tr, 'product') || {}).value).filter(Boolean));
-    const known = new Set([...rowsBody.querySelector('select[name$="-product"]').options].map(o => o.value));
+    const firstSel = rowsBody.querySelector('select[name$="-product"]');
+    const known = window.LazySelect ? await window.LazySelect.ids(firstSel) : new Set([...firstSel.options].map(o => o.value));
     let added = 0;
     for (const it of data.items) {
       if (have.has(it.product) || !known.has(it.product)) continue;

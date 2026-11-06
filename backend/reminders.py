@@ -30,19 +30,23 @@ def oldest_unpaid(bills, applied):
 def due_customers(today=None):
     """[{'customer', 'balance', 'since', 'days', 'reminded', 'phone_ok'}] for every active customer with a balance above zero."""
     today = today or timezone.localdate()
-    credit = (Bill.objects.filter(status='FINAL', payment_mode='CREDIT', customer__isnull=False, customer__is_active=True)
-              .select_related('customer').prefetch_related('items').order_by('date', 'id'))
+    credit_bills = Bill.objects.filter(status='FINAL', payment_mode='CREDIT', customer__isnull=False, customer__is_active=True)
+    # First the balances of everyone who ever bought on credit (a few queries in all). Only the people who still owe money need their
+    # bills read, so the work does not grow with every credit bill the shop ever made.
+    everyone = list(Customer.objects.filter(pk__in=credit_bills.values('customer_id')))
+    Customer.bulk_balances(everyone)
+    customers = [c for c in everyone if c._balance > 0]
+    credit = (credit_bills.filter(customer_id__in=[c.pk for c in customers])
+              .prefetch_related('items').order_by('date', 'id'))
     by_customer = {}
     for b in credit:
         by_customer.setdefault(b.customer_id, []).append(b)
-    customers = [bills[0].customer for bills in by_customer.values()]
-    Customer.bulk_balances(customers)
     out = []
     for c in customers:
         balance = c._balance
-        if balance <= 0:
+        bills = by_customer.get(c.pk)
+        if not bills:
             continue
-        bills = by_customer[c.pk]
         applied = sum((b.credit_due for b in bills), Decimal('0')) - balance
         since = oldest_unpaid(bills, applied) or bills[-1].date
         digits = ''.join(ch for ch in (c.phone or '') if ch.isdecimal())

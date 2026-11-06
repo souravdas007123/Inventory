@@ -853,9 +853,9 @@ def edit(request, key, pk=None):
         if po:
             po_items = list(po.items.select_related('product'))
 
-    FS = inlineformset_factory(cfg['model'], inl['model'], fields=inl['fields'],
-                               extra=max(1, len(po_items)), can_delete=True,
-                               formfield_callback=date_cb) if inl else None
+    FS = fastwidgets.keep_empty_form(inlineformset_factory(
+        cfg['model'], inl['model'], fields=inl['fields'], extra=max(1, len(po_items)), can_delete=True,
+        formfield_callback=date_cb)) if inl else None
 
     post = request.POST if request.method == 'POST' else None
     initial = cfg['initial']() if cfg.get('initial') and not obj else None
@@ -965,6 +965,7 @@ def edit(request, key, pk=None):
     if sync:                                                 # the bill could not be saved: say why, so it can be fixed on the screen
         return JsonResponse(dict(ok=False, errors=_sync_errors(request, form, fs)), status=422)
     title = f"Edit {cfg['one']}" if obj else f"New {cfg['one']}"
+    lazy = fastwidgets.lazy_long_lists(form, fs)       # thousands of medicines / customers: the page carries only the chosen ones
     quick = {}
     if key == 'expenses':      # lets the form fill the amount from the employee's salary
         quick = dict(emp_salary={e.pk: str(e.monthly_salary) for e in form.fields['employee'].queryset})
@@ -990,7 +991,7 @@ def edit(request, key, pk=None):
         quick['held_id'] = held.pk if held else (held_id if post else None)
         quick['held_resume'] = held.payload if held and not post else None
     return page(request, 'app/form.html', key=key, active=key, title=title, form=form, fs=fs, back_url=f'/{key}/',
-                inline_title=inl['title'] if inl else '', warnings=warnings, **quick,
+                inline_title=inl['title'] if inl else '', warnings=warnings, lazy=lazy, **quick,
                 note=f"{po.po_number} ({po.supplier.company}) has been pre-filled. Enter the invoice number, price and MFG/EXP dates. The PO will be marked Completed when you save." if po else '')
 
 

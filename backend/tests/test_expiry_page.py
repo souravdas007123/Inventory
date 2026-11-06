@@ -47,3 +47,45 @@ class ExpiryPageTests(StockMixin, TestCase):
         resp = self.client.post('/expiry/', {'reason': 'x'}, follow=True)
         self.assertContains(resp, 'Tick at least one batch')
         self.assertEqual(PurchaseReturn.objects.count(), 0)
+
+
+@override_settings(**SAFE)
+class ExpiryPageLimitTests(StockMixin, TestCase):
+    """A page of thousands of rows is of no use: the earliest to expire come first, and the page says so."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(get_user_model().objects.create_superuser('owner', 'o@example.com', 'pw-12345-x'))
+        self.items = []
+        for n in range(4):
+            _, item = self.buy(invoice=f'EXP-{n}')
+            Batch.objects.filter(purchase_item=item).update(expire_date=today() - timedelta(days=10 - n))     # 10, 9, 8, 7 days ago
+            self.items.append(item)
+
+    def test_a_short_list_has_no_notice(self):
+        page = self.client.get('/expiry/?days=30')
+        self.assertNotContains(page, 'that expire first')
+        self.assertEqual(page.context['suppliers'][0]['count'], 4)
+
+    def test_a_long_list_shows_the_earliest_first_and_says_so(self):
+        from unittest import mock
+        from backend import views_extra
+        with mock.patch.object(views_extra, 'EXPIRY_PAGE_MAX', 2):
+            page = self.client.get('/expiry/?days=30')
+        self.assertContains(page, 'There are 4 batches to deal with. This page shows the 2 that expire first.')
+        shown = [i['batch_id'] for inv in page.context['suppliers'][0]['invoices'] for i in inv['items']]
+        earliest = list(Batch.objects.filter(purchase_item__in=self.items).order_by('expire_date').values_list('pk', flat=True)[:2])
+        self.assertEqual(sorted(shown), sorted(earliest))
+        self.assertEqual(page.context['total_due'], 4)
+
+    def test_returning_the_shown_batches_brings_the_next_ones(self):
+        from unittest import mock
+        from backend import views_extra
+        with mock.patch.object(views_extra, 'EXPIRY_PAGE_MAX', 2):
+            first = self.client.get('/expiry/?days=30')
+            ids = [i['batch_id'] for inv in first.context['suppliers'][0]['invoices'] for i in inv['items']]
+            self.assertEqual(self.client.post('/expiry/', {'batch': ids, 'reason': 'Expired'}).status_code, 302)
+            again = self.client.get('/expiry/?days=30')
+        left = [i['batch_id'] for inv in again.context['suppliers'][0]['invoices'] for i in inv['items']]
+        self.assertEqual(len(left), 2)
+        self.assertFalse(set(left) & set(ids))

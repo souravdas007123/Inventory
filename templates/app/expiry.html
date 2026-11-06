@@ -12,6 +12,7 @@
   Use <b>WhatsApp</b> to ask the supplier first.
 </div>
 {% if suppliers %}
+{% if cut_off %}<div class="msg warning" style="margin-bottom:10px">There are {{ total_due }} batches to deal with. This page shows the {{ shown_due }} that expire first. Return or write off these, then the next ones appear. The totals below are for the batches shown.</div>{% endif %}
 <div style="margin-bottom:10px;color:var(--mute)">{{ suppliers|length }} supplier{{ suppliers|length|pluralize }} · returnable value about <b>₹{{ grand }}</b></div>
 {% for g in suppliers %}
 <form method="post" class="card" style="margin-bottom:14px">{% csrf_token %}

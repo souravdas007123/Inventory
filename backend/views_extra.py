@@ -758,6 +758,29 @@ def offline_catalog(request):
     return resp
 
 
+CHOICE_PERMS = [(act, model) for act in ('view', 'add', 'change')
+                for model in ('product', 'bill', 'purchase', 'purchaseorder', 'salesreturn', 'purchasereturn', 'customer',
+                              'customerpayment', 'order', 'stockwriteoff')]
+
+
+@access.perm_required(*CHOICE_PERMS)
+def choice_list(request, kind):
+    """The whole drop-down list of medicines or customers, for the forms that load it on demand (see fastwidgets.LazySelect).
+    Same rows, same order and same labels as the list the form used to carry inside the page."""
+    from . import fastwidgets
+    source = fastwidgets.lazy_sources().get(kind)
+    if source is None:
+        raise Http404
+    qs = source()
+    if kind == 'product':
+        qs = qs.only('id', 'name')
+    elif kind == 'customer':
+        qs = qs.only('id', 'name', 'phone')
+    resp = JsonResponse(dict(options=[[str(o.pk), str(o)] for o in qs]))
+    resp['Cache-Control'] = 'no-store'
+    return resp
+
+
 @access.perm_required(('add', 'bill'), ('change', 'bill'))
 def product_lookup(request):
     q = request.GET.get('q', '').strip()
@@ -977,6 +1000,9 @@ def refill_view(request):
                 grace=refill.GRACE)
 
 
+EXPIRY_PAGE_MAX = 600            # most batches listed on the Expiry Returns page at once (the earliest to expire)
+
+
 def _expiry_batches(qs):
     return qs.select_related('product', 'product__unit', 'purchase_item', 'purchase_item__unit', 'purchase_item__purchase',
                              'purchase_item__purchase__supplier')
@@ -1059,16 +1085,19 @@ def expiry_view(request):
     except (TypeError, ValueError):
         days = expiry_returns.DEFAULT_DAYS
     days = days if days in expiry_returns.DAY_CHOICES else expiry_returns.DEFAULT_DAYS
-    batches = _expiry_batches(Batch.objects.filter(
-        qty__gt=0, expire_date__isnull=False, expire_date__lte=today + timedelta(days=days),
-        purchase_item__isnull=False, product__isnull=False))
+    due = Batch.objects.filter(qty__gt=0, expire_date__isnull=False, expire_date__lte=today + timedelta(days=days),
+                               purchase_item__isnull=False, product__isnull=False)
+    total_due = due.count()
+    # The ones that expire first come first. After those are returned, the next ones appear (a page of thousands is of no use).
+    batches = _expiry_batches(due.order_by('expire_date', 'pk')[:EXPIRY_PAGE_MAX])
     groups = expiry_returns.plan(_expiry_rows(batches), today, days)
     shop = ShopProfile.get()
     for g in groups:
         items = [x for inv in g['invoices'] for x in inv['items'] if x['returnable']]
         g['wa'] = notify.whatsapp_link(expiry_returns.whatsapp_text(shop.name, g['supplier'], items), g['phone']) if items else ''
     return page(request, 'app/expiry.html', active='expiry', suppliers=groups, days=days, day_choices=expiry_returns.DAY_CHOICES,
-                grand=sum((g['total'] for g in groups), Decimal('0')), today=today)
+                grand=sum((g['total'] for g in groups), Decimal('0')), today=today,
+                cut_off=total_due > EXPIRY_PAGE_MAX, total_due=total_due, shown_due=min(total_due, EXPIRY_PAGE_MAX))
 
 
 @access.perm_required(('view', 'product'))
