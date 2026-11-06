@@ -9,7 +9,7 @@ from django.views.decorators.http import require_GET
 OFFLINE_PAGE = ('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
                 '<title>No internet</title><body style="font:16px system-ui;display:grid;place-items:center;min-height:90vh;'
                 'margin:0;text-align:center;color:#14302d"><div style="max-width:22em;padding:20px"><h1 style="margin:0 0 8px">'
-                'No internet</h1><p>MedSync needs an internet connection. Please check your connection, then try again.</p>'
+                'No internet</h1><p>Symaso needs an internet connection. Please check your connection, then try again.</p>'
                 '<p><a href="/" style="color:#0f9d8a;font-weight:700">Try again</a></p>'
                 '<p style="margin-top:22px;font-size:14px">Billing? <a href="/bills/new/" style="color:#0f9d8a;font-weight:700">Open the New Bill page</a> '
                 '(it works offline if you opened it before).</p></div>')
@@ -20,7 +20,7 @@ SAVED_PAGE = ('<!doctype html><meta charset="utf-8"><meta name="viewport" conten
               '<p>There is no internet right now. Your bill is kept safely and is sent by itself when the connection is back.</p>'
               '<p><a href="/bills/new/" style="color:#0f9d8a;font-weight:700">Make the next bill</a></p></div>')
 
-WORKER = """// MedSync service worker.
+WORKER = """// Symaso service worker.
 // It keeps (1) the empty New Bill page and the small script files, so billing can go on without internet, and
 // (2) a bill whose form could not reach the server, until the page sends it. Nothing else is stored.
 importScripts('/static/js/offline-db.js');
@@ -90,8 +90,8 @@ self.addEventListener('message', e => {                           // sent when t
 """ % (json.dumps(OFFLINE_PAGE), json.dumps(SAVED_PAGE))
 
 MANIFEST = {
-    'name': 'MedSync - Pharmacy Inventory and Billing',
-    'short_name': 'MedSync',
+    'name': 'Symaso - Pharmacy Inventory and Billing',
+    'short_name': 'Symaso',
     'description': 'Pharmacy inventory, GST billing and expiry tracking.',
     'id': '/',
     'start_url': '/',

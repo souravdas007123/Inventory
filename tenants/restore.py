@@ -285,7 +285,7 @@ def _note(schema, text):
 
         from backend import auditlog
         with schema_context(schema):
-            auditlog.record('MedSync support', 'BACKUP', 'Restore', text)
+            auditlog.record('Symaso support', 'BACKUP', 'Restore', text)
     except Exception:
         log.exception('Could not write the restore note to the audit log of %s', schema)
     finally:

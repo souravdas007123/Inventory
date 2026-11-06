@@ -915,7 +915,7 @@ class HomeText(models.Model):
     hero_title = models.CharField(max_length=200, blank=True, default='', verbose_name='Main headline',
                                   help_text="Standard: Pharmacy billing and GST software for medical stores")
     hero_lead = models.CharField(max_length=400, blank=True, default='', verbose_name='Paragraph under the headline',
-                                 help_text="Two or three sentences saying what MedSync does.")
+                                 help_text="Two or three sentences saying what Symaso does.")
     final_title = models.CharField(max_length=120, blank=True, default='', verbose_name='Heading of the last box')
     final_text = models.CharField(max_length=400, blank=True, default='', verbose_name='Text of the last box',
                                   help_text="Write {days} where the number of free-trial days should appear.")
@@ -940,7 +940,7 @@ class SocialLink(models.Model):
                  ('pinterest', 'Pinterest'), ('website', 'Other website')]
     platform = models.CharField(max_length=20, choices=PLATFORMS, verbose_name='Social media')
     url = models.CharField(max_length=300, verbose_name='Link (URL)',
-                           help_text="The full address of your page, starting with https://  For example https://www.instagram.com/medsync")
+                           help_text="The full address of your page, starting with https://  For example https://www.instagram.com/symaso")
     position = models.PositiveIntegerField(default=100, help_text="Smaller number shows first.")
     active = models.BooleanField(default=True, help_text="Untick to hide the link without deleting it.")
 

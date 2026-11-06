@@ -68,7 +68,7 @@ def autopay_start(request):
         return JsonResponse(dict(ok=False, error=str(e)), status=502)
     AutoPay.objects.create(shop=shop, plan=plan, amount=price, razorpay_subscription_id=sub_id)
     return JsonResponse(dict(
-        ok=True, key=settings.RAZORPAY_KEY_ID, subscription_id=sub_id, name='MedSync',
+        ok=True, key=settings.RAZORPAY_KEY_ID, subscription_id=sub_id, name='Symaso',
         description=f'{billing.PLAN_LABEL[plan]} plan for {shop.name} (renews every {"month" if plan == "monthly" else "year"})',
         prefill=dict(name=shop.owner_name or '', email=shop.email or '', contact=shop.phone or '')))
 

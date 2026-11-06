@@ -1,6 +1,6 @@
 {% autoescape off %}Hello,
 
-Someone asked to choose a new password for your MedSync account ({{ email }}) at {{ domain }}.
+Someone asked to choose a new password for your Symaso account ({{ email }}) at {{ domain }}.
 
 Open this link to choose a new password. It works for 24 hours and only once:
 
@@ -8,5 +8,5 @@ Open this link to choose a new password. It works for 24 hours and only once:
 
 If you did not ask for this, you can ignore this email. Your password stays the same.
 
-MedSync
+Symaso
 {% endautoescape %}

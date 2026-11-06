@@ -29,7 +29,7 @@ class SubdomainTests(SimpleTestCase):
                 self.assertTrue(msg)
 
     def test_reserved_names_are_refused(self):
-        for raw in ('www', 'admin', 'API', 'login', 'superadmin', 'medsync'):
+        for raw in ('www', 'admin', 'API', 'login', 'superadmin', 'medsync', 'symaso'):
             with self.subTest(raw=raw):
                 self.assertEqual(tenancy.clean_subdomain(raw)[0], '')
 
@@ -131,8 +131,8 @@ class SiteFormTests(SimpleTestCase):
                                       upi_id='', upi_name='', seller_name='', seller_address='', seller_gstin='', seller_lut='', seller_sac=''))
 
     def test_the_upi_id_and_name_are_checked(self):
-        values, errors = tenancy.clean_site_form(dict(upi_id=' medsync@okhdfcbank ', upi_name='  Med   Sync '))
-        self.assertEqual((errors, values['upi_id'], values['upi_name']), ([], 'medsync@okhdfcbank', 'Med Sync'))
+        values, errors = tenancy.clean_site_form(dict(upi_id=' symaso@okhdfcbank ', upi_name='  Symaso  '))
+        self.assertEqual((errors, values['upi_id'], values['upi_name']), ([], 'symaso@okhdfcbank', 'Symaso'))
         for bad in ('medsync', '@bank', 'a b@bank', 'name@', 'name@1bank', 'x' * 70 + '@okbank', 'a@b@c', 'name@bank&x=1'):
             self.assertTrue(tenancy.clean_site_form(dict(upi_id=bad))[1], bad)
         for bad in ('<b>x</b>', 'a' * 41, 'Med&amp;Sync;'):

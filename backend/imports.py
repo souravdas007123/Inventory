@@ -1042,5 +1042,5 @@ def template_download(kind):
              rows=[[display_header(c['name']), 'YES' if c['required'] else (c.get('need') or 'optional'), c['help']] for c in imp['cols']]),
     ])
     resp = HttpResponse(data, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    resp['Content-Disposition'] = f'attachment; filename="medsync_{kind}_template.xlsx"'
+    resp['Content-Disposition'] = f'attachment; filename="symaso_{kind}_template.xlsx"'
     return resp

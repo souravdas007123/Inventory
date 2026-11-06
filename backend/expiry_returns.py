@@ -60,7 +60,7 @@ def plan(rows, today, days=DEFAULT_DAYS):
 
 def whatsapp_text(shop, supplier, items):
     """Message to the supplier listing what we would like to return."""
-    lines = [f"Hello {supplier}, this is {shop or 'MedSync'}.",
+    lines = [f"Hello {supplier}, this is {shop or 'Symaso'}.",
              "These medicines are expired / about to expire and we would like to return them against a credit note:"]
     for x in items[:25]:
         when = 'EXPIRED' if x['expired'] else 'exp'

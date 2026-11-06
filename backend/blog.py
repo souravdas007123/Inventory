@@ -117,7 +117,7 @@ def blog_list(request):
         raise Http404
     site = _site_url(request)
     posts = [_card(p) for p in BlogPost.live()[:100]]
-    ld = {'@context': 'https://schema.org', '@type': 'Blog', 'name': 'MedSync Blog', 'url': f'{site}/blog/',
+    ld = {'@context': 'https://schema.org', '@type': 'Blog', 'name': 'Symaso Blog', 'url': f'{site}/blog/',
           'description': 'Practical articles for medical store owners: expiry, GST, drug registers, suppliers and stock.',
           'blogPost': [{'@type': 'BlogPosting', 'headline': p['title'], 'url': site + p['url'],
                         'datePublished': p['date'].isoformat()} for p in posts]}
@@ -141,7 +141,7 @@ def blog_post(request, slug):
     ld = {'@context': 'https://schema.org', '@type': 'BlogPosting', 'headline': post.title, 'description': post.summary,
           'datePublished': post.published_at.isoformat(), 'dateModified': post.updated_at.isoformat(),
           'mainEntityOfPage': f'{site}{post.get_absolute_url()}', 'image': _og_image(site, post),
-          'author': {'@type': 'Organization', 'name': 'MedSync'}, 'publisher': {'@type': 'Organization', 'name': 'MedSync'},
+          'author': {'@type': 'Organization', 'name': 'Symaso'}, 'publisher': {'@type': 'Organization', 'name': 'Symaso'},
           'inLanguage': 'en'}
     return render(request, 'app/blog_post.html', dict(
         site_url=site, post=post, body=render_body(post.body), cover=post_image(post, lazy=False), og_image=_og_image(site, post), minutes=reading_minutes(post.body), more=more,

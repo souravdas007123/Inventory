@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{{ title }} · MedSync</title>
-<meta name="description" content="{% block desc %}{{ title }} of MedSync, pharmacy billing and inventory software for medical stores.{% endblock %}">
+<title>{{ title }} · Symaso</title>
+<meta name="description" content="{% block desc %}{{ title }} of Symaso, pharmacy billing and inventory software for medical stores.{% endblock %}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="48x48">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -34,7 +34,7 @@ footer .w{max-width:1000px;margin:0 auto;padding:0 22px}
 :focus-visible{outline:3px solid var(--amber);outline-offset:3px}
 </style></head>
 <body>
-<header><div class="w"><a class="logo" href="/">{% include "app/logo.html" with size=30 %}MedSync</a><a class="back" href="/">&larr; Back to home page</a></div></header>
+<header><div class="w"><a class="logo" href="/">{% include "app/logo.html" with size=30 %}Symaso</a><a class="back" href="/">&larr; Back to home page</a></div></header>
 <div class="wrap">
 <nav class="side" aria-label="Policies">{% for k, p in pages.items %}<a href="/{{ k }}/"{% if k == key %} class="on" aria-current="page"{% endif %}>{{ p.0 }}</a>{% endfor %}</nav>
 <article>
@@ -43,5 +43,5 @@ footer .w{max-width:1000px;margin:0 auto;padding:0 22px}
 {% block body %}{% endblock %}
 <div class="note"><strong>Questions?</strong> {% if contact_whatsapp %}<a href="{{ contact_whatsapp }}" rel="noopener nofollow">Chat with us on WhatsApp</a>{% endif %}{% if contact_whatsapp and contact_email %} or {% endif %}{% if contact_email %}write to <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>{% endif %}{% if not contact_whatsapp and not contact_email %}Please use the contact details on the <a href="/">home page</a>.{% endif %}</div>
 </article></div>
-<footer><div class="w">&copy; MedSync. Pharmacy inventory and billing software.</div></footer>
+<footer><div class="w">&copy; Symaso. Pharmacy inventory and billing software.</div></footer>
 </body></html>

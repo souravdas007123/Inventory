@@ -11,7 +11,7 @@
       <select id="t-cat" name="category">{% for k, v in categories %}<option value="{{ k }}"{% if values.category == k %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
     <div class="fld"><label for="t-subject">Subject</label><input id="t-subject" name="subject" maxlength="120" required value="{{ values.subject }}" placeholder="For example: bill total is wrong"></div>
     <div class="fld"><label for="t-body">Your message</label><textarea id="t-body" name="body" rows="6" maxlength="4000" required style="width:100%" placeholder="What happened, and on which page?">{{ values.body }}</textarea></div>
-    <div><button class="btn">Send to MedSync support</button></div>
+    <div><button class="btn">Send to Symaso support</button></div>
   </form>
 </div>
 <div class="card">

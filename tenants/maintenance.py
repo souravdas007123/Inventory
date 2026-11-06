@@ -180,7 +180,7 @@ def banner(now=None):
         kind, data = state(now)
         if kind != 'scheduled':
             return ''
-        text = f"Planned maintenance: {fmt(data['start'])} to {fmt(data['end'])}. MedSync will be unavailable then, so please save your work before."
+        text = f"Planned maintenance: {fmt(data['start'])} to {fmt(data['end'])}. Symaso will be unavailable then, so please save your work before."
         return f"{text} {data['message']}".strip()
     except Exception:
         return ''

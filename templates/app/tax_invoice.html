@@ -27,7 +27,7 @@ th{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em
     <div class="meta"><b>{{ invoice.number }}</b>Date: {{ invoice.date|date:"d M Y" }}</div>
   </div>
   <div class="two">
-    <div><h3>From</h3><p><b>{{ invoice.seller_name|default:"MedSync" }}</b>
+    <div><h3>From</h3><p><b>{{ invoice.seller_name|default:"Symaso" }}</b>
 {{ invoice.seller_address }}{% if invoice.seller_gstin %}
 GSTIN: {{ invoice.seller_gstin }}{% endif %}{% if seller_state %}
 State: {{ seller_state }}{% endif %}</p></div>

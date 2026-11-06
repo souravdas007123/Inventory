@@ -1,4 +1,4 @@
-# MedSync — Pharmacy Inventory & Billing (Django)
+# Symaso — Pharmacy Inventory & Billing (Django)
 
 Inventory, purchase, GST billing, batch/expiry (FEFO) and P&L for a medical store.
 
@@ -208,7 +208,7 @@ Run it after every update: `cd ~/Inventory; workon inv; python manage.py test`. 
 All admin panel sections now carry a serial number (01-26; 12 is not used), so they stay in a fixed order: 17 Customers, 18 Customer Payments, 19 Sales Returns, 20 Purchase Returns, 21 Stock Write-offs, 22 Stock Audits, 23 Employees, 24 Fixed Expenses, 25 Shop Profile, 26 Import file layouts (01-16 as before). Migration `0012` only changes the names; run `python manage.py migrate` as usual.
 
 ## Admin panel look
-The admin (`/admin/`) now has the MedSync look (teal, rounded, light/dark), a "← Back to MedSync" link, models grouped in sections (Master data, Purchases, Sales, Stock, Accounts, Settings, Users & access) and summary cards (sales today, low stock, expiring, expired, supplier balance) shown only to users who may view that data. Code: `backend/admin_site.py`, `templates/admin/`. It is cosmetic only and falls back to the normal admin on any error. No migration needed.
+The admin (`/admin/`) now has the Symaso look (teal, rounded, light/dark), a "← Back to Symaso" link, models grouped in sections (Master data, Purchases, Sales, Stock, Accounts, Settings, Users & access) and summary cards (sales today, low stock, expiring, expired, supplier balance) shown only to users who may view that data. Code: `backend/admin_site.py`, `templates/admin/`. It is cosmetic only and falls back to the normal admin on any error. No migration needed.
 
 ## Product preview
 The Products list has a **👁 Preview** button on every row: details (brand, GST, MRP, place, supplier), how the units convert (1 Strip = 15 Tablet), stock in packs, how much can be sold / is expired, and every batch in stock (sell-first on top, short expiry flagged), with Edit and Prices buttons. The data is embedded in the page, so it opens instantly (fallback: `/api/product_preview/<id>/`). No migration needed.
@@ -278,7 +278,7 @@ Like the blog, these are edited in the admin (`/admin/`, section **Website**), o
 * **FAQ Questions** - the "Questions shop owners ask" box on the home page. Add, edit, hide (untick *Active*) or reorder (change *Position*, smaller first). The Google FAQ markup on the page is made from the same questions, so it always matches. If every question is hidden the box disappears; if the table has no rows at all (or cannot be read) the standard questions are shown.
 * **Policy Pages** - Terms of use, Privacy policy, Refund and cancellation. Three fixed pages (they cannot be added or deleted). The text uses the same simple marks as the blog (`## Heading`, `- ` bullets, `**bold**`, `[text](/privacy/)`), is escaped so it cannot inject HTML, and you set the *Last updated* date yourself. An empty page falls back to the built-in text.
 * **Home Page Text** - the main headline, the paragraph under it, and the heading and text of the last box. One record only; an empty box keeps the standard text. In the last box write `{days}` where the number of free-trial days should appear.
-* **Social Media Links** - the round icons in the footer (*Follow us*). Add one row per page (Facebook, Instagram, X, YouTube, LinkedIn, WhatsApp, Telegram, Threads, Pinterest or any website), paste the full `https://` link, change *Position* to reorder, untick *Active* to hide. With no rows the *Follow us* line is not shown. The old *Share MedSync* row (WhatsApp, Facebook, X, LinkedIn, Telegram share buttons) was removed. Icons are inline SVG in `backend/social_icons.py` (no external request); migration `0024` creates the table.
+* **Social Media Links** - the round icons in the footer (*Follow us*). Add one row per page (Facebook, Instagram, X, YouTube, LinkedIn, WhatsApp, Telegram, Threads, Pinterest or any website), paste the full `https://` link, change *Position* to reorder, untick *Active* to hide. With no rows the *Follow us* line is not shown. The old *Share Symaso* row (WhatsApp, Facebook, X, LinkedIn, Telegram share buttons) was removed. Icons are inline SVG in `backend/social_icons.py` (no external request); migration `0024` creates the table.
 * Prices, WhatsApp, contact e-mail and the notice bar stay where they were (Platform panel, Website settings).
 * Migration `0021` creates the tables; `0022` copies the first FAQ and the three policy texts once, on the main site only (existing rows are never overwritten, so edits are safe). Files: `backend/sitecontent.py`, `backend/site_seed.py`, `templates/app/legal_saved.html`, tests in `backend/tests/test_site_content.py`.
 
@@ -290,7 +290,7 @@ Prices are **Rs 590 a month or Rs 5900 a year, GST included** (Rs 500 + Rs 90 GS
 
 **1. Autopay with Razorpay Subscriptions** (renews every month / year, like any subscription): the shop presses *Subscribe (autopay)*, sees the popup, and Razorpay's window opens where it sets up UPI autopay or a card. The first charge extends the plan at once; every later charge arrives by **webhook** and extends it again (receipt e-mailed each time). The shop can **Stop autopay** on the same page; the days already paid stay valid. If a charge keeps failing Razorpay stops the subscription and the shop gets an e-mail. The amount always comes from the server price; the Razorpay plan is checked against it (same amount and period) before every subscription, and an odd plan is refused. A payment can extend a shop **only once** (each Razorpay payment id is recorded once, whether the browser or the webhook tells us first).
 * Setup in the Razorpay dashboard (start in **Test mode**):
-  1. *Subscriptions -> Plans -> Create plan*: **MedSync Monthly**: billing every **1 month**, amount **590**; **MedSync Yearly**: every **1 year**, amount **5900**. Copy each **Plan Id** (`plan_xxxx`). If you change a price in *Website settings*, make a new plan with the same amount and put its id in `.env`.
+  1. *Subscriptions -> Plans -> Create plan*: **Symaso Monthly**: billing every **1 month**, amount **590**; **Symaso Yearly**: every **1 year**, amount **5900**. Copy each **Plan Id** (`plan_xxxx`). If you change a price in *Website settings*, make a new plan with the same amount and put its id in `.env`.
   2. *Account & Settings -> API keys* gives **Key Id** and **Key Secret**.
   3. *Webhooks -> Add*: URL `https://medsync.socialflylive.com/razorpay/webhook/`, a secret of your choice, tick **subscription.charged, subscription.activated, subscription.halted, subscription.cancelled, subscription.completed**.
   4. Put the values in the server `.env` and restart (`systemctl restart medsync` as root):
@@ -342,8 +342,8 @@ Every payment (Razorpay autopay, UPI, or the platform owner's *Save payment* but
 Only on the main site and only while `MULTI_SHOP=1`. Without the two keys below no Google button is shown and nothing changes.
 
 **One-time setup (Google Cloud Console, free):**
-1. Open https://console.cloud.google.com/ -> create a project (for example *MedSync*).
-2. *APIs & Services* -> *OAuth consent screen* -> User type *External* -> app name *MedSync*, your support e-mail, your logo (optional) -> Save. Scopes: only `openid`, `email`, `profile` (nothing more is asked). Press *Publish app* so that everybody (not only test users) can use it.
+1. Open https://console.cloud.google.com/ -> create a project (for example *Symaso*).
+2. *APIs & Services* -> *OAuth consent screen* -> User type *External* -> app name *Symaso*, your support e-mail, your logo (optional) -> Save. Scopes: only `openid`, `email`, `profile` (nothing more is asked). Press *Publish app* so that everybody (not only test users) can use it.
 3. *APIs & Services* -> *Credentials* -> *Create credentials* -> *OAuth client ID* -> Application type *Web application*.
    * *Authorised redirect URIs*: `https://medsync.socialflylive.com/auth/google/callback/` (use your own main address; add `http://localhost:8000/auth/google/callback/` too if you want to test on your PC).
 4. Copy the *Client ID* and *Client secret* into the server `.env` (never into git) and restart:
@@ -568,7 +568,7 @@ The **Expenses** form (by hand) offers only **Other** (the default): write what 
 For updates that need a short break. Platform panel, **Maintenance** (`/superadmin/maintenance/`):
 - **Plan it for later** (date, time, minutes, optional message, optional one-time e-mail to every shop owner). From that moment every shop shows a banner: "Planned maintenance: ... save your work before".
 - **Start right now** (needs a tick) and **End maintenance now**, **Extend**, **Cancel the plan**.
-- Inside the window every shop answers with a plain "We are updating MedSync" page (HTTP 503, refreshes itself every 30 seconds, shows your WhatsApp/e-mail). New sign-ups are paused with a polite message and their e-mail links stay valid. `/healthz/` keeps answering, so uptime monitors do not raise a false alarm.
+- Inside the window every shop answers with a plain "We are updating Symaso" page (HTTP 503, refreshes itself every 30 seconds, shows your WhatsApp/e-mail). New sign-ups are paused with a polite message and their e-mail links stay valid. `/healthz/` keeps answering, so uptime monitors do not raise a false alarm.
 - **The platform panel keeps working the whole time** (you are not locked out and can check the update). No shop's panel is ever opened for you.
 - The window ends by itself at its end time. It is kept in `maintenance.json` next to `manage.py` (not in the database, so it also works while the database is being updated). A missing or damaged file means "no maintenance".
 - Server commands: `python manage.py maintenance status | on --minutes 20 --message "..." | schedule --start "2026-10-28 23:00" --minutes 30 | extend --minutes 15 | off`. `off` always works.

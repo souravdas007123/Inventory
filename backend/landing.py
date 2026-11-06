@@ -36,7 +36,7 @@ def site_context():
         return dict(pricing=True, price_monthly=price['monthly'], price_yearly=price['yearly'],
                     price_saving=saving if saving > 0 else 0, price_yearly_month=round(price['yearly'] / 12), trial_days=settings.TRIAL_DAYS,
                     site_notice=data.get('announcement') or '', contact_email=data.get('contact_email') or '',
-                    contact_whatsapp=f"https://wa.me/{number}?text={quote('Hi, I have a question about MedSync')}"
+                    contact_whatsapp=f"https://wa.me/{number}?text={quote('Hi, I have a question about Symaso')}"
                     if 10 <= len(number) <= 15 else '')
     except Exception:
         return {}
@@ -49,7 +49,7 @@ def contact_links():
             ctx = site_context()
             return dict(whatsapp=ctx.get('contact_whatsapp', ''), email=ctx.get('contact_email', ''))
         number = re.sub(r'\D', '', getattr(settings, 'LANDING_WHATSAPP', '') or '')
-        return dict(whatsapp=f"https://wa.me/{number}?text={quote('Hi, I need help with MedSync')}" if 10 <= len(number) <= 15 else '',
+        return dict(whatsapp=f"https://wa.me/{number}?text={quote('Hi, I need help with Symaso')}" if 10 <= len(number) <= 15 else '',
                     email='')
     except Exception:
         return dict(whatsapp='', email='')
@@ -61,9 +61,9 @@ def cta_context(request):
         return dict(cta_url='/signup/', cta_nav='Free trial', cta_hero='Start your free trial', cta_final='Create your shop')
     number = re.sub(r'\D', '', getattr(settings, 'LANDING_WHATSAPP', '') or '')
     if 10 <= len(number) <= 15:
-        return dict(cta_url=f"https://wa.me/{number}?text={quote('Hi, I want a MedSync demo')}",
+        return dict(cta_url=f"https://wa.me/{number}?text={quote('Hi, I want a Symaso demo')}",
                     cta_nav='Get a demo', cta_hero='Ask for a free demo', cta_final='Message us on WhatsApp')
-    return dict(cta_url='/login/', cta_nav='Login', cta_hero='Login to MedSync', cta_final='Login and start billing')
+    return dict(cta_url='/login/', cta_nav='Login', cta_hero='Login to Symaso', cta_final='Login and start billing')
 
 
 def home(request):

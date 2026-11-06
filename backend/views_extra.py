@@ -384,7 +384,7 @@ def ca_export_view(request):
         error = str(e)
     if request.GET.get('export') == 'xlsx' and not error:
         auditlog.record(request, 'EXPORT', 'CA export', f'{start} to {end}')
-        return _xlsx(ca_export.build_workbook(start, end), f"medsync-accounts-{start:%Y%m%d}-{end:%Y%m%d}.xlsx")
+        return _xlsx(ca_export.build_workbook(start, end), f"symaso-accounts-{start:%Y%m%d}-{end:%Y%m%d}.xlsx")
     info = None if error else ca_export.summary(start, end)
     return page(request, 'app/ca_export.html', active='ca_export', start=start, end=end, error=error, info=info,
                 presets=[dict(label=l, start=a, end=b) for l, a, b in presets])
@@ -582,7 +582,7 @@ def salary_view(request):
         rows.append(dict(emp=e, salary=salary, paid=got, pending=pending, status=status, cls=cls))
     fmt = request.GET.get('export')
     if fmt in ('xlsx', 'csv'):
-        return table_download(f"medsync_salary_{year}{month:02d}",
+        return table_download(f"symaso_salary_{year}{month:02d}",
                               ['Employee ID', 'Name', 'Designation', 'Salary', 'Paid', 'Pending', 'Status'],
                               [[r['emp'].code, r['emp'].name, r['emp'].designation, r['salary'], r['paid'], r['pending'],
                                 r['status']] for r in rows], fmt)
@@ -1308,7 +1308,7 @@ def data_export(request):
     data = dataexport.build_zip(getattr(profile, 'name', '') or '')
     auditlog.record(request, 'EXPORT', 'All data', f'{len(data) // 1024} KB zip')
     resp = HttpResponse(data, content_type='application/zip')
-    resp['Content-Disposition'] = f'attachment; filename="medsync-data-{timezone.localdate():%Y-%m-%d}.zip"'
+    resp['Content-Disposition'] = f'attachment; filename="symaso-data-{timezone.localdate():%Y-%m-%d}.zip"'
     return resp
 
 
@@ -1389,7 +1389,7 @@ def supplier_prices_view(request):
                  r['last_date']] for r in rows]
         heads = ['Product', 'Base unit', 'Suppliers', 'Cheapest supplier', 'Cheapest price (per base unit)',
                  'Costliest supplier', 'Costliest price (per base unit)', 'Saving %', 'Last purchase']
-        return table_download(f"medsync_supplier_prices_{timezone.localdate():%Y%m%d}", heads, data, fmt)
+        return table_download(f"symaso_supplier_prices_{timezone.localdate():%Y%m%d}", heads, data, fmt)
     pg = Paginator(rows, 25).get_page(request.GET.get('page'))
     return page(request, 'app/supplier_prices.html', active='supplier_prices', rows=pg, page=pg,
                 total=pg.paginator.count, q=q, multi=multi,
@@ -1418,7 +1418,7 @@ def supplier_prices_product(request, pk):
                 row.append((h['rate'] * factor).quantize(Decimal('0.01')))
             row.append(h['change'] if h['change'] is not None else '')
             rows.append(row)
-        return table_download(f"medsync_prices_{product.pk}_{timezone.localdate():%Y%m%d}", heads, rows, fmt)
+        return table_download(f"symaso_prices_{product.pk}_{timezone.localdate():%Y%m%d}", heads, rows, fmt)
     return page(request, 'app/supplier_prices_product.html', active='supplier_prices', product=product,
                 pack=pack, suppliers=data['suppliers'], sm=data['summary'], history=data['history'][:100],
                 history_total=data['history_total'], stale_days=supplier_prices.STALE_DAYS,

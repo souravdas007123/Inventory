@@ -21,7 +21,7 @@ Every purchase brings a batch number and an expiry date. Keep both. When you kno
 
 ## Step 2: Sell the oldest batch first
 
-The rule is called FEFO: first expiry, first out. At the counter, always sell the batch that expires first. Doing this by memory fails on a busy day, so it is better when the billing screen picks the batch for you. MedSync does exactly this, and it never bills an expired batch.
+The rule is called FEFO: first expiry, first out. At the counter, always sell the batch that expires first. Doing this by memory fails on a busy day, so it is better when the billing screen picks the batch for you. Symaso does exactly this, and it never bills an expired batch.
 
 ## Step 3: Look at expiry every month
 
@@ -33,7 +33,7 @@ Once a month, list everything that expires in the next 60 to 90 days. For each i
 
 ## Step 4: Record the return or write-off properly
 
-A return that is only handed over and never recorded leaves a wrong stock count and a wrong supplier balance. When you record a purchase return or a write-off, stock and accounts should adjust together. In MedSync, a purchase return creates a debit note and reduces the supplier's balance, and a write-off removes the batch from stock.
+A return that is only handed over and never recorded leaves a wrong stock count and a wrong supplier balance. When you record a purchase return or a write-off, stock and accounts should adjust together. In Symaso, a purchase return creates a debit note and reduces the supplier's balance, and a write-off removes the batch from stock.
 
 ## A simple monthly checklist
 
@@ -91,7 +91,7 @@ When a customer returns medicine, record a sales return so that a credit note is
 - Record purchases the day they arrive, with the supplier's invoice number.
 - Keep your GST report open on the same day each month and compare it with your books before filing.
 
-MedSync has a GST page with GSTR-1 sections (B2B, B2C and credit notes), a GSTR-3B summary and an HSN summary, and each can be exported to Excel. There is also one accountant export with the registers and notes together. It does not file the return for you: your accountant still files it on the portal.
+Symaso has a GST page with GSTR-1 sections (B2B, B2C and credit notes), a GSTR-3B summary and an HSN summary, and each can be exported to Excel. There is also one accountant export with the registers and notes together. It does not file the return for you: your accountant still files it on the portal.
 ''',
     ),
     dict(
@@ -129,7 +129,7 @@ Records have to be kept for a fixed number of years, which is longer for some sc
 
 The most reliable way to keep a correct register is to collect the details at the moment of billing. When the product is marked as Schedule H, H1 or X, the bill should not be saved until the doctor and patient details are filled in. Then every scheduled sale has an entry, because the entry is made by the bill itself.
 
-MedSync works this way. A product can be marked with its schedule, billing requires the doctor and patient fields for scheduled drugs, and the drug register lists these sales by date and exports to Excel, so you can hand it over during an inspection.
+Symaso works this way. A product can be marked with its schedule, billing requires the doctor and patient fields for scheduled drugs, and the drug register lists these sales by date and exports to Excel, so you can hand it over during an inspection.
 
 ## Before an inspection
 
@@ -177,7 +177,7 @@ A customer asks for 30 tablets. With FEFO, 28 come from A117 and 2 from B2231. Y
 3. **Block expired batches.** An expired batch should never be sold.
 4. **Show the batch on the bill.** It helps you and your customer, and helps with returns later.
 
-MedSync follows these four steps. A purchase creates batches, billing takes from the oldest valid batch, and expired stock cannot be billed.
+Symaso follows these four steps. A purchase creates batches, billing takes from the oldest valid batch, and expired stock cannot be billed.
 
 ## What FEFO does for your shop
 
@@ -221,7 +221,7 @@ When you create an order, a sensible rule is: use the product's usual supplier i
 
 ## Let the software do the comparing
 
-MedSync builds the comparison from your existing purchases, so you do not enter anything extra. For each product it shows what each supplier charged, who is cheapest now, the trend and the full history, per base unit and per pack, including GST. On the purchase screen it shows the last price from the selected supplier and how the price you type compares. The dashboard lists supplier prices that rose 10% or more in the last 60 days, with a cheaper supplier if there is one. You can export the comparison to Excel.
+Symaso builds the comparison from your existing purchases, so you do not enter anything extra. For each product it shows what each supplier charged, who is cheapest now, the trend and the full history, per base unit and per pack, including GST. On the purchase screen it shows the last price from the selected supplier and how the price you type compares. The dashboard lists supplier prices that rose 10% or more in the last 60 days, with a cheaper supplier if there is one. You can export the comparison to Excel.
 
 ## A one-month experiment
 
@@ -273,7 +273,7 @@ For two or three days, keep your old way and the new way side by side for a smal
 - What to do when something is out of stock or unusual.
 - How to hold and resume a bill when a customer is undecided.
 
-Keyboard shortcuts speed things up a great deal once staff know them. In MedSync, for instance, one key searches, Enter moves to the next field and one key saves the bill.
+Keyboard shortcuts speed things up a great deal once staff know them. In Symaso, for instance, one key searches, Enter moves to the next field and one key saves the bill.
 
 ## Step 7: Check the backup
 

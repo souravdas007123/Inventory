@@ -1,4 +1,4 @@
-"""The MedSync logo (capsule inside sync arrows) is used on every page and in the favicon and share image."""
+"""The Symaso logo (capsule inside sync arrows) is used on every page and in the favicon and share image."""
 import struct
 import xml.etree.ElementTree as ET
 

@@ -146,30 +146,30 @@ def mail_receipt(order):
         parts = dict(kind=invoice.kind, rate=invoice.rate, taxable=invoice.taxable, cgst=invoice.cgst, sgst=invoice.sgst, igst=invoice.igst, total=invoice.total)
         lines = f'\nInvoice {invoice.number} dated {invoice.date:%d %b %Y}\n' + ''.join(f'  {label}: {value}\n' for label, value in gst.rows_for(parts, 'Total paid'))
         lines += 'You can open and print the invoice from the Plan and payments page.\n'
-    _mail(f'MedSync payment received: Rs {order.amount}',
+    _mail(f'Symaso payment received: Rs {order.amount}',
           f'Hello {order.shop.owner_name or "there"},\n\nThank you. We received your payment for {order.shop.name}.\n\n'
           f'Plan: {PLAN_LABEL.get(order.plan, order.plan)}\nAmount: Rs {order.amount}\nReference: {order.reference}\n'
           f'Your shop is paid until: {until}\n{lines}'
-          + ('The plan renews on its own; you can stop it any time from the Plan and payments page.\n' if order.autopay_id else '') + '\nMedSync',
+          + ('The plan renews on its own; you can stop it any time from the Plan and payments page.\n' if order.autopay_id else '') + '\nSymaso',
           [order.shop.email])
 
 
 def mail_rejected(order):
-    _mail('MedSync could not find your UPI payment',
+    _mail('Symaso could not find your UPI payment',
           f'Hello {order.shop.owner_name or "there"},\n\nWe could not match your UPI payment (reference {order.reference}, UPI number {order.utr}) '
           f'for {order.shop.name}.\n\nReason: {order.note or "not found in our account"}\n\n'
-          'Please check the number and send it again from the Plan and payments page, or write to us.\n\nMedSync', [order.shop.email])
+          'Please check the number and send it again from the Plan and payments page, or write to us.\n\nSymaso', [order.shop.email])
 
 
 def mail_platform_waiting(order, link):
     to = list(getattr(settings, 'ALERT_EMAILS', []) or []) or [site.current().get('contact_email') or '']
-    _mail(f'[MedSync] UPI payment waiting for approval: {order.shop.name} Rs {order.amount}',
+    _mail(f'[Symaso] UPI payment waiting for approval: {order.shop.name} Rs {order.amount}',
           f'Shop: {order.shop.name}\nPlan: {PLAN_LABEL.get(order.plan, order.plan)}\nAmount: Rs {order.amount}\n'
           f'UPI reference (UTR): {order.utr}\nOrder reference: {order.reference}\n\nCheck your bank / UPI app, then approve or reject it here:\n{link}\n', to)
 
 
 def mail_autopay_failed(autopay):
-    _mail('MedSync: your plan payment did not go through',
+    _mail('Symaso: your plan payment did not go through',
           f'Hello {autopay.shop.owner_name or "there"},\n\nThe automatic payment of Rs {autopay.amount} for {autopay.shop.name} could not be taken, '
           'so the autopay was stopped. Your shop keeps working until the date it is paid for.\n\n'
-          'Please open Plan and payments in MedSync and subscribe again (or pay by UPI) to continue.\n\nMedSync', [autopay.shop.email])
+          'Please open Plan and payments in Symaso and subscribe again (or pay by UPI) to continue.\n\nSymaso', [autopay.shop.email])

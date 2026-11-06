@@ -76,7 +76,7 @@ def alert_digest_text(alerts, shop_name='', wa=False, limit=MAX_LINES, max_chars
     """Plain-text digest. For WhatsApp (wa=True) it is short: a few lines per section, bold headings, emoji."""
     bold = (lambda t: f"*{t}*") if wa else (lambda t: t)
     icon = (lambda e: e + ' ') if wa else (lambda e: '')
-    head = f"{shop_name or 'MedSync'} - Stock alerts ({alerts['today']:%d %b %Y})"
+    head = f"{shop_name or 'Symaso'} - Stock alerts ({alerts['today']:%d %b %Y})"
     parts = [bold(head), '']
     expired, soon, watch = alerts['expired'], alerts['expiring'], alerts.get('watch', [])
     risk = [(_total_value(expired), 'already expired'), (_total_value(soon), f"expiring in {alerts['days']} days")]
@@ -168,7 +168,7 @@ def bill_text(bill, shop_name, items, grand):
 
 def credit_reminder_link(shop_name, name, phone, balance):
     """WhatsApp link (wa.me, no API) to remind a customer about outstanding credit."""
-    text = (f"Hello {name}, this is a reminder from {shop_name or 'MedSync'} that your outstanding balance of \u20b9{balance:,.2f} "
+    text = (f"Hello {name}, this is a reminder from {shop_name or 'Symaso'} that your outstanding balance of \u20b9{balance:,.2f} "
             f"is due. Please clear it at your earliest convenience. Thank you!")
     return whatsapp_link(text, phone)
 
@@ -176,7 +176,7 @@ def credit_reminder_link(shop_name, name, phone, balance):
 def refill_reminder_link(shop_name, name, phone, medicines):
     """WhatsApp link (wa.me, no API) to remind a regular customer that a medicine may be finishing."""
     meds = ', '.join(medicines)
-    text = (f"Hello {name}, this is {shop_name or 'MedSync'}. Your {meds} may be finishing around now. "
+    text = (f"Hello {name}, this is {shop_name or 'Symaso'}. Your {meds} may be finishing around now. "
             f"Shall we keep it ready for you, or send it to your home? Thank you!")
     return whatsapp_link(text, phone)
 

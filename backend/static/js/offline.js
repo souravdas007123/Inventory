@@ -1,4 +1,4 @@
-// MedSync offline billing (page side).
+// Symaso offline billing (page side).
 //  * New Bill page: keeps a copy of the medicine list on this device, so medicines can be searched without internet.
 //  * A bill made without internet waits on this device (the "queue") and is sent when the internet is back.
 //  * Every new bill form carries a one-time key, so a bill can never be saved twice, even if it is sent twice.

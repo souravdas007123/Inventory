@@ -17,7 +17,7 @@ class Command(BaseCommand):
             raise CommandError('MULTI_SHOP is not switched on. Put MULTI_SHOP=1 in .env first.')
         shop, made = Shop.objects.get_or_create(
             schema_name='public',
-            defaults=dict(name='MedSync main site', plan='yearly', email_verified=True))
+            defaults=dict(name='Symaso main site', plan='yearly', email_verified=True))
         domain, new_domain = Domain.objects.get_or_create(
             domain=settings.SHOP_BASE_DOMAIN, defaults=dict(tenant=shop, is_primary=True))
         if domain.tenant_id != shop.pk:

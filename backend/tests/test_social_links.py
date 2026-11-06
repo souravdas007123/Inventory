@@ -20,24 +20,24 @@ class SocialLinkPageTests(TestCase):
     def test_no_links_means_no_follow_row_and_no_share_row(self):
         page = home()
         self.assertNotIn('Follow us', page)
-        self.assertNotIn('Share MedSync', page)
+        self.assertNotIn('Share Symaso', page)
 
     def test_an_active_link_shows_as_an_icon_with_a_label(self):
-        SocialLink.objects.create(platform='instagram', url='https://www.instagram.com/medsync')
+        SocialLink.objects.create(platform='instagram', url='https://www.instagram.com/symaso')
         page = home()
         self.assertIn('Follow us', page)
-        self.assertIn('href="https://www.instagram.com/medsync"', page)
+        self.assertIn('href="https://www.instagram.com/symaso"', page)
         self.assertIn('aria-label="Instagram"', page)
         self.assertIn('<svg viewBox="0 0 24 24"', page)
         self.assertIn('rel="noopener nofollow me"', page)
 
     def test_order_and_hidden_links(self):
-        SocialLink.objects.create(platform='youtube', url='https://youtube.com/@medsync', position=20)
-        SocialLink.objects.create(platform='facebook', url='https://facebook.com/medsync', position=10)
-        SocialLink.objects.create(platform='x', url='https://x.com/medsync', position=5, active=False)
+        SocialLink.objects.create(platform='youtube', url='https://youtube.com/@symaso', position=20)
+        SocialLink.objects.create(platform='facebook', url='https://facebook.com/symaso', position=10)
+        SocialLink.objects.create(platform='x', url='https://x.com/symaso', position=5, active=False)
         page = home()
-        self.assertLess(page.index('facebook.com/medsync'), page.index('youtube.com/@medsync'))
-        self.assertNotIn('x.com/medsync', page)
+        self.assertLess(page.index('facebook.com/symaso'), page.index('youtube.com/@symaso'))
+        self.assertNotIn('x.com/symaso', page)
 
     def test_every_platform_has_an_icon(self):
         for key, _ in SocialLink.PLATFORMS:
@@ -70,15 +70,15 @@ class SocialLinkValidationTests(TestCase):
         SocialLink(platform='facebook', url=url).full_clean()
 
     def test_only_full_https_links_are_accepted(self):
-        self.check('https://facebook.com/medsync')
-        for bad in ('', 'facebook.com/medsync', 'http://facebook.com/x', 'javascript:alert(1)', 'https://a b.com/x', 'https://'):
+        self.check('https://facebook.com/symaso')
+        for bad in ('', 'facebook.com/symaso', 'http://facebook.com/x', 'javascript:alert(1)', 'https://a b.com/x', 'https://'):
             with self.assertRaises(ValidationError, msg=bad):
                 self.check(bad)
 
     def test_the_url_is_trimmed(self):
-        link = SocialLink(platform='facebook', url='  https://facebook.com/medsync  ')
+        link = SocialLink(platform='facebook', url='  https://facebook.com/symaso  ')
         link.full_clean()
-        self.assertEqual(link.url, 'https://facebook.com/medsync')
+        self.assertEqual(link.url, 'https://facebook.com/symaso')
 
 
 @override_settings(**SAFE)
@@ -92,9 +92,9 @@ class SocialLinkAdminTests(TestCase):
             self.assertEqual(self.client.get(url).status_code, 200, url)
 
     def test_add_edit_and_a_bad_link_in_the_admin(self):
-        r = self.client.post('/admin/backend/sociallink/add/', dict(platform='linkedin', url='https://linkedin.com/company/medsync', position=1, active='on'))
+        r = self.client.post('/admin/backend/sociallink/add/', dict(platform='linkedin', url='https://linkedin.com/company/symaso', position=1, active='on'))
         self.assertEqual(r.status_code, 302)
-        self.assertIn('linkedin.com/company/medsync', home())
+        self.assertIn('linkedin.com/company/symaso', home())
         bad = self.client.post('/admin/backend/sociallink/add/', dict(platform='facebook', url='facebook.com/x', position=2, active='on'))
         self.assertEqual(bad.status_code, 200)
         self.assertContains(bad, 'starting with https://')

@@ -79,7 +79,7 @@ class Migration(migrations.Migration):
                     models.CharField(
                         blank=True,
                         default="",
-                        help_text="Two or three sentences saying what MedSync does.",
+                        help_text="Two or three sentences saying what Symaso does.",
                         max_length=400,
                         verbose_name="Paragraph under the headline",
                     ),

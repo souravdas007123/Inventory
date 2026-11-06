@@ -7,7 +7,7 @@
   {% if qr_svg %}<div style="text-align:center;margin:8px 0">{{ qr_svg }}<p style="margin:4px 0 0;color:var(--mute);font-size:13px">Scan with any UPI app (PhonePe, Google Pay, Paytm, BHIM ...)</p></div>{% endif %}
   <p style="margin:10px 0 4px">Or pay to this UPI ID: <b style="user-select:all">{{ upi_id }}</b> ({{ upi_name }})</p>
   <p style="margin:0 0 4px">Amount: <b>Rs {{ order.amount|floatformat:2 }}</b></p>
-  <p style="margin:0 0 10px;color:var(--mute)">Payment note / reference: <b>MedSync {{ order.get_plan_display }} {{ order.reference }}</b></p>
+  <p style="margin:0 0 10px;color:var(--mute)">Payment note / reference: <b>Symaso {{ order.get_plan_display }} {{ order.reference }}</b></p>
   <p style="margin:0"><a class="btn" href="{{ link }}">Open my UPI app (on a phone)</a></p>
 </div>
 <div class="card" style="max-width:640px">

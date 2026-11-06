@@ -679,7 +679,7 @@ def listing(request, key):
             for i in range(0, len(objs), 500):      # in chunks, so the query never has thousands of ids
                 cfg['prepare'](objs[i:i + 500])
         rows = [[export_value(fn(o)) for _, fn in cfg['cols']] for o in objs]
-        return table_download(f"medsync_{key}_{timezone.localdate():%Y%m%d}", [h for h, _ in cfg['cols']], rows, fmt)
+        return table_download(f"symaso_{key}_{timezone.localdate():%Y%m%d}", [h for h, _ in cfg['cols']], rows, fmt)
     pg = Paginator(qs.order_by(*cfg['order']), per).get_page(request.GET.get('page'))
     summary_line = ''
     if key == 'expenses':       # this month's total and its split by type

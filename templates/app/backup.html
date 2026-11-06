@@ -2,7 +2,7 @@
 {% block title %}Backup{% endblock %}
 {% block content %}
 <div class="head"><h1>💾 Database Backup</h1></div>
-{% if hosted %}<div class="msg info">MedSync takes a backup of your shop's data automatically every night and keeps the latest {{ keep }}. A backup that stays on the server can be lost along with the server, so download one at least once a week and keep it on your computer or Google Drive.</div>
+{% if hosted %}<div class="msg info">Symaso takes a backup of your shop's data automatically every night and keeps the latest {{ keep }}. A backup that stays on the server can be lost along with the server, so download one at least once a week and keep it on your computer or Google Drive.</div>
 {% else %}<div class="msg info">{% if postgres %}All of your data is stored in the PostgreSQL database, so a daily backup is essential. Backups are made with <code>pg_dump</code> and saved on the server in{% else %}All of your data is stored in a single database file, so a daily backup is essential. Backups are compressed and saved on the server in{% endif %} <code>{{ folder }}</code>; only the latest {{ keep }} are kept.</div>{% endif %}
 <div class="card" style="margin-bottom:14px">
   <h3 style="margin-top:0">Back up now</h3>

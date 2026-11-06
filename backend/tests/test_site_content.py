@@ -71,14 +71,14 @@ class HomeTextTests(TestCase):
     def test_standard_text_when_nothing_is_edited(self):
         html = self.client.get('/').content.decode()
         self.assertIn('<h1>Pharmacy billing and GST software for medical stores</h1>', html)
-        self.assertIn('MedSync is pharmacy software that bills in seconds', html)
+        self.assertIn('Symaso is pharmacy software that bills in seconds', html)
         self.assertIn('See it with your own medicines', html)
 
     def test_edited_text_is_shown_and_empty_boxes_keep_the_standard(self):
         HomeText.objects.create(hero_title='Billing for your <b>store</b>', final_text='Free for {days} days.')
         html = self.client.get('/').content.decode()
         self.assertIn('<h1>Billing for your &lt;b&gt;store&lt;/b&gt;</h1>', html)
-        self.assertIn('MedSync is pharmacy software that bills in seconds', html)      # lead was left empty
+        self.assertIn('Symaso is pharmacy software that bills in seconds', html)      # lead was left empty
         self.assertIn('Free for %d days.' % settings.TRIAL_DAYS, html)
         self.assertIn('See it with your own medicines', html)                           # title was left empty
 

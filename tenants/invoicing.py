@@ -65,7 +65,7 @@ def create_invoice(shop, payment, plan, amount, today):
     number, fy = next_number(today)
     return Invoice.objects.create(
         number=number, fy=fy, date=today, shop=shop, payment=payment, plan=plan,
-        description=f'MedSync {PLAN_NAME.get(plan, plan)} plan (software as a service)',
+        description=f'Symaso {PLAN_NAME.get(plan, plan)} plan (software as a service)',
         period_from=payment.period_from, period_to=payment.period_to,
         seller_name=seller.get('seller_name') or '', seller_address=seller.get('seller_address') or '',
         seller_gstin=seller.get('seller_gstin') or '', seller_lut=seller.get('seller_lut') or '', sac=seller.get('seller_sac') or '',

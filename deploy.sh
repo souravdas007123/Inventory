@@ -55,7 +55,7 @@ git pull --ff-only
 if [ "$WANT_MAINT" = 1 ]; then
     if [ "$MULTI" = 1 ]; then
         step "Switching maintenance mode ON ($MAINT_MIN minutes)"
-        if $PY manage.py maintenance on --minutes "$MAINT_MIN" --message "We are updating MedSync."; then
+        if $PY manage.py maintenance on --minutes "$MAINT_MIN" --message "We are updating Symaso."; then
             MAINT_ON=1
         else
             echo "Could not switch maintenance on (an older version?). Continuing without it."

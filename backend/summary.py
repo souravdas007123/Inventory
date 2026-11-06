@@ -39,7 +39,7 @@ def daily_summary(day):
 
 
 def summary_text(s, shop_name=''):
-    lines = [f"{shop_name or 'MedSync'} - Daily summary ({s['day']:%d %b %Y})", '',
+    lines = [f"{shop_name or 'Symaso'} - Daily summary ({s['day']:%d %b %Y})", '',
              f"Sales: {_rs(s['sales'])} ({s['bills']} bill{'s' if s['bills'] != 1 else ''})"]
     labels = dict(Bill.PAYMENT_CHOICES)
     for mode, amount in sorted(s['by_mode'].items()):

@@ -100,7 +100,7 @@ def check_claims(claims, nonce, now=None):
     now = time.time() if now is None else now
     aud = claims.get('aud')
     if claims.get('iss') not in ISSUERS or aud != settings.GOOGLE_CLIENT_ID:
-        raise GoogleError('This Google sign-in was not meant for MedSync. Please try again.')
+        raise GoogleError('This Google sign-in was not meant for Symaso. Please try again.')
     try:
         if float(claims.get('exp') or 0) < now:
             raise GoogleError('This Google sign-in has expired. Please try again.')
@@ -172,7 +172,7 @@ def _sign_in(request, email):
     uid = owner_of(shop, email) if shop else None
     if not uid:
         return _notice(request, 'No shop found for this Google account',
-                       f'No MedSync shop uses {email}. Sign up first, or sign in with the e-mail and password of your shop. '
+                       f'No Symaso shop uses {email}. Sign up first, or sign in with the e-mail and password of your shop. '
                        'Staff members sign in with their username and password.', '/signup/', 'Create your shop', 404)
     response = pass_to_shop(request, shop, uid, '')
     if response is None:

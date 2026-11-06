@@ -1,5 +1,5 @@
 """The shop owner's own 'Plan and payments' page (/plan/, on a shop's address only): the state of the free trial or the
-paid plan, the days left, the prices, how to pay, and the list of payments MedSync has recorded for this shop."""
+paid plan, the days left, the prices, how to pay, and the list of payments Symaso has recorded for this shop."""
 import re
 from datetime import timedelta
 from urllib.parse import quote
@@ -38,7 +38,7 @@ def plan(request):
     state = tenancy.shop_state(shop, today)
     price, data = site.prices(), site.current()
     number = re.sub(r'\D', '', data.get('whatsapp') or '')
-    wa = (f"https://wa.me/{number}?text={quote(f'Hi, I want to continue with MedSync for {shop.name}')}"
+    wa = (f"https://wa.me/{number}?text={quote(f'Hi, I want to continue with Symaso for {shop.name}')}"
           if 10 <= len(number) <= 15 else '')
     on_trial = shop.plan == 'trial'
     saving = price['monthly'] * 12 - price['yearly']

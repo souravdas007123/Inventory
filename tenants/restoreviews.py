@@ -77,7 +77,7 @@ def _mail_platform(request, req):
     try:
         from . import site
         to = list(getattr(settings, 'ALERT_EMAILS', []) or []) or [site.current().get('contact_email') or '']
-        support._send(f'[MedSync] Restore request from {req.shop.name}',
+        support._send(f'[Symaso] Restore request from {req.shop.name}',
                       f'Shop: {req.shop.name}\nBackup: {req.backup_name}\nAsked by: {req.requested_by}\n'
                       f'Reason: {req.note or "-"}\n\nOpen it: {support.platform_url(request, "/superadmin/restores/")}\n', to)
     except Exception:

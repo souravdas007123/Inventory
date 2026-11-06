@@ -19,7 +19,7 @@ class InstallableAppTests(TestCase):
         resp = self.client.get('/manifest.webmanifest')
         self.assertEqual((resp.status_code, resp['Content-Type']), (200, 'application/manifest+json'))
         data = json.loads(resp.content)
-        self.assertEqual((data['display'], data['start_url'], data['short_name']), ('standalone', '/', 'MedSync'))
+        self.assertEqual((data['display'], data['start_url'], data['short_name']), ('standalone', '/', 'Symaso'))
         sizes = {i['sizes'] for i in data['icons']}
         self.assertTrue({'192x192', '512x512'} <= sizes)
         self.assertIn('maskable', {i['purpose'] for i in data['icons']})

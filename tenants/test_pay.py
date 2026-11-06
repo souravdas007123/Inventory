@@ -167,10 +167,10 @@ class UpiPureTests(SimpleTestCase):
             self.assertTrue(upi.clean_utr(bad)[1], bad)
 
     def test_the_link_has_everything_and_fits_a_qr_code(self):
-        link = upi.pay_link('medsync@okhdfcbank', 'MedSync & Co', '500', 'MS7K2Q9XAB', 'Monthly')
+        link = upi.pay_link('symaso@okhdfcbank', 'Symaso & Co', '500', 'MS7K2Q9XAB', 'Monthly')
         self.assertTrue(link.startswith('upi://pay?'))
         q = parse_qs(urlparse(link).query)
-        self.assertEqual((q['pa'], q['am'], q['cu'], q['pn']), (['medsync@okhdfcbank'], ['500.00'], ['INR'], ['MedSync & Co']))
+        self.assertEqual((q['pa'], q['am'], q['cu'], q['pn']), (['symaso@okhdfcbank'], ['500.00'], ['INR'], ['Symaso & Co']))
         self.assertIn('MS7K2Q9XAB', q['tn'][0])
         self.assertTrue(qr.svg(link))
         long = upi.pay_link('a' * 60 + '@okhdfcbank', 'N' * 40, '5000', 'MS7K2Q9XAB', 'Yearly')
@@ -222,7 +222,7 @@ class PayTestBase(TestCase):
         PinTenantMiddleware.shop = self.shop
         self.addCleanup(setattr, PinTenantMiddleware, 'shop', None)
 
-    def set_upi(self, upi_id='medsync@okhdfcbank', name='MedSync'):
+    def set_upi(self, upi_id='symaso@okhdfcbank', name='Symaso'):
         site.save(dict(upi_id=upi_id, upi_name=name))
         cache.clear()
 
@@ -583,11 +583,11 @@ class UpiFlowTests(PayTestBase):
         self.assertRedirects(r, f'/plan/pay/upi/{o.pk}/', fetch_redirect_response=False)
         self.assertEqual((o.method, o.status, o.amount, o.plan), ('upi', 'created', Decimal('5900'), 'yearly'))
         page = self.client.get(f'/plan/pay/upi/{o.pk}/').content.decode()
-        self.assertIn('medsync@okhdfcbank', page)
+        self.assertIn('symaso@okhdfcbank', page)
         self.assertIn('Rs 5900.00', page)
         self.assertIn(o.reference, page)
         self.assertIn('<svg', page)
-        self.assertIn('upi://pay?pa=medsync@okhdfcbank', page)
+        self.assertIn('upi://pay?pa=symaso@okhdfcbank', page)
 
     def test_the_same_plan_does_not_make_a_new_order_each_time(self):
         self.set_upi()
@@ -607,7 +607,7 @@ class UpiFlowTests(PayTestBase):
 
     def test_a_good_reference_number_goes_to_the_platform_owner(self):
         self.set_upi()
-        site.save(dict(upi_id='medsync@okhdfcbank', upi_name='MedSync', contact_email='owner@example.com'))
+        site.save(dict(upi_id='symaso@okhdfcbank', upi_name='Symaso', contact_email='owner@example.com'))
         cache.clear()
         self.on_shop()
         o = self.order()
@@ -825,15 +825,15 @@ class MiddlewareAndSettingsTests(PayTestBase):
 
     def test_upi_settings_are_saved_and_read(self):
         self.assertIsNone(site.upi())
-        site.save(dict(upi_id='medsync@okhdfcbank', upi_name=''))
+        site.save(dict(upi_id='symaso@okhdfcbank', upi_name=''))
         cache.clear()
-        self.assertEqual(site.upi(), ('medsync@okhdfcbank', 'MedSync'))
-        self.assertEqual(SiteSetting.objects.get(pk=1).upi_id, 'medsync@okhdfcbank')
+        self.assertEqual(site.upi(), ('symaso@okhdfcbank', 'Symaso'))
+        self.assertEqual(SiteSetting.objects.get(pk=1).upi_id, 'symaso@okhdfcbank')
 
     def test_the_settings_page_saves_the_upi_id_and_rejects_a_bad_one(self):
-        ok = self.client.post('/superadmin/site/', dict(upi_id='medsync@okhdfcbank', upi_name='MedSync'))
+        ok = self.client.post('/superadmin/site/', dict(upi_id='symaso@okhdfcbank', upi_name='Symaso'))
         self.assertRedirects(ok, '/superadmin/site/', fetch_redirect_response=False)
-        self.assertEqual(SiteSetting.objects.get(pk=1).upi_id, 'medsync@okhdfcbank')
+        self.assertEqual(SiteSetting.objects.get(pk=1).upi_id, 'symaso@okhdfcbank')
         bad = self.client.post('/superadmin/site/', dict(upi_id='not a upi'))
         self.assertContains(bad, 'UPI ID looks wrong')
         page = self.client.get('/superadmin/site/').content.decode()

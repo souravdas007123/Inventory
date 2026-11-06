@@ -97,9 +97,9 @@ def mail_code(user, code, purpose='sign in'):
     if not user.email:
         return False
     try:
-        send_mail(f'Your MedSync code: {code}',
-                  f'Your MedSync {purpose} code is {code}.\n\nIt works for {CODE_MINUTES} minutes and only once. '
-                  f'If you did not try to sign in, please change your password.\n\nMedSync', settings.DEFAULT_FROM_EMAIL,
+        send_mail(f'Your Symaso code: {code}',
+                  f'Your Symaso {purpose} code is {code}.\n\nIt works for {CODE_MINUTES} minutes and only once. '
+                  f'If you did not try to sign in, please change your password.\n\nSymaso', settings.DEFAULT_FROM_EMAIL,
                   [user.email], fail_silently=False)
         return True
     except Exception:

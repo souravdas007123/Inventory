@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MedSync – Pharmacy Billing &amp; GST Software for Medical Stores</title>
-<meta name="description" content="MedSync is pharmacy software for Indian medical stores: GST billing, batch and expiry tracking, supplier prices, Schedule H register and CA export.">
+<title>Symaso – Pharmacy Billing &amp; GST Software for Medical Stores</title>
+<meta name="description" content="Symaso is pharmacy software for Indian medical stores: GST billing, batch and expiry tracking, supplier prices, Schedule H register and CA export.">
 <link rel="canonical" href="{{ site_url }}/">
 <meta name="robots" content="index,follow,max-image-preview:large">
 <meta name="theme-color" content="#0a2f2a">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="MedSync">
-<meta property="og:title" content="MedSync – Pharmacy Billing, GST, Batch &amp; Expiry Software">
+<meta property="og:site_name" content="Symaso">
+<meta property="og:title" content="Symaso – Pharmacy Billing, GST, Batch &amp; Expiry Software">
 <meta property="og:description" content="Fast GST billing, batch and expiry tracking, supplier prices, Schedule H register and CA-ready Excel export for medical stores.">
 <meta property="og:url" content="{{ site_url }}/">
 <meta property="og:image" content="{{ site_url }}/og.png">
@@ -22,8 +22,8 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
-{"@type":"SoftwareApplication","name":"MedSync","applicationCategory":"BusinessApplication","operatingSystem":"Web browser","url":"{{ site_url }}/","description":"Pharmacy inventory, GST billing, batch and expiry management software for medical stores in India.","featureList":["GST billing with barcode scan","Batch and expiry (FEFO) tracking","Alternative medicine suggestion","Supplier price comparison","Reorder suggestions","Schedule H/H1/X drug register","GSTR-1, GSTR-3B and HSN reports","Accountant Excel export","Customer credit ledger","Sales and purchase returns","Import from Excel","Daily automatic backup","Measured health score"],"offers":{% if pricing %}[{"@type":"Offer","name":"Monthly plan","price":"{{ price_monthly }}","priceCurrency":"INR"},{"@type":"Offer","name":"Yearly plan","price":"{{ price_yearly }}","priceCurrency":"INR"}]{% else %}{"@type":"Offer","description":"Free trial for every new shop","price":"0","priceCurrency":"INR"}{% endif %}},
-{% if faq_ld %}{"@type":"FAQPage","mainEntity":{{ faq_ld }}}{% else %}{"@type":"WebSite","name":"MedSync","url":"{{ site_url }}/"}{% endif %}]}
+{"@type":"SoftwareApplication","name":"Symaso","applicationCategory":"BusinessApplication","operatingSystem":"Web browser","url":"{{ site_url }}/","description":"Pharmacy inventory, GST billing, batch and expiry management software for medical stores in India.","featureList":["GST billing with barcode scan","Batch and expiry (FEFO) tracking","Alternative medicine suggestion","Supplier price comparison","Reorder suggestions","Schedule H/H1/X drug register","GSTR-1, GSTR-3B and HSN reports","Accountant Excel export","Customer credit ledger","Sales and purchase returns","Import from Excel","Daily automatic backup","Measured health score"],"offers":{% if pricing %}[{"@type":"Offer","name":"Monthly plan","price":"{{ price_monthly }}","priceCurrency":"INR"},{"@type":"Offer","name":"Yearly plan","price":"{{ price_yearly }}","priceCurrency":"INR"}]{% else %}{"@type":"Offer","description":"Free trial for every new shop","price":"0","priceCurrency":"INR"}{% endif %}},
+{% if faq_ld %}{"@type":"FAQPage","mainEntity":{{ faq_ld }}}{% else %}{"@type":"WebSite","name":"Symaso","url":"{{ site_url }}/"}{% endif %}]}
 </script>
 <style>
 :root{--bg:#f2f7f4;--paper:#fff;--ink:#0a2f2a;--mut:#3f5a54;--line:#cfdcd6;--deep:#0a2f2a;--on-deep:#e9f5f1;--amber:#d98324;--amber-d:#9a5a0f;--red:#b42318;--green:#13795b;--foil:#e6ecea}
@@ -169,21 +169,21 @@ footer .legal{grid-column:1/-1;font-size:14px}
 {% if site_notice %}<div class="ann" role="status">{{ site_notice }}</div>{% endif %}
 <header>
 <div class="w">
-<a class="logo" href="/" aria-label="MedSync home"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="lgL" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14b8a6"/><stop offset="1" stop-color="#0b7d6e"/></linearGradient></defs><rect width="64" height="64" rx="15" fill="url(#lgL)"/><path d="M9.4 23.8A24 24 0 0 1 50.4 16.6" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/><path d="M54.6 21.6L53.6 13.9L47.2 19.3Z" fill="#fff"/><path d="M54.6 40.2A24 24 0 0 1 13.6 47.4" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/><path d="M9.4 42.4L10.4 50.1L16.8 44.7Z" fill="#fff"/><g transform="rotate(-45 32 32)"><path d="M32 26.0H24.5A6.0 6.0 0 0 0 24.5 38.0H32Z" fill="#fff"/><path d="M32 26.0H39.5A6.0 6.0 0 0 1 39.5 38.0H32Z" fill="#f5a524"/></g></svg>MedSync</a>
-<nav aria-label="Main"><a class="h" href="#features">Features</a><a class="h" href="#day">A day with MedSync</a><a class="h" href="#safe">Safety</a>{% if pricing %}<a class="h" href="#pricing">Pricing</a>{% endif %}<a class="h" href="#faq">FAQ</a><a class="h" href="/blog/">Blog</a>{% if cta_url != '/login/' %}<a href="{% url 'login' %}">Login</a>{% endif %}<a class="btn" href="{{ cta_url }}">{{ cta_nav }}</a></nav>
+<a class="logo" href="/" aria-label="Symaso home"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="lgL" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14b8a6"/><stop offset="1" stop-color="#0b7d6e"/></linearGradient></defs><rect width="64" height="64" rx="15" fill="url(#lgL)"/><path d="M9.4 23.8A24 24 0 0 1 50.4 16.6" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/><path d="M54.6 21.6L53.6 13.9L47.2 19.3Z" fill="#fff"/><path d="M54.6 40.2A24 24 0 0 1 13.6 47.4" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/><path d="M9.4 42.4L10.4 50.1L16.8 44.7Z" fill="#fff"/><g transform="rotate(-45 32 32)"><path d="M32 26.0H24.5A6.0 6.0 0 0 0 24.5 38.0H32Z" fill="#fff"/><path d="M32 26.0H39.5A6.0 6.0 0 0 1 39.5 38.0H32Z" fill="#f5a524"/></g></svg>Symaso</a>
+<nav aria-label="Main"><a class="h" href="#features">Features</a><a class="h" href="#day">A day with Symaso</a><a class="h" href="#safe">Safety</a>{% if pricing %}<a class="h" href="#pricing">Pricing</a>{% endif %}<a class="h" href="#faq">FAQ</a><a class="h" href="/blog/">Blog</a>{% if cta_url != '/login/' %}<a href="{% url 'login' %}">Login</a>{% endif %}<a class="btn" href="{{ cta_url }}">{{ cta_nav }}</a></nav>
 </div>
 </header>
 <main>
 <div class="hero"><div class="w">
 <div>
 <h1>{% if home.hero_title %}{{ home.hero_title }}{% else %}Pharmacy billing and GST software for medical stores{% endif %}</h1>
-<p class="lead">{% if home.hero_lead %}{{ home.hero_lead }}{% else %}MedSync is pharmacy software that bills in seconds, sells the oldest batch first, warns you before medicines expire, and hands your accountant a ready Excel. Medical stores type less because it fills in what it can, so the numbers stay right, without the guesswork.{% endif %}</p>
+<p class="lead">{% if home.hero_lead %}{{ home.hero_lead }}{% else %}Symaso is pharmacy software that bills in seconds, sells the oldest batch first, warns you before medicines expire, and hands your accountant a ready Excel. Medical stores type less because it fills in what it can, so the numbers stay right, without the guesswork.{% endif %}</p>
 <div class="cta"><a class="btn" href="{{ cta_url }}">{{ cta_hero }}</a><a class="btn o" href="#features">See what it does</a></div>
 {% if pricing %}<p class="assure">Free for {{ trial_days }} days. No card needed. Stop any time.</p>{% endif %}
 <div class="keys" aria-label="Billing keys"><span>Billing in three keys:</span><kbd>F2</kbd> search <kbd>Enter</kbd> next field <kbd>F9</kbd> save</div>
 </div>
 <div class="slipwrap">
-<div class="slip" role="img" aria-label="Illustration of a MedSync bill with items, GST, batch expiry and an alternative medicine suggestion">
+<div class="slip" role="img" aria-label="Illustration of a Symaso bill with items, GST, batch expiry and an alternative medicine suggestion">
 <div class="st">YOUR MEDICAL STORE</div>
 <div class="c">GSTIN 19XXXXX0000X1Z5</div>
 <hr>
@@ -210,7 +210,7 @@ footer .legal{grid-column:1/-1;font-size:14px}
 </div></div>
 
 <section id="day"><div class="w">
-<div class="head"><h2>A day in your shop, with MedSync</h2><p>It follows the way a chemist's day really goes, from the first look at the shelves to the last backup.</p></div>
+<div class="head"><h2>A day in your shop, with Symaso</h2><p>It follows the way a chemist's day really goes, from the first look at the shelves to the last backup.</p></div>
 <ol class="day">
 <li><span class="w7">Open the shop</span>The dashboard shows low stock, what expires this month and any supplier price that jumped.</li>
 <li><span class="w7">Serve customers</span>Scan or search, bill, print. Credit, cash, UPI or card, with scheduled drugs handled as the law asks.</li>
@@ -344,7 +344,7 @@ footer .legal{grid-column:1/-1;font-size:14px}
 </div></div></section>
 
 <section id="safe"><div class="w">
-<div class="head"><h2>Safe by design</h2><p>Your shop data is your business. MedSync is built so you stay in control of it.</p></div>
+<div class="head"><h2>Safe by design</h2><p>Your shop data is your business. Symaso is built so you stay in control of it.</p></div>
 <div class="roles">
 <div><h3>Backups you can trust</h3><p>A compressed backup every day, kept for you to restore, and the owner is warned if one is missed.</p></div>
 <div><h3>Access you control</h3><p>Role-based logins, owner-only pages, login throttling after repeated wrong passwords and an audit log.</p></div>
@@ -397,11 +397,11 @@ footer .legal{grid-column:1/-1;font-size:14px}
 </div></div>
 </main>
 <footer><div class="w fcols">
-<div class="fb"><span class="fl">MedSync</span><p>Pharmacy inventory and billing software for medical stores in India. GST billing, batch and expiry tracking and reports for your accountant.</p>{% if contact_whatsapp or contact_email %}<p>{% if contact_whatsapp %}<a href="{{ contact_whatsapp }}" rel="noopener nofollow">Chat on WhatsApp</a>{% endif %}{% if contact_email %}<a href="mailto:{{ contact_email }}">Email us</a>{% endif %}</p>{% endif %}</div>
+<div class="fb"><span class="fl">Symaso</span><p>Pharmacy inventory and billing software for medical stores in India. GST billing, batch and expiry tracking and reports for your accountant.</p>{% if contact_whatsapp or contact_email %}<p>{% if contact_whatsapp %}<a href="{{ contact_whatsapp }}" rel="noopener nofollow">Chat on WhatsApp</a>{% endif %}{% if contact_email %}<a href="mailto:{{ contact_email }}">Email us</a>{% endif %}</p>{% endif %}</div>
 <div><span class="fh">Product</span><a href="#features">Product features</a><a href="#day">A day in the shop</a><a href="#safe">Safety and backups</a>{% if pricing %}<a href="#pricing">Plans and prices</a>{% endif %}<a href="#faq">Questions and answers</a><a href="/blog/">Blog articles</a></div>
 <div><span class="fh">Account and policies</span><a href="{% url 'login' %}">Sign in</a>{% if pricing %}<a href="/signup/">Sign up free</a>{% endif %}<a href="/terms/">Terms of use</a><a href="/privacy/">Privacy policy</a><a href="/refund/">Refund and cancellation</a></div>
 {% if socials %}<div class="so"><span>Follow us:</span>{% for s in socials %}<a href="{{ s.url }}" target="_blank" rel="noopener nofollow me" aria-label="{{ s.label }}" title="{{ s.label }}">{{ s.svg }}</a>{% endfor %}</div>{% endif %}
-<div class="legal">&copy; MedSync. All rights reserved. Pictures on this page use sample data.</div>
+<div class="legal">&copy; Symaso. All rights reserved. Pictures on this page use sample data.</div>
 </div></footer>
 </body>
 </html>

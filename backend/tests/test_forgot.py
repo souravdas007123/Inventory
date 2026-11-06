@@ -24,7 +24,7 @@ class ForgotPasswordTests(TestCase):
         for url in ('/login/', '/forgot/'):
             page = self.client.get(url).content.decode()
             self.assertIn('class="shell"', page, url)
-            self.assertIn('MedSync', page, url)
+            self.assertIn('Symaso', page, url)
         self.assertContains(self.client.get('/login/'), 'Show</button>')       # the show-password button
 
     def test_pages_open(self):

@@ -30,10 +30,10 @@ def _contact_lines():
     lines = []
     number = re.sub(r'\D', '', data.get('whatsapp') or '')
     if 10 <= len(number) <= 15:
-        lines.append(f'WhatsApp: https://wa.me/{number}?text={quote("Hi, I want to continue with MedSync")}')
+        lines.append(f'WhatsApp: https://wa.me/{number}?text={quote("Hi, I want to continue with Symaso")}')
     if data.get('contact_email'):
         lines.append(f"Email: {data['contact_email']}")
-    return lines or ['Please contact MedSync to continue.']
+    return lines or ['Please contact Symaso to continue.']
 
 
 def _when(left):
@@ -48,11 +48,11 @@ def message_for(shop, kind, end, today=None):
     trial = kind.startswith('trial')
     what = 'free trial' if trial else 'plan'
     if kind.endswith('_end'):
-        subject = f'Your MedSync {what} has ended'
+        subject = f'Your Symaso {what} has ended'
         status = (f'The {what} for your shop "{shop.name}" ended on {end:%d %b %Y}. Your data is safe and you can still sign in '
                   'and view everything, but saving new bills and entries is switched off until you choose a plan.')
     else:
-        subject = f'Your MedSync {what} ends {_when(left)}'
+        subject = f'Your Symaso {what} ends {_when(left)}'
         status = (f'The {what} for your shop "{shop.name}" ends {_when(left)}, on {end:%d %b %Y}. After that you can still '
                   'view your data, but saving new bills and entries is switched off until you choose a plan.')
     lines = [f'Hello {shop.owner_name or "there"},', '', status, '',
@@ -61,7 +61,7 @@ def message_for(shop, kind, end, today=None):
     address = shop_address(shop)
     if address:
         lines += ['', f'Your shop: {address}']
-    lines += ['', 'MedSync']
+    lines += ['', 'Symaso']
     return subject, '\n'.join(lines)
 
 

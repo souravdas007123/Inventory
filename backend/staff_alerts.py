@@ -67,7 +67,7 @@ def after(user, action, target, detail):
     to = owner_emails()
     if not to:
         return False
-    shop = (ShopProfile.objects.first().name if ShopProfile.objects.exists() else '') or 'MedSync'
+    shop = (ShopProfile.objects.first().name if ShopProfile.objects.exists() else '') or 'Symaso'
     if n == FULL_MAILS + 1:
         _send(f'[{shop}] {name} is making many changes',
               f'{name} has made several sensitive changes in the last 10 minutes. No more alerts will be sent for this.\n\n'

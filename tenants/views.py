@@ -31,9 +31,9 @@ def _notice(request, title, message, link_url='', link_text='', status=200):
 
 
 def _paused(request):
-    """New shops are not made while MedSync is being updated. The e-mail link stays valid for later."""
+    """New shops are not made while Symaso is being updated. The e-mail link stays valid for later."""
     return _notice(request, 'Sign-up is paused for a few minutes',
-                   'We are updating MedSync. Please try again in a few minutes. Your confirmation link stays valid.',
+                   'We are updating Symaso. Please try again in a few minutes. Your confirmation link stays valid.',
                    request.path, 'Try again', 503)
 
 

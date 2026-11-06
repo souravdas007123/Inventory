@@ -1,4 +1,4 @@
-// MedSync: the small on-device store used by offline billing (shared by the page and the service worker).
+// Symaso: the small on-device store used by offline billing (shared by the page and the service worker).
 // Two stores: "queue" (bills waiting to be sent) and "meta" (the medicine list, the signed-in user, recently sent bills).
 (function (g) {
   const NAME = 'medsync-offline', VERSION = 1;

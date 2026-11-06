@@ -9,8 +9,8 @@ from django.utils import timezone
 
 from . import access, health
 
-admin.site.site_header = 'MedSync Admin'
-admin.site.site_title = 'MedSync Admin'
+admin.site.site_header = 'Symaso Admin'
+admin.site.site_title = 'Symaso Admin'
 admin.site.index_title = 'Admin home'
 
 _original_admin_login = admin.site.login

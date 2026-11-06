@@ -261,7 +261,7 @@ def shop_two_step_off(request, pk):
         count = owners.count()
         owners.delete()
         if count:
-            auditlog.record(request.user.get_username(), 'SECURITY', '2-step', 'Turned off for the owner by MedSync support')
+            auditlog.record(request.user.get_username(), 'SECURITY', '2-step', 'Turned off for the owner by Symaso support')
     connection.set_schema_to_public()
     if count:
         _log(shop, f'2-step sign-in switched off for the owner by {request.user.get_username()}')

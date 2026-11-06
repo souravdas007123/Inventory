@@ -32,9 +32,9 @@ class ShopAccessMiddleware:
         shop = getattr(request, 'tenant', None)
         if (shop is None or shop.schema_name == getattr(settings, 'PUBLIC_SCHEMA_NAME', 'public')) \
                 and tenancy.is_unknown_shop_host(request.get_host(), getattr(settings, 'SHOP_BASE_DOMAIN', '')):
-            return self._page('Shop not found', 'There is no MedSync shop at this address. Please check the web address '
+            return self._page('Shop not found', 'There is no Symaso shop at this address. Please check the web address '
                               'you were given, or open the main site to create your own shop.', 404,
-                              link_url=self._main_site(request), link_text='Open MedSync')
+                              link_url=self._main_site(request), link_text='Open Symaso')
         if shop is not None and getattr(shop, 'schema_name', 'public') != getattr(settings, 'PUBLIC_SCHEMA_NAME', 'public'):
             if getattr(shop, 'restoring', False) and request.path not in MAINTENANCE_OPEN and not request.path.startswith('/icon-'):
                 return self._restoring()
@@ -42,11 +42,11 @@ class ShopAccessMiddleware:
                 return self._maintenance()
             state = tenancy.shop_state(shop)
             if state == 'paused':
-                return self._page('This shop is switched off', 'Please contact MedSync support to switch it on again.', 403)
+                return self._page('This shop is switched off', 'Please contact Symaso support to switch it on again.', 403)
             if state == 'locked' and request.method not in ('GET', 'HEAD', 'OPTIONS') and not is_always_open(request.path):
                 return self._page('Your subscription has ended',
                                   'You can still view your data, but saving new entries is switched off. '
-                                  'Please contact MedSync to choose a plan and continue.', 403)
+                                  'Please contact Symaso to choose a plan and continue.', 403)
         return self.get_response(request)
 
     @staticmethod

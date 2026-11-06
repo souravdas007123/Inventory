@@ -97,7 +97,7 @@ class BlogPagesTests(TestCase):
     def test_an_article_page_has_its_seo_data(self):
         self.make()
         html = self.client.get('/blog/a-post/').content.decode()
-        self.assertIn('<title>A post | MedSync</title>', html)
+        self.assertIn('<title>A post | Symaso</title>', html)
         self.assertIn('<meta name="description" content="Short summary.">', html)
         long = self.make('long-one', summary='word ' * 60)
         page = self.client.get(long.get_absolute_url()).content.decode()

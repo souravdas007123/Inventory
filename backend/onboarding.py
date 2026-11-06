@@ -23,7 +23,7 @@ def steps():
              done=bool(profile and profile.address.strip() and profile.phone.strip())),
         dict(key='suppliers', title='Add your suppliers', url='/import/suppliers/',
              text='The companies you buy from. Each purchase is entered under one of them.',
-             why='Every purchase belongs to a supplier. That is how MedSync knows what you owe and who to send expired stock back to.',
+             why='Every purchase belongs to a supplier. That is how Symaso knows what you owe and who to send expired stock back to.',
              tips=['Import them all from Excel, or add them one by one.',
                    'Add the phone number: it is used to send purchase orders and expiry-return requests on WhatsApp.'],
              buttons=[('Import suppliers', '/import/suppliers/'), ('Download the template', '/import/suppliers/?template=1'),

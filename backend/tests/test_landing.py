@@ -75,7 +75,7 @@ class LandingTests(TestCase):
 
     def test_the_old_share_row_is_gone_from_the_footer(self):
         page = self.client.get('/').content.decode()
-        for text in ('Share MedSync', 'facebook.com/sharer', 'twitter.com/intent/tweet', 'linkedin.com/sharing', 't.me/share', 'wa.me/?text'):
+        for text in ('Share Symaso', 'facebook.com/sharer', 'twitter.com/intent/tweet', 'linkedin.com/sharing', 't.me/share', 'wa.me/?text'):
             self.assertNotIn(text, page)
 
     def test_every_page_has_a_favicon_and_the_ico_file_is_served(self):
@@ -106,7 +106,7 @@ class LandingTests(TestCase):
     def test_without_a_number_the_buttons_lead_to_login(self):
         html = self.client.get('/').content.decode()
         self.assertNotRegex(html, r'wa\.me/\d')        # the share link is wa.me/?text, the demo link has a number
-        self.assertIn('Login to MedSync', html)
+        self.assertIn('Login to Symaso', html)
 
     @override_settings(LANDING_WHATSAPP='')
     def test_the_top_menu_has_only_one_login(self):

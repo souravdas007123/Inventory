@@ -111,7 +111,7 @@ class SiteSetting(models.Model):
     shop_notice = models.CharField(max_length=200, blank=True, default='')      # shown at the top of every shop
     price_monthly = models.PositiveIntegerField(null=True, blank=True)
     price_yearly = models.PositiveIntegerField(null=True, blank=True)
-    upi_id = models.CharField(max_length=80, blank=True, default='')           # where shops pay by UPI, e.g. medsync@okhdfcbank
+    upi_id = models.CharField(max_length=80, blank=True, default='')           # where shops pay by UPI, e.g. symaso@okhdfcbank
     upi_name = models.CharField(max_length=40, blank=True, default='')         # the name shown in the payer's UPI app
     # The seller on every invoice (the platform owner's business). Without a GST number invoices carry no tax.
     seller_name = models.CharField(max_length=120, blank=True, default='')
@@ -178,7 +178,7 @@ class AutoPay(models.Model):
 
 class Ticket(models.Model):
     """A question or problem that a shop sends to the platform owner from inside the app.
-    open = waiting for MedSync, answered = waiting for the shop, closed = done."""
+    open = waiting for Symaso, answered = waiting for the shop, closed = done."""
     CATEGORIES = [('billing', 'Billing'), ('stock', 'Stock and batches'), ('login', 'Sign-in and users'),
                   ('reports', 'Reports and GST'), ('idea', 'Idea or feature request'), ('other', 'Something else')]
     STATUSES = [('open', 'Open'), ('answered', 'Answered'), ('closed', 'Closed')]
@@ -188,7 +188,7 @@ class Ticket(models.Model):
     category = models.CharField(max_length=10, choices=CATEGORIES, default='other')
     status = models.CharField(max_length=10, choices=STATUSES, default='open')
     created_by = models.CharField(max_length=150, blank=True, default='')
-    shop_unread = models.BooleanField(default=False)          # MedSync wrote and the shop has not read it yet
+    shop_unread = models.BooleanField(default=False)          # Symaso wrote and the shop has not read it yet
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -11,7 +11,7 @@ from django.utils.html import escape
 from .reminders import _contact_lines, shop_address
 
 log = logging.getLogger(__name__)
-BRAND = 'MedSync'
+BRAND = 'Symaso'
 ACCENT = '#0f766e'
 
 
@@ -104,7 +104,7 @@ def confirm_message(pending, link, valid_hours):
         [('p', f'Nothing is charged and no card is needed. This link works for {valid_hours} hours.')],
         button=('Confirm my e-mail', link),
         small='If you did not sign up, you can safely ignore this e-mail. Nothing will be created.')
-    return 'Confirm your MedSync account', text, html
+    return 'Confirm your Symaso account', text, html
 
 
 def welcome_message(shop, login_email, today=None, via_google=False):
@@ -138,7 +138,7 @@ def welcome_message(shop, login_email, today=None, via_google=False):
                  + (' You can also reach us here: ' + '; '.join(contact) if contact else ''))
     text, html = build(
         f'Your shop {shop.name} is ready.',
-        'Welcome to MedSync, your shop is ready',
+        'Welcome to Symaso, your shop is ready',
         f'Hello {name}, your shop "{shop.name}" has been created and your free trial has started. Here is everything you need to begin.',
         [('box', box), ('p', ('You signed up with Google, so there is no password: choose Continue with Google on the sign-in page. '
                 'You can set a password any time with "Forgot your password?". We never e-mail passwords.') if via_google
@@ -150,7 +150,7 @@ def welcome_message(shop, login_email, today=None, via_google=False):
            ('p', 'Tip: open your shop on your phone and choose "Add to Home screen" to use it like an app, including the camera barcode scan.')],
         button=('Open my shop', address + 'login/') if address else None,
         small='Your data belongs to you. You can download a full copy any time from the Backup page.')
-    return f'Welcome to MedSync, {shop.name} is ready', text, html
+    return f'Welcome to Symaso, {shop.name} is ready', text, html
 
 
 def send_welcome(shop, login_email, via_google=False):
@@ -182,10 +182,10 @@ def maintenance_message(shop, window, now=None):
     if window.get('message'):
         blocks.append(('p', window['message']))
     if running:
-        subject, title = 'MedSync is being updated', 'MedSync is being updated right now'
-        intro = f'Hello {name}, we are updating MedSync. Your shop "{shop.name}" will be back by {maintenance.fmt(window["end"])}.'
+        subject, title = 'Symaso is being updated', 'Symaso is being updated right now'
+        intro = f'Hello {name}, we are updating Symaso. Your shop "{shop.name}" will be back by {maintenance.fmt(window["end"])}.'
     else:
         subject, title = f'Planned maintenance: {maintenance.fmt(window["start"])}', 'Planned maintenance'
-        intro = f'Hello {name}, we will update MedSync soon, to make it better and safer. Your shop "{shop.name}" will be briefly unavailable.'
+        intro = f'Hello {name}, we will update Symaso soon, to make it better and safer. Your shop "{shop.name}" will be briefly unavailable.'
     text, html = build(f'{subject}.', title, intro, blocks)
     return subject, text, html

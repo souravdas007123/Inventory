@@ -14,7 +14,7 @@ try:
 except Exception:                                            # not installed: only the self-checks run
     HAS_CV2 = False
 
-UPI = 'upi://pay?pa=sourav@okhdfcbank&pn=MedSync&am=500.00&cu=INR&tn=MedSync monthly MS-12'
+UPI = 'upi://pay?pa=sourav@okhdfcbank&pn=Symaso&am=500.00&cu=INR&tn=Symaso monthly MS-12'
 
 
 class StructureTests(SimpleTestCase):

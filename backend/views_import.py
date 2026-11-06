@@ -145,7 +145,7 @@ def import_view(request, kind):
     if request.GET.get('export') and imp['export']:
         heads, rows = imp['export']()
         required = {c['name'] for c in imp['cols'] if c['required']}
-        return imports.table_download(f"medsync_{kind}_{timezone.localdate():%Y%m%d}", heads, rows,
+        return imports.table_download(f"symaso_{kind}_{timezone.localdate():%Y%m%d}", heads, rows,
                                       request.GET.get('export'), required)
 
     # NB: callables (export/validate...) are auto-called in templates, so only use plain values from imp

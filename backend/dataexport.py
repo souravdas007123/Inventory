@@ -56,7 +56,7 @@ def build_zip(shop_name=''):
             name = model._meta.model_name + '.csv'
             z.writestr(name, text.encode('utf-8'))
             lines.append(f'{name}: {count} rows')
-        readme = (f'MedSync data export{" for " + shop_name if shop_name else ""}\n'
+        readme = (f'Symaso data export{" for " + shop_name if shop_name else ""}\n'
                   f'Created: {timezone.localtime():%d %b %Y, %I:%M %p}\n\n'
                   'Each file is one table and opens in Excel or Google Sheets. Relations are shown as ID numbers.\n\n'
                   + '\n'.join(lines) + '\n')

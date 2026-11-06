@@ -17,7 +17,7 @@
 {% if cover %}<div class="hero-img">{{ cover }}</div>{% endif %}
 <p class="lede">{{ post.summary }}</p>
 <div class="art">{{ body }}</div>
-<div class="cta"><h2>See MedSync on your own medicines</h2><p>Billing, batch and expiry, supplier prices and accountant reports in one place. Ask for a demo with your kind of stock and bills.</p><a class="btn" href="{{ cta_url }}">{{ cta_final }}</a></div>
+<div class="cta"><h2>See Symaso on your own medicines</h2><p>Billing, batch and expiry, supplier prices and accountant reports in one place. Ask for a demo with your kind of stock and bills.</p><a class="btn" href="{{ cta_url }}">{{ cta_final }}</a></div>
 {% if more %}<div class="more"><h2>More articles</h2><div class="cards">{% for p in more %}<a href="{{ p.url }}"{% if not p.image %} class="noimg"{% endif %}>{% if p.image %}<div class="thumb">{{ p.image }}</div>{% endif %}<div><span class="meta">{{ p.date|date:"j F Y" }} · {{ p.minutes }} min read</span><h2>{{ p.title }}</h2><p>{{ p.summary }}</p></div></a>{% endfor %}</div></div>{% endif %}
 </article>
 {% endblock %}

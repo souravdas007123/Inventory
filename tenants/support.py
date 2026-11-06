@@ -90,7 +90,7 @@ def mail_platform(request, ticket, message, new):
     from . import site
     to = list(getattr(settings, 'ALERT_EMAILS', []) or []) or [site.current().get('contact_email') or '']
     head = 'New support ticket' if new else 'New reply on support ticket'
-    _send(f'[MedSync] {head} #{ticket.pk}: {ticket.subject}',
+    _send(f'[Symaso] {head} #{ticket.pk}: {ticket.subject}',
           f'Shop: {ticket.shop.name}\nFrom: {message.author}\nCategory: {ticket.get_category_display()}\n\n{message.body}\n\n'
           f'Open it: {platform_url(request, f"/superadmin/support/{ticket.pk}/")}\n', to)
 
@@ -98,9 +98,9 @@ def mail_platform(request, ticket, message, new):
 def mail_shop(request, ticket, message):
     domain = Domain.objects.filter(tenant=ticket.shop).order_by('-is_primary', 'id').first()
     link = f"{request.scheme}://{domain.domain}{tenancy.port_suffix(request)}/support/{ticket.pk}/" if domain else ''
-    _send(f'MedSync support replied to your ticket #{ticket.pk}',
-          f'Hello,\n\nMedSync support has replied to "{ticket.subject}":\n\n{message.body}\n\n'
-          + (f'Read and answer here: {link}\n' if link else '') + '\nMedSync', [ticket.shop.email])
+    _send(f'Symaso support replied to your ticket #{ticket.pk}',
+          f'Hello,\n\nSymaso support has replied to "{ticket.subject}":\n\n{message.body}\n\n'
+          + (f'Read and answer here: {link}\n' if link else '') + '\nSymaso', [ticket.shop.email])
 
 
 def _shop(request):

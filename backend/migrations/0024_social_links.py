@@ -44,7 +44,7 @@ class Migration(migrations.Migration):
                 (
                     "url",
                     models.CharField(
-                        help_text="The full address of your page, starting with https://  For example https://www.instagram.com/medsync",
+                        help_text="The full address of your page, starting with https://  For example https://www.instagram.com/symaso",
                         max_length=300,
                         verbose_name="Link (URL)",
                     ),

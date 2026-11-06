@@ -27,7 +27,7 @@ class DataExportTests(TestCase):
         self.client.force_login(self.owner)
         resp = self.client.post('/backup/export/')
         self.assertEqual((resp.status_code, resp['Content-Type']), (200, 'application/zip'))
-        self.assertIn('medsync-data-', resp['Content-Disposition'])
+        self.assertIn('symaso-data-', resp['Content-Disposition'])
         z = zipfile.ZipFile(io.BytesIO(resp.content))
         names = z.namelist()
         for n in ('product.csv', 'bill.csv', 'category.csv', 'README.txt'):

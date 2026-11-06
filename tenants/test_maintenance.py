@@ -286,7 +286,7 @@ class ShopDuringMaintenanceTests(WithFile, TransactionTestCase):
         for method in (self.client.get, self.client.post):
             resp = method('/login/', HTTP_HOST=HOST)
             self.assertEqual(resp.status_code, 503)
-            self.assertContains(resp, 'We are updating MedSync', status_code=503)
+            self.assertContains(resp, 'We are updating Symaso', status_code=503)
             self.assertContains(resp, 'Adding new features', status_code=503)
             self.assertContains(resp, 'Your shop and all its data are safe', status_code=503)
             self.assertTrue(30 <= int(resp['Retry-After']) <= 3600)

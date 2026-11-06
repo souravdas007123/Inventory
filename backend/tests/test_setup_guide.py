@@ -148,7 +148,7 @@ class WelcomeTests(StockMixin, TestCase):
         self.assertTrue(onboarding.checklist(get_user_model().objects.get(username='boss'))['fresh'])
         page = self.client.get('/')
         self.assertContains(page, 'id="welcome"')
-        self.assertContains(page, 'Welcome to MedSync')
+        self.assertContains(page, 'Welcome to Symaso')
         self.assertContains(page, 'href="/setup/" id="welcome-go"')
         self.assertContains(page, 'ms-welcome-v1')                       # shown once per browser
         self.client.post('/help/hide-setup/')

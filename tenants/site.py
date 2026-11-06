@@ -52,4 +52,4 @@ def upi():
     """(upi id, name shown to the payer) for the UPI payment, or None when no UPI id is set."""
     data = current()
     upi_id = (data.get('upi_id') or '').strip()
-    return (upi_id, (data.get('upi_name') or '').strip() or 'MedSync') if upi_id else None
+    return (upi_id, (data.get('upi_name') or '').strip() or 'Symaso') if upi_id else None

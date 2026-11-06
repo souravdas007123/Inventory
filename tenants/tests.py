@@ -178,7 +178,7 @@ class SignupFlowTests(TransactionTestCase):
     def test_the_confirmation_mail_is_a_proper_html_mail_with_the_link_on_its_own_line(self):
         self.sign_up()
         msg = mail.outbox[0]
-        self.assertEqual(msg.subject, 'Confirm your MedSync account')
+        self.assertEqual(msg.subject, 'Confirm your Symaso account')
         self.assertEqual(msg.alternatives[0][1], 'text/html')
         html = msg.alternatives[0][0]
         link = [line for line in msg.body.splitlines() if '/signup/confirm/' in line]
@@ -195,7 +195,7 @@ class SignupFlowTests(TransactionTestCase):
         self.assertEqual(len(mail.outbox), 2)
         welcome = mail.outbox[1]
         self.assertEqual(welcome.to, ['raj@example.com'])
-        self.assertIn('Welcome to MedSync', welcome.subject)
+        self.assertIn('Welcome to Symaso', welcome.subject)
         self.assertIn('Sharma Medical', welcome.body)
         self.assertIn('http://' + HOST + '/', welcome.body)
         self.assertIn('raj@example.com', welcome.body)
@@ -1022,11 +1022,11 @@ class SupportTicketTests(TransactionTestCase):
         self.assertEqual(mail.outbox[-1].to, [self.one + '@example.com'])
         self.assertIn('Fixed, please check.', mail.outbox[-1].body)
         page = self.shop_client.get('/help/', HTTP_HOST=self.host())
-        self.assertContains(page, '1 new reply from MedSync support')
+        self.assertContains(page, '1 new reply from Symaso support')
         detail = self.shop_client.get(f'/support/{t.pk}/', HTTP_HOST=self.host())
         self.assertContains(detail, 'Fixed, please check.')
-        self.assertContains(detail, 'MedSync support')
-        self.assertNotContains(self.shop_client.get('/help/', HTTP_HOST=self.host()), 'new reply from MedSync support')
+        self.assertContains(detail, 'Symaso support')
+        self.assertNotContains(self.shop_client.get('/help/', HTTP_HOST=self.host()), 'new reply from Symaso support')
         self.assertContains(self.shop_client.get('/help/', HTTP_HOST=self.host()), 'Open a support ticket')
 
     def test_a_shop_reply_reopens_and_the_platform_can_close_and_reopen(self):
@@ -1131,7 +1131,7 @@ class SignupMailTextTests(SimpleTestCase):
 
         from tenants import mails
         with mock.patch('tenants.mails.shop_address', return_value=''), \
-                mock.patch('tenants.mails._contact_lines', return_value=['Please contact MedSync to continue.']):
+                mock.patch('tenants.mails._contact_lines', return_value=['Please contact Symaso to continue.']):
             subject, text, html = mails.welcome_message(self.fake_shop('Plain Shop', 'Asha'), 'a@example.com')
         self.assertIn('Hello Asha', text)
         self.assertNotIn('Open my shop', html)
