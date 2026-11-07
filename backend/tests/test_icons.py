@@ -70,3 +70,23 @@ class NoEmojiOnScreenTests(TestCase):
         self.assertIn('msg success', html)
         self.assertIn('msg-ic', html)
         self.assertIsNone(EMOJI.search(html))
+
+
+class ScreenLayoutRulesTests(TestCase):
+    """Rules found on real screens: an info banner with bold text or a link inside must not be a flex row (its words fell apart),
+    a tick box in a table must not be as wide as a text box, and the calendar button must be visible on the dark theme."""
+
+    def css(self):
+        return open('templates/app/base.html', encoding='utf8').read()
+
+    def test_only_flash_messages_are_flex_rows(self):
+        css = self.css()
+        self.assertNotIn('.msg{display:flex', css)
+        self.assertIn('.msg-row{display:flex', css)
+        self.assertIn('class="msg msg-row {{ m.tags }}"', css)
+
+    def test_tick_boxes_in_tables_are_not_text_box_wide(self):
+        self.assertIn('.t input[type=checkbox],.t input[type=radio]{min-width:0}', self.css())
+
+    def test_the_calendar_button_shows_on_the_dark_theme(self):
+        self.assertIn('input::-webkit-calendar-picker-indicator{filter:invert(', self.css())

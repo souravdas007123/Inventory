@@ -32,7 +32,7 @@ a{color:inherit;text-decoration:none}
 .side a>span{flex:none;width:20px;display:inline-flex;justify-content:center}      /* same icon box for every icon, so all the labels start at one x */
 .ic{width:1.15em;height:1.15em;vertical-align:-.2em;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .side a>span .ic{width:18px;height:18px;vertical-align:0}
-.msg{display:flex;align-items:flex-start;gap:9px}.msg .msg-ic{margin-top:.12em;width:1.2em;height:1.2em}.msg.success .msg-ic{color:var(--green)}.msg.error .msg-ic{color:var(--red)}.msg.warning .msg-ic{color:var(--amber)}.msg.info .msg-ic{color:var(--pri)}
+.msg-row{display:flex;align-items:flex-start;gap:9px}.msg .msg-ic{margin-top:.12em;width:1.2em;height:1.2em}.msg.success .msg-ic{color:var(--green)}.msg.error .msg-ic{color:var(--red)}.msg.warning .msg-ic{color:var(--amber)}.msg.info .msg-ic{color:var(--pri)}
 .side .me{margin-top:auto;position:sticky;bottom:-18px;background:var(--side);display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 6px 4px;border-top:1px solid #ffffff1f;color:var(--sidetxt);font-size:13px}
 .side .me .u{min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}   /* a long e-mail is cut with ... instead of making the panel scroll sideways */
 .side .me .r{display:flex;align-items:center;gap:6px;flex:none}.side .me a{padding:4px 8px}.side .me form{margin:0}
@@ -68,6 +68,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--pri);outline-off
 input,select,textarea{width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit}
 input[type=checkbox]{width:auto;transform:scale(1.2)}
 .t input,.t select{min-width:90px}
+.t input[type=checkbox],.t input[type=radio]{min-width:0}      /* a tick box is not a text box: no wide focus frame around it */
+@media(prefers-color-scheme:dark){input::-webkit-calendar-picker-indicator{filter:invert(.8)}}      /* the calendar button of a date field is dark by default: invisible on the dark theme */
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:14px}
 .fld label{display:block;font-weight:600;font-size:12px;margin-bottom:4px}
 .fld small{color:var(--mute);display:block;margin-top:3px}
@@ -170,7 +172,7 @@ img,video{max-width:100%;height:auto}
   {% if maintenance_banner %}<div class="msg info" role="status">{% icon 'wrench' %} {{ maintenance_banner }}</div>{% endif %}
   {% if platform_notice %}<div class="msg info">{{ platform_notice }}</div>{% endif %}
   {% if shop_note %}<div class="msg info">{{ shop_note }} <a href="/plan/">Plan and payments</a></div>{% endif %}
-  {% for m in messages %}<div class="msg {{ m.tags }}">{% if 'success' in m.tags %}{% icon 'check-circle' 'msg-ic' %}{% elif 'error' in m.tags %}{% icon 'x-circle' 'msg-ic' %}{% elif 'warning' in m.tags %}{% icon 'alert' 'msg-ic' %}{% else %}{% icon 'info' 'msg-ic' %}{% endif %}<span>{{ m }}</span></div>{% endfor %}
+  {% for m in messages %}<div class="msg msg-row {{ m.tags }}">{% if 'success' in m.tags %}{% icon 'check-circle' 'msg-ic' %}{% elif 'error' in m.tags %}{% icon 'x-circle' 'msg-ic' %}{% elif 'warning' in m.tags %}{% icon 'alert' 'msg-ic' %}{% else %}{% icon 'info' 'msg-ic' %}{% endif %}<span>{{ m }}</span></div>{% endfor %}
   {% block content %}{% endblock %}
 </main>
 <dialog id="app-dlg" class="dlg msgdlg" aria-labelledby="app-dlg-title">
