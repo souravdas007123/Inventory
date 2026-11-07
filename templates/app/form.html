@@ -246,10 +246,16 @@ function drawUnits(tr, p, box) {
   const q = rowField(tr, 'qty');
   if (q) { q.placeholder = 'Qty in ' + curU.name; const td = q.closest('td'); if (td) td.setAttribute('data-label', 'Qty (' + curU.name + ')'); }
 }
+// The salt (composition) of the medicine, in its own colour, so it is the first thing seen under the row
+function saltChip(box, comp) {
+  if (comp) bchip(box, '\u{1F48A} Salt: ' + comp, 'salt');
+  else bchip(box, 'Salt not written for this medicine (add it in Products)', 'amber');
+}
 function drawBatches(tr, p) {
   ensureUnits(tr, p, false);
   const hr = batchRow(tr, true), box = hr.querySelector('.bh'); box.textContent = '';
   const unit = p.unit_name || '', list = p.batches || [];
+  saltChip(box, p.composition);
   drawUnits(tr, p, box);
   if (!list.length) {
     bchip(box, +p.stock_qty > 0 && !p.expired_qty ? 'This stock has no batch record' : 'No sellable batch in stock', 'amber');
@@ -281,15 +287,16 @@ function drawAlts(tr, p, box) {
     if (!alts.length) return;
     const t = document.createElement('button'); t.type = 'button'; t.className = 'btn ghost sm';
     t.textContent = '↔ Same salt in stock (' + alts.length + ')'; t.title = 'Show other medicines with the same salt, cheapest first';
-    t.onclick = () => { t.remove(); listAlts(tr, alts, box, false, 'Same salt in stock (cheapest first). One tap adds it as a new row:'); };
+    t.onclick = () => { t.remove(); listAlts(tr, alts, box, false, 'Same salt in stock (cheapest first). One tap adds it as a new row:', p.composition); };
     box.appendChild(t);
     return;
   }
   if (!alts.length) { bchip(box, out ? 'Out of stock, and no other medicine with the same salt is available.' : 'Only ' + avail + ' ' + unit + ' available, and no other medicine with the same salt is available.', 'red'); return; }
-  listAlts(tr, alts, box, out, out ? 'Out of stock. Same salt available (cheapest first):' : 'Only ' + avail + ' ' + unit + ' available. The same salt can cover the rest:');
+  listAlts(tr, alts, box, out, out ? 'Out of stock. Same salt available (cheapest first):' : 'Only ' + avail + ' ' + unit + ' available. The same salt can cover the rest:', p.composition);
 }
-function listAlts(tr, alts, box, out, heading) {
+function listAlts(tr, alts, box, out, heading, comp) {
   bchip(box, heading, 'amber');
+  if (comp) bchip(box, '\u{1F48A} Salt: ' + comp, 'salt');
   alts.forEach(a => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost sm';
     b.textContent = a.name + ' · ' + a.stock + (a.mrp ? ' · MRP ₹' + (+a.mrp).toFixed(2) + (a.unit_name ? ' per ' + a.unit_name : '') : '') + (a.schedule && a.schedule !== 'NONE' ? ' · Sch ' + a.schedule : '');
@@ -352,6 +359,7 @@ function showResults(list) {
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'btn ghost sm';
     b.textContent = p.name + (p.mrp ? ' · MRP ₹' + (+p.mrp).toFixed(2) : '') + ' · stock ' + p.stock + (+p.available_qty <= 0 ? ' · OUT OF STOCK' : '') + (p.schedule !== 'NONE' ? ' · Sch ' + p.schedule : '');
+    if (p.composition) { const sp = document.createElement('span'); sp.className = 'salt-txt'; sp.textContent = p.composition; b.appendChild(sp); b.style.textAlign = 'left'; }
     b.onclick = () => { addProduct(p, true); scan.value = ''; resBox.textContent = ''; };
     resBox.appendChild(b);
   });
@@ -789,9 +797,11 @@ if (scan) {
   const pq = document.getElementById('pq'), pqRes = document.getElementById('pq-res');
   if (pq && pqRes) {
     let pqTimer;
-    const pqBtn = (text, fn, primary) => {
+    const pqBtn = (text, fn, primary, salt) => {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'btn sm' + (primary ? '' : ' ghost');
-      b.textContent = text; b.onclick = fn; pqRes.appendChild(b);
+      b.textContent = text;
+      if (salt) { const sp = document.createElement('span'); sp.className = 'salt-txt'; sp.textContent = salt; b.appendChild(sp); b.style.textAlign = 'left'; }
+      b.onclick = fn; pqRes.appendChild(b);
     };
     const pqPick = p => { pq.value = ''; pqRes.textContent = ''; useProduct(p.id, p.label); };
     const pqCreate = name => { pq.value = ''; pqRes.textContent = ''; openNewProduct(name); };
@@ -806,7 +816,7 @@ if (scan) {
       const list = d.results || [], exact = list.find(x => x.exact);
       if (enter && (exact || list.length === 1)) { pqPick(exact || list[0]); return; }
       if (enter && !list.length && openNewProduct) { pqCreate(q); return; }
-      list.forEach(p => pqBtn(p.label + (p.composition ? ' \u00b7 ' + p.composition : ''), () => pqPick(p), false));
+      list.forEach(p => pqBtn(p.label, () => pqPick(p), false, p.composition));
       if (openNewProduct && !exact) pqBtn('\u2795 Create "' + q + '" as a new product', () => pqCreate(q), true);
       if (!list.length && !openNewProduct) { const m = document.createElement('small'); m.textContent = 'No product found. Ask the owner to add it in Products.'; pqRes.appendChild(m); }
     }

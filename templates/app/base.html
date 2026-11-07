@@ -10,8 +10,8 @@
 {% include "app/_pwa_head.html" %}
 <style>
 :root{--bg:#f1f7f6;--card:#fff;--ink:#14302d;--mute:#587169;--line:#dcebe8;--pri:#0f9d8a;--pri2:#0b7d6e;--soft:#e3f5f2;--red:#e11d48;--amber:#d97706;--green:#059669;--side:#0f2e2b;--sidetxt:#a8c9c3;
---btn1:#0c8574;--btn2:#0a7466;--prit:#0a7466;--grn-t:#047857;--red-t:#be123c;--amb-t:#92400e;--blu-t:#1d4ed8;--grey-t:#46605a}
-@media(prefers-color-scheme:dark){:root{--bg:#09191a;--card:#112624;--ink:#e6f4f1;--mute:#8fb0aa;--line:#1d3a37;--soft:#1a4741;--side:#06130f;--prit:#5fe0cc;--grn-t:#34d399;--red-t:#fb7185;--amb-t:#fbbf24;--blu-t:#60a5fa;--grey-t:#a9c7c1}}
+--btn1:#0c8574;--btn2:#0a7466;--prit:#0a7466;--grn-t:#047857;--red-t:#be123c;--amb-t:#92400e;--blu-t:#1d4ed8;--salt-t:#4338ca;--grey-t:#46605a}
+@media(prefers-color-scheme:dark){:root{--bg:#09191a;--card:#112624;--ink:#e6f4f1;--mute:#8fb0aa;--line:#1d3a37;--soft:#1a4741;--side:#06130f;--prit:#5fe0cc;--grn-t:#34d399;--red-t:#fb7185;--amb-t:#fbbf24;--blu-t:#60a5fa;--salt-t:#a5b4fc;--grey-t:#a9c7c1}}
 *{box-sizing:border-box}
 body{margin:0;font:13.5px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
 a{color:inherit;text-decoration:none}
@@ -60,7 +60,7 @@ input.autofill{outline:2px solid var(--amber);outline-offset:-2px}
 .t .sub{display:block;color:var(--mute);font-size:12px;line-height:1.35;margin-top:1px}
 .badge{padding:1px 9px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap}
 .badge.green{background:#05966922;color:var(--grn-t)}.badge.red{background:#e11d4822;color:var(--red-t)}
-.badge.amber{background:#d9770626;color:var(--amb-t)}.badge.grey{background:var(--line);color:var(--grey-t)}.badge.blue{background:#2563eb22;color:var(--blu-t)}
+.badge.amber{background:#d9770626;color:var(--amb-t)}.badge.grey{background:var(--line);color:var(--grey-t)}.badge.blue{background:#2563eb22;color:var(--blu-t)}.badge.salt{background:#6366f124;color:var(--salt-t);border:1px solid #6366f155}.salt-txt{display:block;font-size:12px;font-weight:700;color:var(--salt-t);margin-top:1px}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--pri);outline-offset:0;border-color:var(--pri)}
 input,select,textarea{width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit}
 input[type=checkbox]{width:auto;transform:scale(1.2)}
