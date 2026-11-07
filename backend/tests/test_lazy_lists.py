@@ -146,3 +146,38 @@ class SharedChoicesTests(StockMixin, TestCase):
         purchase, item = self.buy(qty=4, invoice='S-2')
         page = self.c.get('/purchases/%d/' % purchase.pk).content.decode()
         self.assertRegex(page, r'<option value="%d" selected>' % self.strip.pk)
+
+
+@override_settings(**SAFE)
+class LiveSearchTests(StockMixin, TestCase):
+    """Searching in a list: matches come first by name, and the pages are ready for live search."""
+
+    def setUp(self):
+        super().setUp()
+        self.c = Client()
+        self.c.force_login(get_user_model().objects.create_superuser('boss', 'b@x.com', 'pw'))
+
+    def _names(self, url):
+        import re
+        page = self.c.get(url).content.decode()
+        return re.findall(r'<td><b>([^<]+)</b>', page) or re.findall(r'<td>([^<]+)</td>', page)
+
+    def test_names_that_start_with_the_text_come_first(self):
+        Product.objects.create(name='Betadine 5%', composition='Povidone iodine (dosage form)')
+        Product.objects.create(name='Dolo 650', composition='Paracetamol 650mg')
+        Product.objects.create(name='Zydo Plus', composition='')
+        r = self.c.get('/products/', {'q': 'do', 'per': 100}).content.decode()
+        self.assertLess(r.index('Dolo 650'), r.index('Zydo Plus'))
+        self.assertLess(r.index('Zydo Plus'), r.index('Betadine 5%'))          # name contains "do" before only composition matches
+
+    def test_one_letter_search_works_and_empty_search_lists_everything(self):
+        Product.objects.create(name='Aspirin')
+        self.assertContains(self.c.get('/products/', {'q': 'a'}), 'Aspirin')
+        self.assertContains(self.c.get('/products/', {'q': ''}), 'Aspirin')
+
+    def test_search_pages_are_wired_for_live_search(self):
+        for url in ('/products/', '/customers/', '/suppliers/', '/bills/', '/supplier_prices/', '/finder/'):
+            page = self.c.get(url).content.decode()
+            self.assertIn('data-live="live-region"', page, url)
+            self.assertIn('id="live-region"', page, url)
+            self.assertIn("form[data-live]", page, url)                       # the script is on the page

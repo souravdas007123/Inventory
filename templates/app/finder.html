@@ -4,10 +4,11 @@
 {% block content %}
 <div class="head"><h1>{% icon 'pill' %} Medicine Finder</h1></div>
 <div class="msg info">Type a medicine name or a salt (for example <i>Paracetamol</i>). For each medicine you see the other medicines with exactly the same composition, in stock first and cheapest first. This is how you offer a customer another brand when theirs is not available.</div>
-<form method="get" class="card" style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:end">
+<form method="get" class="card" data-live="live-region" style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:end">
   <div class="fld" style="margin:0;flex:1;min-width:220px"><label for="q">Medicine or salt</label><input id="q" name="q" value="{{ q }}" maxlength="100" autofocus autocomplete="off"></div>
   <button class="btn">{% icon 'search' %} Find</button>{% if searched %}<a class="btn ghost" href="{% url 'finder' %}">Clear</a>{% endif %}
 </form>
+<div id="live-region" aria-live="polite">
 {% for r in results %}
 <div class="card" style="margin-bottom:14px">
   <h3 style="margin:0">{{ r.product.name }} {% if r.product.sellable > 0 %}<span class="badge green">In stock: {{ r.product.stock_display }}</span>{% else %}<span class="badge red">Out of stock</span>{% endif %}</h3>
@@ -28,4 +29,6 @@
 {% empty %}
 {% if searched %}<div class="card"><div class="empty">No medicine found for “{{ q }}”.</div></div>{% endif %}
 {% endfor %}
+</div>
 {% endblock %}
+{% block scripts %}<script>{% include "app/livesearch.js" %}</script>{% endblock %}

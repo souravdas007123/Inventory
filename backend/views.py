@@ -680,7 +680,14 @@ def listing(request, key):
                 cfg['prepare'](objs[i:i + 500])
         rows = [[export_value(fn(o)) for _, fn in cfg['cols']] for o in objs]
         return table_download(f"symaso_{key}_{timezone.localdate():%Y%m%d}", [h for h, _ in cfg['cols']], rows, fmt)
-    pg = Paginator(qs.order_by(*cfg['order']), per).get_page(request.GET.get('page'))
+    order = list(cfg['order'])
+    if q and order[:1] == ['name'] and 'name' in cfg.get('search', ()):
+        # a name list that is searched: names that START with the text come first (typing "do" shows Dolo before Betadine), then
+        # names that contain it, then the rest (found through the composition, barcode ...); each group stays in A-Z order
+        qs = qs.annotate(_rank=models.Case(models.When(name__istartswith=q, then=0), models.When(name__icontains=q, then=1),
+                                           default=2, output_field=models.IntegerField()))
+        order = ['_rank'] + order
+    pg = Paginator(qs.order_by(*order), per).get_page(request.GET.get('page'))
     summary_line = ''
     if key == 'expenses':       # this month's total and its split by type
         t = timezone.localdate()

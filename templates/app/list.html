@@ -13,13 +13,14 @@
 {% if cfg.hint %}<div class="msg info">{{ cfg.hint|emoji_icons }}</div>{% endif %}
 {% if summary_line %}<div class="msg info">{{ summary_line }}</div>{% endif %}
 <div class="card">
-  <form class="search" method="get">
-    <input name="q" value="{{ q }}" placeholder="Search...">
+  <form class="search" method="get" data-live="live-region">
+    <input name="q" value="{{ q }}" placeholder="Search..." autocomplete="off" aria-label="Search" enterkeyhint="search">
     <select name="per" style="width:auto" onchange="this.form.submit()">
       {% for n in per_opts %}<option value="{{ n }}" {% if n == per %}selected{% endif %}>{{ n }} / page</option>{% endfor %}
     </select>
     <button class="btn ghost">Search</button>
   </form>
+  <div id="live-region" aria-live="polite">
   <div class="tw"><table class="t">
     <thead><tr>{% for h in heads %}<th>{{ h }}</th>{% endfor %}{% if not cfg.readonly or has_actions %}<th></th>{% endif %}</tr></thead>
     <tbody>
@@ -55,6 +56,7 @@
       <b>Page {{ page.number }} / {{ page.paginator.num_pages }}</b>
       {% if page.has_next %}<a class="btn ghost sm" href="?{{ base }}&page={{ page.next_page_number }}">Next ›</a><a class="btn ghost sm" href="?{{ base }}&page={{ page.paginator.num_pages }}">»</a>{% endif %}
     {% endif %}
+  </div>
   </div>
 </div>
 {% if key == 'bills' %}
@@ -273,3 +275,4 @@
 </script>
 {% endif %}
 {% endblock %}
+{% block scripts %}<script>{% include "app/livesearch.js" %}</script>{% endblock %}
