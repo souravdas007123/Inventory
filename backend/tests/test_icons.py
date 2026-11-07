@@ -90,3 +90,7 @@ class ScreenLayoutRulesTests(TestCase):
 
     def test_the_calendar_button_shows_on_the_dark_theme(self):
         self.assertIn('input::-webkit-calendar-picker-indicator{filter:invert(', self.css())
+
+    def test_the_unit_list_of_an_invoice_row_is_wide_enough_to_read(self):
+        form = open('templates/app/form.html', encoding='utf8').read()
+        self.assertIn('#items-table select[name$="-unit"]{min-width:122px}', form)
