@@ -1,20 +1,22 @@
 {% extends "app/base.html" %}
 {% load icons %}
-{% block title %}Users & Sign-ins{% endblock %}
+{% block title %}Staff and Access{% endblock %}
 {% block content %}
-<div class="head"><h1>{% icon 'user' %} Users &amp; Sign-ins</h1><a class="btn ghost sm" href="/audit/?q=LOGIN">Sign-in history</a></div>
+<div class="head"><h1>{% icon 'user' %} Staff and Access</h1><div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm" href="{% url 'staff_new' %}">{% icon 'plus' %} Add staff member</a><a class="btn ghost sm" href="/audit/?q=LOGIN">Sign-in history</a></div></div>
 <div class="msg info">Every sign-in, sign-out and failed sign-in is written to the Audit Log with the IP address. Many failed sign-ins for one user can mean that someone is guessing the password.</div>
 <div class="card"><div class="tw"><table class="t">
-  <thead><tr><th>User</th><th>Role</th><th>Last sign-in</th><th>Last action</th><th style="text-align:right">Actions (7 days)</th><th style="text-align:right">Failed sign-ins (7 days)</th></tr></thead>
+  <thead><tr><th>User</th><th>Role</th><th>Last sign-in</th><th>Last action</th><th style="text-align:right">Actions (7 days)</th><th style="text-align:right">Failed sign-ins (7 days)</th><th></th></tr></thead>
   {% for r in rows %}
   <tr>
-    <td data-label="User"><b>{{ r.username }}</b>{% if not r.active %} <span class="badge">disabled</span>{% endif %}</td>
-    <td data-label="Role">{{ r.role }}</td>
+    <td data-label="User"><b>{{ r.username }}</b>{% if r.full_name %}<br><small style="color:var(--mute)">{{ r.full_name }}</small>{% endif %}{% if not r.active %} <span class="badge grey">disabled</span>{% endif %}</td>
+    <td data-label="Role"><span class="badge {% if r.owner %}blue{% else %}green{% endif %}">{{ r.role }}</span></td>
     <td data-label="Last sign-in">{% if r.last_login %}{{ r.last_login|date:"d M Y, h:i A" }}{% else %}Never{% endif %}</td>
     <td data-label="Last action">{% if r.last_action %}{{ r.last_action }}<br><small style="color:var(--mute)">{{ r.last_action_at|date:"d M Y, h:i A" }}</small>{% else %}-{% endif %}</td>
     <td data-label="Actions (7 days)" style="text-align:right">{{ r.week }}</td>
     <td data-label="Failed sign-ins (7 days)" style="text-align:right">{% if r.failed %}<b style="color:var(--red-t)">{{ r.failed }}</b>{% else %}0{% endif %}</td>
+    <td data-label="" style="white-space:nowrap;text-align:right">{% if not r.owner %}<a class="btn ghost sm" href="{% url 'staff_edit' r.pk %}">{% icon 'pencil' %} Edit</a>
+      <form method="post" action="{% url 'staff_active' r.pk %}" style="display:inline">{% csrf_token %}<button class="btn sm {% if r.active %}red{% else %}ghost{% endif %}" {% if r.active %}data-confirm="Disable {{ r.username }}? They can no longer sign in until you enable them again." data-confirm-yes="Disable"{% endif %}>{% if r.active %}{% icon 'pause' %} Disable{% else %}{% icon 'play' %} Enable{% endif %}</button></form>{% endif %}</td>
   </tr>
-  {% empty %}<tr><td colspan="6">No users.</td></tr>{% endfor %}
+  {% empty %}<tr><td colspan="7">No users.</td></tr>{% endfor %}
 </table></div></div>
 {% endblock %}
