@@ -4,7 +4,7 @@ import re
 
 from django.contrib.auth import get_user_model
 from django.template import Context, Template
-from django.test import TestCase, override_settings
+from django.test import Client, TestCase, override_settings
 
 from backend import views
 from backend.templatetags import icons
@@ -105,3 +105,22 @@ class ScreenLayoutRulesTests(TestCase):
             t = open(f, encoding='utf8').read()
             if ('{% icon' in t or 'emoji_icons' in t) and '{% extends' not in t and '<html' in t:
                 self.assertIn('.ic{width:1.15em', t, f)               # else the icon is drawn at full size (print pages, notes)
+
+
+@override_settings(**SAFE)
+class BillOutOfStockScreenTests(TestCase):
+    """The bill screen marks medicines that cannot be sold (the behaviour itself was checked in a browser)."""
+
+    def test_new_bill_page_carries_the_out_of_stock_helpers(self):
+        c = Client()
+        c.force_login(get_user_model().objects.create_superuser('boss', 'b@x.com', 'pw'))
+        page = c.get('/bills/new/').content.decode()
+        for marker in ('id="oos-bar"', 'tr.row-oos', 'function showOut(', 'function pick(', 'oos-tag',
+                       'out of stock or short', "const isOut = p => +p.available_qty <= 0;"):
+            self.assertIn(marker, page, marker)
+        self.assertEqual(page.count('Salt: \' + comp'), 1)                 # one salt chip per hint line (the substitute list no longer adds a second)
+
+    def test_other_forms_do_not_get_the_bill_warning_bar(self):
+        c = Client()
+        c.force_login(get_user_model().objects.create_superuser('boss', 'b@x.com', 'pw'))
+        self.assertNotIn('id="oos-bar"', c.get('/purchases/new/').content.decode())

@@ -32,6 +32,7 @@
   <div id="items-sec">
   <h3>{{ inline_title }}</h3>
   {% if key == 'bills' %}
+  <div id="oos-bar" class="msg msg-row error" role="alert" style="display:none"></div>
   <div id="scan-box" style="margin-bottom:12px">
     <input id="scan" type="text" autocomplete="off" placeholder="Scan a barcode or type a medicine name (press Enter to add)">
     <small style="color:var(--mute);display:block;margin-top:4px">Shortcuts: <b>F2</b> search · <b>Enter</b> next field · <b>F9</b> save bill</small>
@@ -63,6 +64,14 @@
     tr.row-deleted td{opacity:.45}tr.row-deleted td select,tr.row-deleted td input{text-decoration:line-through;pointer-events:none}
     tr.row-deleted td .rowdel{opacity:1;pointer-events:auto;background:var(--pri);color:#fff;border-color:var(--pri)}
     @media(max-width:820px){.rowdel{width:40px;height:40px}}
+    .btn.oos{border-color:var(--red-t);color:var(--red-t);background:transparent;opacity:.92}
+    .btn.oos:hover{background:color-mix(in srgb,var(--red-t) 10%,transparent)}
+    .oos-tag{display:inline-block;margin-left:6px;padding:0 8px;border-radius:99px;font-size:11px;font-weight:700;background:var(--red-t);color:#fff;white-space:nowrap}
+    .oos-panel{flex:1 1 100%;border:1.5px solid var(--red-t);border-radius:12px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+    .oos-panel .oos-h{flex:1 1 100%;font-weight:700;color:var(--red-t)}.oos-panel .oos-s{flex:1 1 100%;font-size:12px;color:var(--mute)}
+    #items-table tr.row-oos>td{background:color-mix(in srgb,var(--red-t) 9%,transparent)}
+    #items-table tr.row-oos>td:first-child{box-shadow:inset 3px 0 0 var(--red-t)}
+    #items-table tr.row-oos+tr.hintrow>td{background:color-mix(in srgb,var(--red-t) 9%,transparent)}
   </style>
   {% if key == 'bills' or key == 'purchases' %}
   <style>
@@ -261,7 +270,7 @@ function drawBatches(tr, p) {
   saltChip(box, p.composition);
   drawUnits(tr, p, box);
   if (!list.length) {
-    bchip(box, +p.stock_qty > 0 && !p.expired_qty ? 'This stock has no batch record' : 'No sellable batch in stock', 'amber');
+    bchip(box, +p.stock_qty > 0 && !p.expired_qty ? 'This stock has no batch record' : 'No sellable batch in stock', +p.available_qty <= 0 ? 'red' : 'amber');
   } else {
     bchip(box, 'Sell first: ' + batchTxt(list[0], unit), expCls(list[0]));
     list.slice(1, 3).forEach(b => bchip(box, 'Next: ' + batchTxt(b, unit), 'grey'));
@@ -285,6 +294,7 @@ function drawAlts(tr, p, box) {
   const f = uSel && uSel.value && p.factors[uSel.value] ? p.factors[uSel.value] : 1;
   const need = Math.round((parseFloat(qEl && qEl.value) || 0) * f), avail = +p.available_qty || 0;
   const out = avail <= 0, short = !out && need > avail;
+  tr.classList.toggle('row-oos', out || short);                   // the row (and the hint line under it) turn red: it cannot be saved like this
   const alts = p.alts || [];
   if (!out && !short) {                                           // enough stock: the same-salt list is there on request (a customer may want a cheaper brand)
     if (!alts.length) return;
@@ -295,11 +305,10 @@ function drawAlts(tr, p, box) {
     return;
   }
   if (!alts.length) { bchip(box, out ? 'Out of stock, and no other medicine with the same salt is available.' : 'Only ' + avail + ' ' + unit + ' available, and no other medicine with the same salt is available.', 'red'); return; }
-  listAlts(tr, alts, box, out, out ? 'Out of stock. Same salt available (cheapest first):' : 'Only ' + avail + ' ' + unit + ' available. The same salt can cover the rest:', p.composition);
+  listAlts(tr, alts, box, out, out ? 'Out of stock: a bill cannot be saved with it. Same salt in stock (cheapest first):' : 'Only ' + avail + ' ' + unit + ' available. The same salt can cover the rest:', p.composition);
 }
 function listAlts(tr, alts, box, out, heading, comp) {
-  bchip(box, heading, 'amber');
-  if (comp) bchip(box, '@pill Salt: ' + comp, 'salt');
+  bchip(box, heading, out ? 'red' : 'amber');                      // the salt is already shown in its own chip at the top of the hint line
   alts.forEach(a => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost sm';
     b.textContent = a.name + ' · ' + a.stock + (a.mrp ? ' · MRP ₹' + (+a.mrp).toFixed(2) + (a.unit_name ? ' per ' + a.unit_name : '') : '') + (a.schedule && a.schedule !== 'NONE' ? ' · Sch ' + a.schedule : '');
@@ -321,7 +330,7 @@ async function useAlt(tr, a, replace) {
 async function showBatches(tr) {
   if (!NEW_BILL) return;
   const sel = rowField(tr, 'product'); if (!sel) return;
-  if (!sel.value) { const hr = batchRow(tr, false); if (hr) hr.style.display = 'none'; const us = rowField(tr, 'unit'), pb = us && us.closest('td') && us.closest('td').querySelector('.upills'); if (pb) pb.remove(); return; }
+  if (!sel.value) { tr.classList.remove('row-oos'); const hr = batchRow(tr, false); if (hr) hr.style.display = 'none'; const us = rowField(tr, 'unit'), pb = us && us.closest('td') && us.closest('td').querySelector('.upills'); if (pb) pb.remove(); return; }
   const pid = sel.value, p = await getInfo(pid);
   if (p && rowField(tr, 'product').value === pid) drawBatches(tr, p);
 }
@@ -331,6 +340,15 @@ rowsBody.addEventListener('input', e => {
   const tr = e.target.closest('tr'); clearTimeout(batchTimer); batchTimer = setTimeout(() => showBatches(tr), 200);
 });
 rowsBody.querySelectorAll('tr').forEach(tr => { if (rowField(tr, 'product') && rowField(tr, 'product').value) showBatches(tr); });
+// The red line above the search box: how many rows are out of stock or short (they turn red; the bill cannot be saved with them)
+function updateStockWarn() {
+  const bar = document.getElementById('oos-bar'); if (!bar) return;
+  const n = [...rowsBody.querySelectorAll('tr.row-oos')].filter(tr => !isGone(tr)).length;
+  bar.style.display = n ? 'flex' : 'none';
+  if (n) { bar.textContent = ''; const sp = document.createElement('span'); setLabel(sp, '@alert ' + n + (n === 1 ? ' row is' : ' rows are') + ' out of stock or short (shown in red). Choose another medicine or remove the row before saving.'); bar.appendChild(sp); }
+}
+new MutationObserver(() => { clearTimeout(window.__oosT); window.__oosT = setTimeout(updateStockWarn, 50); })
+  .observe(rowsBody, {subtree: true, childList: true, attributes: true, attributeFilter: ['class']});
 const isGone = tr => { const d = tr.querySelector('[name$="-DELETE"]'); return !!(d && d.checked); };      // a saved row marked with a cross
 function addProduct(p, jump) {
   const toQty = tr => { if (!jump) return; const q = rowField(tr, 'qty'); if (q) { q.focus(); q.select(); } };
@@ -356,25 +374,57 @@ function addProduct(p, jump) {
   showBatches(target);
   toQty(target);
 }
+const isOut = p => +p.available_qty <= 0;
+function clearSearch() { scan.value = ''; resBox.textContent = ''; }
+// A medicine that cannot be sold is not put into the bill: the person sees what can be sold instead (same salt, cheapest first).
+let oosQuery = null;
+async function showOut(p) {
+  oosQuery = scan.value.trim();                                    // the automatic search of the same text must not wipe this panel
+  resBox.textContent = '';
+  const panel = document.createElement('div'); panel.className = 'oos-panel'; panel.setAttribute('role', 'alert');
+  const h = document.createElement('div'); h.className = 'oos-h'; setLabel(h, '@alert ' + p.name + ' is out of stock'); panel.appendChild(h);
+  const sub = document.createElement('div'); sub.className = 'oos-s'; sub.textContent = 'Looking for the same salt in stock...'; panel.appendChild(sub);
+  resBox.appendChild(panel);
+  const info = await getInfo(p.id), alts = (info && info.alts) || [];
+  if (!panel.isConnected) return;                                 // the search was changed meanwhile
+  const salt = p.composition ? ' Salt: ' + p.composition + '.' : '';
+  sub.textContent = !p.composition ? 'No salt is written for this medicine, so no substitute can be suggested. Add the salt in Products.'
+    : alts.length ? 'A bill cannot be saved with it.' + salt + ' In stock with the same salt (cheapest first), tap one to add it:'
+    : 'A bill cannot be saved with it, and no other medicine with the same salt is in stock.' + salt;
+  alts.forEach(a => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn sm';
+    b.textContent = a.name + ' · ' + a.stock + (a.mrp ? ' · MRP ₹' + (+a.mrp).toFixed(2) + (a.unit_name ? ' per ' + a.unit_name : '') : '') + (a.schedule && a.schedule !== 'NONE' ? ' · Sch ' + a.schedule : '');
+    b.onclick = async () => { const i = await getInfo(a.id); if (!i) { appAlert('Could not load this medicine. Please try again.'); return; } addProduct(i, true); clearSearch(); };
+    panel.appendChild(b);
+  });
+  const c = document.createElement('button'); c.type = 'button'; c.className = 'btn ghost sm'; c.textContent = 'Close'; c.onclick = () => { resBox.textContent = ''; scan.focus(); };
+  panel.appendChild(c);
+}
+function pick(p, jump) { if (isOut(p)) { showOut(p); return; } addProduct(p, jump); clearSearch(); }
 function showResults(list) {
   resBox.textContent = '';
-  list.forEach(p => {
-    const b = document.createElement('button');
-    b.type = 'button'; b.className = 'btn ghost sm';
-    b.textContent = p.name + (p.mrp ? ' · MRP ₹' + (+p.mrp).toFixed(2) : '') + ' · stock ' + p.stock + (+p.available_qty <= 0 ? ' · OUT OF STOCK' : '') + (p.schedule !== 'NONE' ? ' · Sch ' + p.schedule : '');
+  const ordered = list.filter(p => !isOut(p)).concat(list.filter(isOut));          // what can be sold first, the out-of-stock ones last
+  ordered.forEach(p => {
+    const out = isOut(p), b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn ghost sm' + (out ? ' oos' : '');
+    b.textContent = p.name + (p.mrp ? ' · MRP ₹' + (+p.mrp).toFixed(2) : '') + (out ? '' : ' · stock ' + p.stock) + (p.schedule !== 'NONE' ? ' · Sch ' + p.schedule : '');
+    if (out) { b.appendChild(document.createTextNode(' ')); const t = document.createElement('span'); t.className = 'oos-tag'; t.textContent = 'Out of stock'; b.appendChild(t); }
     if (p.composition) { const sp = document.createElement('span'); sp.className = 'salt-txt'; sp.textContent = p.composition; b.appendChild(sp); b.style.textAlign = 'left'; }
-    b.onclick = () => { addProduct(p, true); scan.value = ''; resBox.textContent = ''; };
+    b.onclick = () => pick(p, true);
     resBox.appendChild(b);
   });
 }
 async function lookup(q, enter) {
   if (!q) { resBox.textContent = ''; return; }
+  if (!enter && q === oosQuery && resBox.querySelector('.oos-panel')) return;
   const r = await fetch('/api/products/lookup/?q=' + encodeURIComponent(q), {credentials: 'same-origin'});
   if (!r.ok) return;
   const data = await r.json();
   if (enter && (data.exact || data.results.length === 1)) {
     // a barcode scan keeps the cursor in the scan box (scan the next item); a typed name jumps to the qty
-    addProduct(data.results.find(x => x.barcode === q) || data.results[0], !data.exact);
+    const one = data.results.find(x => x.barcode === q) || data.results[0];
+    if (isOut(one)) { showOut(one); return; }                      // not added: the substitutes are shown instead
+    addProduct(one, !data.exact);
     scan.value = ''; resBox.textContent = ''; return;
   }
   showResults(data.results);
