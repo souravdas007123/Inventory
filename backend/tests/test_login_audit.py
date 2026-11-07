@@ -64,7 +64,7 @@ class UserPageTests(TestCase):
         auditlog.record(self.clerk, 'LOGOUT', 'Session', '')
         rows = {r['username']: r for r in login_audit.user_rows()}
         c = rows['clerk']
-        self.assertEqual(c['role'], 'No access')
+        self.assertEqual(c['role'], 'User')
         self.assertIsNotNone(c['last_login'])
         self.assertIn('EDIT Bill', c['last_action'])          # signing out is not an "action"
         self.assertEqual(c['week'], 2)

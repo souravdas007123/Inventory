@@ -47,16 +47,12 @@ def user_rows():
     failed = dict(AuditLog.objects.filter(user__in=names, action=FAILED,
                                           created_at__gte=timezone.now() - timedelta(days=7))
                   .values_list('user').annotate(c=Count('id')))
-    from . import access, staff_access
-    codes = staff_access.codenames_for_users([u for u in users if not u.is_superuser])
     rows = []
     for u in users:
         name = u.get_username()
-        owner = access.is_owner(u)
         a = detail.get(last.get(name))
         rows.append(dict(
-            pk=u.pk, username=name, full_name=u.get_full_name(), active=u.is_active, owner=owner,
-            role='Owner' if owner else staff_access.role_of(staff_access.grid_from(codes.get(u.pk, set()))),
+            username=name, active=u.is_active, role='Owner' if u.is_superuser else ('Staff' if u.is_staff else 'User'),
             last_login=u.last_login, last_action=(f"{a.action} {a.target}".strip() + (f" · {a.detail}" if a.detail else '')) if a else '',
             last_action_at=a.created_at if a else None, week=week.get(name, 0), failed=failed.get(name, 0)))
     return rows

@@ -72,7 +72,7 @@ NAV = [
     {'key': 'units', 'url': '/units/', 'label': 'Units', 'icon': 'ruler', 'group': 'Master Data'},
     {'key': 'import', 'url': '/import/', 'label': 'Import / Export', 'icon': 'download', 'group': 'Master Data'},
     {'key': 'audit', 'url': '/audit/', 'label': 'Audit Log', 'icon': 'eye', 'group': 'Master Data', 'staff': True},
-    {'key': 'users', 'url': '/users/', 'label': 'Staff and Access', 'icon': 'user', 'group': 'Master Data', 'staff': True},
+    {'key': 'users', 'url': '/users/', 'label': 'Users & Sign-ins', 'icon': 'user', 'group': 'Master Data', 'staff': True},
     {'key': 'health', 'url': '/health/', 'label': 'Health Score', 'icon': 'pulse', 'group': 'Master Data', 'staff': True},
     {'key': 'backup', 'url': '/backup/', 'label': 'Backup', 'icon': 'save', 'group': 'Master Data', 'staff': True},
     {'key': 'setup', 'url': '/setup/', 'label': 'Setup guide', 'icon': 'rocket', 'group': 'Master Data'},

@@ -2,7 +2,7 @@ from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.urls import path
 
-from . import blog, helpviews, landing, legal, passwordreset, pwa, security, twofactor, views, views_extra, views_import, views_new, views_staff
+from . import blog, helpviews, landing, legal, passwordreset, pwa, security, twofactor, views, views_extra, views_import, views_new
 
 # NOTE: specific paths must always come BEFORE the generic '<str:key>/...' patterns below.
 urlpatterns = [
@@ -56,9 +56,6 @@ urlpatterns = [
     path('gst/', views_extra.gst_view, name='gst'),
     path('health/', views_extra.health_view, name='health'),
     path('users/', views_extra.users_view, name='users'),
-    path('users/new/', views_staff.staff_new, name='staff_new'),
-    path('users/<int:pk>/', views_staff.staff_edit, name='staff_edit'),
-    path('users/<int:pk>/active/', views_staff.staff_active, name='staff_active'),
     path('gstr2b/', views_extra.gstr2b_view, name='gstr2b'),
     path('ca_export/', views_extra.ca_export_view, name='ca_export'),
     path('drug_register/', views_extra.drug_register_view, name='drug_register'),
