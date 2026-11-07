@@ -94,3 +94,8 @@ class ScreenLayoutRulesTests(TestCase):
     def test_the_unit_list_of_an_invoice_row_is_wide_enough_to_read(self):
         form = open('templates/app/form.html', encoding='utf8').read()
         self.assertIn('#items-table select[name$="-unit"]{min-width:122px}', form)
+
+    def test_import_buttons_of_a_card_share_one_row(self):
+        html = open('templates/app/import_home.html', encoding='utf8').read()
+        self.assertIn('.imp-acts{display:flex', html)
+        self.assertNotIn('class="btn" href', html)             # the small size keeps Import, Template and Export on one line

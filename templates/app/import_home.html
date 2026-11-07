@@ -2,6 +2,7 @@
 {% load icons %}
 {% block title %}Import / Export{% endblock %}
 {% block content %}
+<style>.imp-acts{display:flex;gap:8px;flex-wrap:wrap}.imp-acts .btn{flex:1 1 auto;justify-content:center;text-align:center;white-space:nowrap}</style>
 <div class="head"><h1>{% icon 'download' %} Import / Export</h1></div>
 <div class="msg info">Instead of entering records one by one, add all your data at once from an Excel (.xlsx) or CSV file. Download the template, fill it in, then upload it. A <b>preview</b> is shown after upload, and nothing is saved until you confirm.</div>
 <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))">
@@ -14,10 +15,10 @@
     <h3 style="margin:0">{% icon it.icon %} {{ it.title }}</h3>
     <p style="margin:0;color:var(--mute);flex:1">{{ it.desc }}</p>
     {% if it.why %}<p style="margin:0;font-size:13px"><b>{% if it.required %}Why now:{% else %}When:{% endif %}</b> {{ it.why }}</p>{% endif %}
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <a class="btn" href="{% url 'import' it.key %}">{% icon 'upload' %} Import</a>
-      <a class="btn ghost" href="{% url 'import' it.key %}?template=1">Template</a>
-      {% if it.can_export %}<a class="btn ghost" href="{% url 'import' it.key %}?export=xlsx">{% icon 'download' %} Export</a>{% endif %}
+    <div class="imp-acts">
+      <a class="btn sm" href="{% url 'import' it.key %}">{% icon 'upload' %} Import</a>
+      <a class="btn ghost sm" href="{% url 'import' it.key %}?template=1">Template</a>
+      {% if it.can_export %}<a class="btn ghost sm" href="{% url 'import' it.key %}?export=xlsx">{% icon 'download' %} Export</a>{% endif %}
     </div>
   </div>
   {% endfor %}
