@@ -99,3 +99,9 @@ class ScreenLayoutRulesTests(TestCase):
         html = open('templates/app/import_home.html', encoding='utf8').read()
         self.assertIn('.imp-acts{display:flex', html)
         self.assertNotIn('class="btn" href', html)             # the small size keeps Import, Template and Export on one line
+
+    def test_a_page_without_the_main_layout_styles_its_icons_itself(self):
+        for f in glob.glob('templates/**/*.html', recursive=True):
+            t = open(f, encoding='utf8').read()
+            if ('{% icon' in t or 'emoji_icons' in t) and '{% extends' not in t and '<html' in t:
+                self.assertIn('.ic{width:1.15em', t, f)               # else the icon is drawn at full size (print pages, notes)
