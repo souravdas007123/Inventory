@@ -97,3 +97,23 @@ class HugeIdTests(StockMixin, TestCase):
     def test_real_ids_still_work_next_to_a_huge_one(self):
         r = self.c.get('/api/gst_rates/', {'ids': f'{self.H},{self.product.pk}'})
         self.assertEqual(r.json()['rates'], {str(self.product.pk): 12})
+
+
+@override_settings(**SAFE)
+class RowCrossStyleTests(TestCase):
+    """The tick box is hidden and the ✕ is styled on EVERY form with rows (the purchase order form lacked the style)."""
+
+    def test_every_form_with_a_cross_carries_its_style(self):
+        c = Client()
+        c.force_login(get_user_model().objects.create_superuser('boss', 'b@x.com', 'pw'))
+        seen = 0
+        for url in ('/bills/new/', '/purchases/new/', '/purchase_orders/new/', '/returns/new/', '/expiry_returns/new/',
+                    '/debit_notes/new/', '/credit_notes/new/'):
+            r = c.get(url)
+            if r.status_code != 200:
+                continue
+            page = r.content.decode()
+            if 'class="rowdel"' in page:
+                seen += 1
+                self.assertIn('.delcell input[type=checkbox]{display:none}', page, url)
+        self.assertGreaterEqual(seen, 3)
