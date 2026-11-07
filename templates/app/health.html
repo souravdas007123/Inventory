@@ -1,4 +1,5 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Health Score{% endblock %}
 {% block content %}
 <style>
@@ -19,8 +20,8 @@
 .hs-chk ul{margin:4px 0 0 18px;color:var(--mute);font-size:13px}
 .hs-hist{display:flex;gap:3px;align-items:flex-end;height:60px}.hs-hist i{flex:1;background:var(--pri);border-radius:3px 3px 0 0;min-width:4px;opacity:.85}
 </style>
-<div class="head"><h1>🩺 Health Score</h1>
-  <form method="post" style="margin:0">{% csrf_token %}<button class="btn">🔄 Measure again</button></form></div>
+<div class="head"><h1>{% icon 'pulse' %} Health Score</h1>
+  <form method="post" style="margin:0">{% csrf_token %}<button class="btn">{% icon 'refresh' %} Measure again</button></form></div>
 {% if problem %}<div class="msg error">{{ problem }}</div>{% else %}
 <div class="card">
   <div class="hs-top">
@@ -40,7 +41,7 @@
 {% for s in data.sections %}
 <div class="card" style="margin-top:14px"><h3 style="margin-top:0">{{ s.title }} <small style="color:var(--mute);font-weight:400">· {% if s.score is None %}not measured{% else %}{{ s.score }} / 100{% endif %}</small></h3>
   {% for c in s.checks %}<div class="hs-chk">
-    <div class="hs-ico {{ c.status }}">{% if c.status == 'ok' %}✓{% elif c.status == 'warn' %}⚠{% elif c.status == 'bad' %}✖{% elif c.status == 'info' %}ℹ{% else %}?{% endif %}</div>
+    <div class="hs-ico {{ c.status }}">{% if c.status == 'ok' %}{% icon 'check' %}{% elif c.status == 'warn' %}{% icon 'alert' %}{% elif c.status == 'bad' %}{% icon 'x' %}{% elif c.status == 'info' %}ℹ{% else %}?{% endif %}</div>
     <div><b>{{ c.title }}</b>{% if c.lost %} <span class="badge {% if c.status == 'bad' %}red{% else %}amber{% endif %}">-{{ c.lost }}</span>{% endif %}
       <div style="color:var(--mute)">{{ c.detail }}</div>
       {% if c.items %}<ul>{% for i in c.items %}<li>{{ i }}</li>{% endfor %}</ul>{% endif %}</div>

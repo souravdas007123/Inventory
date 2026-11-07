@@ -1,7 +1,8 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Drug Register{% endblock %}
 {% block content %}
-<div class="head"><h1>📒 Drug Register <small style="font-size:15px;color:var(--mute)">{{ month_name }} {{ year }}</small></h1>
+<div class="head"><h1>{% icon 'book' %} Drug Register <small style="font-size:15px;color:var(--mute)">{{ month_name }} {{ year }}</small></h1>
   <form method="get" class="search" style="margin:0">
     <select name="schedule" style="width:auto">
       <option value="H1X" {% if sel == 'H1X' %}selected{% endif %}>Schedule H1 + X</option>
@@ -11,7 +12,7 @@
     <select name="month" style="width:auto">{% for n, name in months %}<option value="{{ n }}" {% if n == month %}selected{% endif %}>{{ name }}</option>{% endfor %}</select>
     <select name="year" style="width:auto">{% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}</select>
     <button class="btn">Show</button>
-    <button class="btn ghost" name="export" value="xlsx">⬇ Excel</button>
+    <button class="btn ghost" name="export" value="xlsx">{% icon 'download' %} Excel</button>
   </form>
 </div>
 <div class="msg info">Set the Drug Schedule (H / H1 / X) for each product on the Products page. Doctor and Patient details are required while billing; this register is generated automatically from those bills.</div>

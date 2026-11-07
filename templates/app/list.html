@@ -1,15 +1,16 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}{{ cfg.title }}{% endblock %}
 {% block content %}
 <div class="head"><h1>{{ cfg.title }}</h1>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-    {% if import_kind %}<a class="btn ghost" href="{% url 'import' import_kind %}">⬆ Import</a>{% endif %}
-    <a class="btn ghost" href="?{{ base }}&export=xlsx" title="Download this whole list (matching the current search) as Excel">⬇ Excel</a>
+    {% if import_kind %}<a class="btn ghost" href="{% url 'import' import_kind %}">{% icon 'upload' %} Import</a>{% endif %}
+    <a class="btn ghost" href="?{{ base }}&export=xlsx" title="Download this whole list (matching the current search) as Excel">{% icon 'download' %} Excel</a>
     <a class="btn ghost" href="?{{ base }}&export=csv">CSV</a>
     {% if cfg.start_url %}<form method="post" action="{{ cfg.start_url }}" style="margin:0">{% csrf_token %}<button class="btn">+ New {{ cfg.one }}</button></form>
     {% elif not cfg.readonly and not cfg.no_new and can_add %}<a class="btn" href="{% url 'new' key %}">+ New {{ cfg.one }}</a>{% endif %}
   </div></div>
-{% if cfg.hint %}<div class="msg info">{{ cfg.hint }}</div>{% endif %}
+{% if cfg.hint %}<div class="msg info">{{ cfg.hint|emoji_icons }}</div>{% endif %}
 {% if summary_line %}<div class="msg info">{{ summary_line }}</div>{% endif %}
 <div class="card">
   <form class="search" method="get">
@@ -26,17 +27,17 @@
       {% for c in r.cells %}<td>{{ c }}</td>{% endfor %}
       {% if not cfg.readonly or has_actions %}<td class="acts" style="white-space:{% if key == 'bills' %}normal{% else %}nowrap{% endif %}">
         {% if key == 'bills' %}
-          <button type="button" class="btn ghost sm" data-pk="{{ r.pk }}" data-preview="{% url 'bill_preview' r.pk %}" data-invoice="{% url 'invoice' r.pk %}" title="See the items of this bill">👁 Preview</button>
-          <a class="btn sm" href="{% url 'invoice' r.pk %}">🖨️ Invoice</a>
-          {% if r.obj.status == 'FINAL' %}<a class="btn ghost sm" href="{% url 'bill_whatsapp' r.pk %}" target="_blank" rel="noopener" title="Send this bill to the customer on WhatsApp">💬 WhatsApp</a>{% endif %}
-          {% if r.obj.status == 'FINAL' and can_return %}<a class="btn ghost sm" href="{% url 'sales_return_new' r.pk %}">↩ Return</a>{% endif %}
+          <button type="button" class="btn ghost sm" data-pk="{{ r.pk }}" data-preview="{% url 'bill_preview' r.pk %}" data-invoice="{% url 'invoice' r.pk %}" title="See the items of this bill">{% icon 'eye' %} Preview</button>
+          <a class="btn sm" href="{% url 'invoice' r.pk %}">{% icon 'printer' %} Invoice</a>
+          {% if r.obj.status == 'FINAL' %}<a class="btn ghost sm" href="{% url 'bill_whatsapp' r.pk %}" target="_blank" rel="noopener" title="Send this bill to the customer on WhatsApp">{% icon 'message' %} WhatsApp</a>{% endif %}
+          {% if r.obj.status == 'FINAL' and can_return %}<a class="btn ghost sm" href="{% url 'sales_return_new' r.pk %}">{% icon 'undo' %} Return</a>{% endif %}
           {% if r.obj.status == 'FINAL' and is_owner %}<form method="post" action="{% url 'bill_cancel' r.pk %}" style="display:inline" data-confirm="Cancel this bill? The stock will be added back." data-confirm-yes="Yes, cancel the bill">{% csrf_token %}<button class="btn red sm">Cancel</button></form>{% endif %}
         {% else %}
-          {% if key == 'products' %}<button type="button" class="btn ghost sm" data-xpk="{{ r.pk }}" data-xpreview="{% url 'product_preview' r.pk %}" title="See the details and batches of this product">👁 Preview</button>{% endif %}
-          {% if key == 'purchases' %}<button type="button" class="btn ghost sm" data-ppk="{{ r.pk }}" data-ppreview="{% url 'purchase_preview' r.pk %}" title="See what was bought in this purchase">👁 Preview</button>{% endif %}
+          {% if key == 'products' %}<button type="button" class="btn ghost sm" data-xpk="{{ r.pk }}" data-xpreview="{% url 'product_preview' r.pk %}" title="See the details and batches of this product">{% icon 'eye' %} Preview</button>{% endif %}
+          {% if key == 'purchases' %}<button type="button" class="btn ghost sm" data-ppk="{{ r.pk }}" data-ppreview="{% url 'purchase_preview' r.pk %}" title="See what was bought in this purchase">{% icon 'eye' %} Preview</button>{% endif %}
           {% for a in r.acts %}
-            {% if a.post %}<form method="post" action="{{ a.url }}" style="display:inline"{% if a.confirm %} data-confirm="{{ a.confirm }}"{% endif %}>{% csrf_token %}<button class="btn {% if a.cls %}{{ a.cls }}{% endif %} sm">{{ a.label }}</button></form>
-            {% else %}<a class="btn sm" href="{{ a.url }}"{% if a.target %} target="{{ a.target }}" rel="noopener"{% endif %}>{{ a.label }}</a>{% endif %}
+            {% if a.post %}<form method="post" action="{{ a.url }}" style="display:inline"{% if a.confirm %} data-confirm="{{ a.confirm }}"{% endif %}>{% csrf_token %}<button class="btn {% if a.cls %}{{ a.cls }}{% endif %} sm">{{ a.label|emoji_icons }}</button></form>
+            {% else %}<a class="btn sm" href="{{ a.url }}"{% if a.target %} target="{{ a.target }}" rel="noopener"{% endif %}>{{ a.label|emoji_icons }}</a>{% endif %}
           {% endfor %}
           {% if not cfg.readonly %}
             {% if not cfg.no_edit and can_change %}<a class="btn ghost sm" href="{% url 'edit' key r.pk %}">Edit</a>{% endif %}
@@ -59,17 +60,17 @@
 {% if key == 'bills' %}
 {{ bill_data|json_script:"bill-data" }}
 <dialog id="bill-dlg" class="dlg" style="width:min(820px,calc(100% - 24px))">
-  <div class="np-head"><h3 id="bill-title">Bill</h3><button type="button" class="btn ghost sm" id="bill-close" aria-label="Close">✕</button></div>
+  <div class="np-head"><h3 id="bill-title">Bill</h3><button type="button" class="btn ghost sm" id="bill-close" aria-label="Close">{% icon 'x' %}</button></div>
   <div id="bill-body"></div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><a class="btn" id="bill-open" href="#">🖨️ Open invoice</a><button type="button" class="btn ghost" id="bill-close2">Close</button></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><a class="btn" id="bill-open" href="#">{% icon 'printer' %} Open invoice</a><button type="button" class="btn ghost" id="bill-close2">Close</button></div>
 </dialog>
 <script>
-// 👁 Preview: the items and totals of a bill in a window, without leaving the list
+// Preview: the items and totals of a bill in a window, without leaving the list
 (function () {
   var DATA = {}; try { DATA = JSON.parse(document.getElementById('bill-data').textContent) || {}; } catch (err) {}
   var dlg = document.getElementById('bill-dlg'), body = document.getElementById('bill-body');
   if (!dlg) return;
-  function el(tag, text, cls) { var e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; }
+  function el(tag, text, cls) { var e = document.createElement(tag); if (text !== undefined) setLabel(e, text); if (cls) e.className = cls; return e; }
   function line(label, value, strong) {
     var r = el('div', undefined); r.style.cssText = 'display:flex;justify-content:space-between;gap:16px;padding:3px 0' + (strong ? ';font-weight:700;font-size:15px;border-top:1px solid var(--line);margin-top:4px;padding-top:6px' : '');
     r.appendChild(el('span', label)); r.appendChild(el('span', value)); return r;
@@ -130,17 +131,17 @@
 {% if key == 'purchases' %}
 {{ bill_data|json_script:"purchase-data" }}
 <dialog id="pur-dlg" class="dlg" style="width:min(900px,calc(100% - 24px))">
-  <div class="np-head"><h3 id="pur-title">Purchase</h3><button type="button" class="btn ghost sm" id="pur-close" aria-label="Close">✕</button></div>
+  <div class="np-head"><h3 id="pur-title">Purchase</h3><button type="button" class="btn ghost sm" id="pur-close" aria-label="Close">{% icon 'x' %}</button></div>
   <div id="pur-body"></div>
   <div id="pur-foot" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"></div>
 </dialog>
 <script>
-// 👁 Preview: everything bought in a purchase invoice (batch, expiry, qty, price) in a window, without leaving the list
+// Preview: everything bought in a purchase invoice (batch, expiry, qty, price) in a window, without leaving the list
 (function () {
   var DATA = {}; try { DATA = JSON.parse(document.getElementById('purchase-data').textContent) || {}; } catch (err) {}
   var dlg = document.getElementById('pur-dlg'), body = document.getElementById('pur-body'), foot = document.getElementById('pur-foot');
   if (!dlg) return;
-  function el(tag, text, cls) { var e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; }
+  function el(tag, text, cls) { var e = document.createElement(tag); if (text !== undefined) setLabel(e, text); if (cls) e.className = cls; return e; }
   function line(label, value, strong) {
     var r = el('div'); r.style.cssText = 'display:flex;justify-content:space-between;gap:16px;padding:3px 0' + (strong ? ';font-weight:700;font-size:15px;border-top:1px solid var(--line);margin-top:4px;padding-top:6px' : '');
     r.appendChild(el('span', label)); r.appendChild(el('span', value)); return r;
@@ -148,8 +149,8 @@
   function badge(text, kind) { return el('span', text, 'badge ' + kind); }
   function footer(d) {
     foot.textContent = '';
-    if (d.edit_url) { var a = el('a', '✏️ Open / Edit', 'btn'); a.href = d.edit_url; foot.appendChild(a); }
-    if (d.return_url) { var r = el('a', '↩ Return', 'btn ghost'); r.href = d.return_url; foot.appendChild(r); }
+    if (d.edit_url) { var a = el('a', '@pencil Open / Edit', 'btn'); a.href = d.edit_url; foot.appendChild(a); }
+    if (d.return_url) { var r = el('a', '@undo Return', 'btn ghost'); r.href = d.return_url; foot.appendChild(r); }
     var c = el('button', 'Close', 'btn ghost'); c.type = 'button'; c.addEventListener('click', function () { dlg.close(); }); foot.appendChild(c);
   }
   function render(d) {
@@ -158,7 +159,7 @@
     var meta = el('div'); meta.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px';
     meta.appendChild(el('b', d.supplier));
     meta.appendChild(badge(d.count + ' item' + (d.count === 1 ? '' : 's'), 'blue'));
-    if (d.short) meta.appendChild(badge('⚠ ' + d.short + ' short-expiry', 'red'));
+    if (d.short) meta.appendChild(badge('@alert ' + d.short + ' short-expiry', 'red'));
     body.appendChild(meta);
     var wrap = el('div', undefined, 'tw'), t = el('table', undefined, 't'), hr = el('tr');
     ['Medicine', 'Batch', 'Exp', 'Qty', 'Rate', 'MRP', 'GST', 'Amount'].forEach(function (h) { hr.appendChild(el('th', h)); });
@@ -201,22 +202,22 @@
 {% if key == 'products' %}
 {{ bill_data|json_script:"product-data" }}
 <dialog id="prd-dlg" class="dlg" style="width:min(860px,calc(100% - 24px))">
-  <div class="np-head"><h3 id="prd-title">Product</h3><button type="button" class="btn ghost sm" id="prd-close" aria-label="Close">✕</button></div>
+  <div class="np-head"><h3 id="prd-title">Product</h3><button type="button" class="btn ghost sm" id="prd-close" aria-label="Close">{% icon 'x' %}</button></div>
   <div id="prd-body"></div>
   <div id="prd-foot" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"></div>
 </dialog>
 <script>
-// 👁 Preview: details of a product, its unit conversion and the batches in stock, in a window (no need to open Edit)
+// Preview: details of a product, its unit conversion and the batches in stock, in a window (no need to open Edit)
 (function () {
   var DATA = {}; try { DATA = JSON.parse(document.getElementById('product-data').textContent) || {}; } catch (err) {}
   var dlg = document.getElementById('prd-dlg'), body = document.getElementById('prd-body'), foot = document.getElementById('prd-foot');
   if (!dlg) return;
-  function el(tag, text, cls) { var e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; }
+  function el(tag, text, cls) { var e = document.createElement(tag); if (text !== undefined) setLabel(e, text); if (cls) e.className = cls; return e; }
   function badge(text, kind) { return el('span', text, 'badge ' + kind); }
   function footer(d) {
     foot.textContent = '';
-    if (d.edit_url) { var a = el('a', '✏️ Edit', 'btn'); a.href = d.edit_url; foot.appendChild(a); }
-    if (d.prices_url) { var r = el('a', '⚖️ Prices', 'btn ghost'); r.href = d.prices_url; foot.appendChild(r); }
+    if (d.edit_url) { var a = el('a', '@pencil Edit', 'btn'); a.href = d.edit_url; foot.appendChild(a); }
+    if (d.prices_url) { var r = el('a', '@scale Prices', 'btn ghost'); r.href = d.prices_url; foot.appendChild(r); }
     var c = el('button', 'Close', 'btn ghost'); c.type = 'button'; c.addEventListener('click', function () { dlg.close(); }); foot.appendChild(c);
   }
   function render(d) {

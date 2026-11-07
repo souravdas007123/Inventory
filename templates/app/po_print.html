@@ -1,3 +1,4 @@
+{% load icons %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -33,7 +34,7 @@ table{width:100%;border-collapse:collapse}
 </style>
 </head>
 <body>
-<div class="bar"><button onclick="window.print()">🖨️ Print / Save as PDF</button><a class="g" href="/purchase_orders/">← Purchase Orders</a></div>
+<div class="bar"><button onclick="window.print()">{% icon 'printer' %} Print / Save as PDF</button><a class="g" href="/purchase_orders/">← Purchase Orders</a></div>
 <div class="sheet">
   <div class="top">
     <div class="shop">

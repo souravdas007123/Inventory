@@ -1,7 +1,8 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Plan and payments{% endblock %}
 {% block content %}
-<div class="head"><h1>💳 Plan and payments</h1></div>
+<div class="head"><h1>{% icon 'card' %} Plan and payments</h1></div>
 <div class="card" style="margin-bottom:14px">
   <h3 style="margin-top:0">{{ shop.name }}</h3>
   <p style="margin:0 0 6px"><b>Status:</b> {{ state_label }}{% if state == 'locked' %} (you can view your data, but new entries are switched off){% endif %}</p>
@@ -13,13 +14,13 @@
   <p style="margin:0 0 6px">Monthly: <b>Rs {{ prices.monthly }}</b> a month. Yearly: <b>Rs {{ prices.yearly }}</b> a year{% if saving %}, which saves Rs {{ saving }}{% endif %}. Prices include GST.</p>
   <p style="margin:0;color:var(--mute)">Every plan has every feature. Your data is never deleted when a plan ends.</p>
 </div>
-{% for o in orders %}<div class="msg info" style="margin-bottom:14px">{% if o.status == 'waiting' %}⏳ Your UPI payment of <b>Rs {{ o.amount|floatformat:0 }}</b> ({{ o.get_plan_display }}, number {{ o.utr }}) is waiting for approval. We will extend your plan as soon as we see it.{% elif o.status == 'rejected' %}❌ We could not find your UPI payment {{ o.utr }}{% if o.note %}: {{ o.note }}{% endif %}. Please check the number and pay again, or write to us.{% else %}⏳ A UPI payment of <b>Rs {{ o.amount|floatformat:0 }}</b> ({{ o.get_plan_display }}) was started. <a href="{% url 'plan_upi' o.pk %}">Continue</a>{% endif %}</div>{% endfor %}
+{% for o in orders %}<div class="msg info" style="margin-bottom:14px">{% if o.status == 'waiting' %}{% icon 'hourglass' %} Your UPI payment of <b>Rs {{ o.amount|floatformat:0 }}</b> ({{ o.get_plan_display }}, number {{ o.utr }}) is waiting for approval. We will extend your plan as soon as we see it.{% elif o.status == 'rejected' %}{% icon 'x-circle' %} We could not find your UPI payment {{ o.utr }}{% if o.note %}: {{ o.note }}{% endif %}. Please check the number and pay again, or write to us.{% else %}{% icon 'hourglass' %} A UPI payment of <b>Rs {{ o.amount|floatformat:0 }}</b> ({{ o.get_plan_display }}) was started. <a href="{% url 'plan_upi' o.pk %}">Continue</a>{% endif %}</div>{% endfor %}
 {% if autopay %}<div class="card" style="margin-bottom:14px">
   <h3 style="margin-top:0">Autopay is on</h3>
   <p style="margin:0 0 6px">{{ autopay.get_plan_display }} plan, <b>Rs {{ autopay.amount|floatformat:0 }}</b> is charged {% if autopay.plan == 'yearly' %}every year{% else %}every month{% endif %} and your plan is extended each time.{% if autopay.next_charge %} Next charge: <b>{{ autopay.next_charge|date:"d M Y" }}</b>.{% endif %}</p>
   <form method="post" action="{% url 'plan_autopay_cancel' autopay.pk %}" data-confirm="Stop the autopay? You will not be charged again. Your plan stays valid until {{ end|date:'d M Y' }}." data-confirm-yes="Yes, stop autopay">{% csrf_token %}<button class="btn ghost">Stop autopay</button></form>
 </div>{% endif %}
-{% if autopay_failed %}<div class="msg info" style="margin-bottom:14px">❌ The automatic payment of Rs {{ autopay_failed.amount|floatformat:0 }} could not be taken, so autopay was stopped. Please subscribe again or pay by UPI to continue.</div>{% endif %}
+{% if autopay_failed %}<div class="msg info" style="margin-bottom:14px">{% icon 'x-circle' %} The automatic payment of Rs {{ autopay_failed.amount|floatformat:0 }} could not be taken, so autopay was stopped. Please subscribe again or pay by UPI to continue.</div>{% endif %}
 <details class="card" style="margin-bottom:14px"{% if not billing_ready %} open{% endif %}>
   <summary style="cursor:pointer;font-weight:700">Details for your invoice{% if billing_ready %} <span class="badge green">saved</span>{% else %} <span class="badge">needed before you pay</span>{% endif %}</summary>
   <p style="margin:10px 0;color:var(--mut)">These go on your tax invoice. In India the state decides the tax: CGST + SGST in {{ seller_state_name|default:"the seller's state" }}, IGST in other states. Customers in other countries are charged no tax (export of service).</p>

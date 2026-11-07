@@ -1,21 +1,22 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Backup{% endblock %}
 {% block content %}
-<div class="head"><h1>💾 Database Backup</h1></div>
+<div class="head"><h1>{% icon 'save' %} Database Backup</h1></div>
 {% if hosted %}<div class="msg info">Symaso takes a backup of your shop's data automatically every night and keeps the latest {{ keep }}. A backup that stays on the server can be lost along with the server, so download one at least once a week and keep it on your computer or Google Drive.</div>
 {% else %}<div class="msg info">{% if postgres %}All of your data is stored in the PostgreSQL database, so a daily backup is essential. Backups are made with <code>pg_dump</code> and saved on the server in{% else %}All of your data is stored in a single database file, so a daily backup is essential. Backups are compressed and saved on the server in{% endif %} <code>{{ folder }}</code>; only the latest {{ keep }} are kept.</div>{% endif %}
 <div class="card" style="margin-bottom:14px">
   <h3 style="margin-top:0">Back up now</h3>
   <form method="post" style="display:flex;gap:8px;flex-wrap:wrap">{% csrf_token %}
-    <button class="btn" name="action" value="save">💾 Create backup</button>
-    <button class="btn ghost" name="action" value="download">⬇ Create and download to my computer</button>
+    <button class="btn" name="action" value="save">{% icon 'save' %} Create backup</button>
+    <button class="btn ghost" name="action" value="download">{% icon 'download' %} Create and download to my computer</button>
   </form>
   <p style="color:var(--mute);margin:12px 0 0">A backup kept on the server can be lost along with the server, so download one at least once a week and store it on your computer or Google Drive.</p>
 </div>
 <div class="card" style="margin-bottom:14px">
   <h3 style="margin-top:0">Download all my data</h3>
   <p style="color:var(--mute);margin:0 0 10px">Get one zip file with your products, batches, bills, purchases, customers, suppliers and expenses as spreadsheets (CSV). Your data always belongs to you.</p>
-  <form method="post" action="{% url 'data_export' %}">{% csrf_token %}<button class="btn ghost">⬇ Download my data (zip)</button></form>
+  <form method="post" action="{% url 'data_export' %}">{% csrf_token %}<button class="btn ghost">{% icon 'download' %} Download my data (zip)</button></form>
 </div>
 {% if not hosted %}<div class="card" style="margin-bottom:14px">
   <h3 style="margin-top:0">Automatic daily backup (PythonAnywhere)</h3>
@@ -30,7 +31,7 @@
   <div class="tw"><table class="t">
     <thead><tr><th>File</th><th>Created</th><th>Size</th><th></th></tr></thead>
     {% for b in backups %}<tr><td>{{ b.name }}</td><td>{{ b.when|date:"d M Y, h:i A" }}</td><td>{{ b.size_kb }} KB</td>
-      <td><a class="btn ghost sm" href="{% url 'backup_download' b.name %}">⬇ Download</a></td></tr>
+      <td><a class="btn ghost sm" href="{% url 'backup_download' b.name %}">{% icon 'download' %} Download</a></td></tr>
     {% empty %}<tr><td class="empty" colspan="4">No backups have been created yet.</td></tr>{% endfor %}
   </table></div>
   {% if hosted %}<p style="color:var(--mute);margin:12px 0 0">To go back to one of these backups, use <b>Restore from a backup</b> below.</p>

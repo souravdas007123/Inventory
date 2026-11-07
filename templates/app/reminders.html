@@ -1,7 +1,8 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Payment Reminders{% endblock %}
 {% block content %}
-<div class="head"><h1>🔔 Payment Reminders</h1></div>
+<div class="head"><h1>{% icon 'bell' %} Payment Reminders</h1></div>
 <div class="msg info">
   Customers who owe you money on credit, with the biggest amount first. <b>Due since</b> is the date of their oldest unpaid credit bill.
   Press <b>WhatsApp</b>: WhatsApp opens with a polite message already written, and you only press Send. Nothing is sent without you.
@@ -23,11 +24,11 @@
       <td data-label="Owes"><b>₹{{ r.balance|floatformat:2 }}</b></td>
       <td data-label="Due since">{{ r.since|date:"d M Y" }} <span class="badge {% if r.days >= 30 %}red{% elif r.days >= 7 %}amber{% else %}grey{% endif %}">{{ r.days }} day{{ r.days|pluralize }}</span></td>
       <td data-label="Last reminder">{% if r.reminded %}{{ r.reminded|date:"d M Y" }}{% else %}<span style="color:var(--mute)">never</span>{% endif %}</td>
-      <td data-label="" style="white-space:nowrap"><a class="btn ghost sm" href="/customers/{{ r.customer.pk }}/ledger/">📒 Ledger</a>
-        {% if r.phone_ok %}<form method="post" action="{% url 'reminder_send' r.customer.pk %}" target="_blank" style="display:inline">{% csrf_token %}<button class="btn sm">💬 WhatsApp</button></form>
+      <td data-label="" style="white-space:nowrap"><a class="btn ghost sm" href="/customers/{{ r.customer.pk }}/ledger/">{% icon 'book' %} Ledger</a>
+        {% if r.phone_ok %}<form method="post" action="{% url 'reminder_send' r.customer.pk %}" target="_blank" style="display:inline">{% csrf_token %}<button class="btn sm">{% icon 'message' %} WhatsApp</button></form>
         {% else %}<span class="badge amber" title="Add a phone number in Customers">No phone</span>{% endif %}</td>
     </tr>{% endfor %}</tbody>
   </table></div>
-  {% else %}<div class="empty">No customer owes you money{% if min_days or skip %} with these filters{% endif %}. 🎉</div>{% endif %}
+  {% else %}<div class="empty">No customer owes you money{% if min_days or skip %} with these filters{% endif %}. {% icon 'sparkles' %}</div>{% endif %}
 </div>
 {% endblock %}

@@ -1,13 +1,14 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Sign-in security{% endblock %}
 {% block content %}
-<div class="head"><h1>🔐 Sign-in security</h1></div>
+<div class="head"><h1>{% icon 'lock' %} Sign-in security</h1></div>
 {% if new_codes %}
 <div class="card" style="margin-bottom:14px;border:2px solid var(--amber)">
   <h3 style="margin-top:0">Your recovery codes</h3>
   <p style="margin:0 0 10px">Save these codes now. <b>They are shown only once.</b> If you cannot get your e-mail, each code lets you sign in one time. Keep them somewhere safe, for example in a photo on your phone or on paper.</p>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;font:600 16px/1.4 ui-monospace,Consolas,monospace;margin-bottom:12px">{% for c in new_codes %}<span class="card" style="padding:8px;text-align:center">{{ c }}</span>{% endfor %}</div>
-  <button type="button" class="btn ghost" onclick="window.print()">🖨️ Print</button>
+  <button type="button" class="btn ghost" onclick="window.print()">{% icon 'printer' %} Print</button>
 </div>
 {% endif %}
 <div class="card" style="margin-bottom:14px">

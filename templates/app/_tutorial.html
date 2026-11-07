@@ -1,6 +1,7 @@
+{% load icons %}
 {% load static %}
 <div class="card" style="margin-bottom:14px" id="video">
-  <h3 style="margin-top:0">▶ Watch: get your shop running in 90 seconds</h3>
+  <h3 style="margin-top:0">{% icon 'play' %} Watch: get your shop running in 90 seconds</h3>
   <p style="margin:0 0 10px;color:var(--mute)">Sign in, shop details, import suppliers and stock, and make your first bill. The video has captions, no sound is needed.</p>
   <video controls preload="metadata" playsinline poster="{% static 'video/medsync-getting-started.jpg' %}" style="width:100%;max-width:760px;border-radius:12px;background:#0b2626;display:block">
     <source src="{% static 'video/medsync-getting-started.mp4' %}" type="video/mp4">

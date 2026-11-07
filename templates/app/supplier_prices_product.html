@@ -1,10 +1,11 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Prices: {{ product.name }}{% endblock %}
 {% block content %}
-<div class="head"><h1>⚖️ {{ product.name }} <small style="font-size:15px;color:var(--mute)">supplier prices</small></h1>
+<div class="head"><h1>{% icon 'scale' %} {{ product.name }} <small style="font-size:15px;color:var(--mute)">supplier prices</small></h1>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
     <a class="btn ghost" href="{% url 'supplier_prices' %}">← All products</a>
-    <a class="btn ghost" href="?export=xlsx">⬇ Excel</a>
+    <a class="btn ghost" href="?export=xlsx">{% icon 'download' %} Excel</a>
     <a class="btn ghost" href="?export=csv">CSV</a>
   </div></div>
 <div class="msg info">

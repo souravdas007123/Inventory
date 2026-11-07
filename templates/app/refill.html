@@ -1,7 +1,8 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Refill Reminders{% endblock %}
 {% block content %}
-<div class="head"><h1>💊 Refill Reminders</h1></div>
+<div class="head"><h1>{% icon 'pill' %} Refill Reminders</h1></div>
 <div class="msg info">
   Regular customers (BP, sugar, thyroid ... medicines) whose medicine is about to finish, worked out from <b>their own buying pattern</b>:
   a customer who bought the same medicine at least twice, about a month apart, is listed a few days before the next refill is due.
@@ -18,12 +19,12 @@
       <td data-label="Customer"><b>{{ r.customer.name }}</b>{% if r.customer.phone %}<br><small style="color:var(--mute)">{{ r.customer.phone }}</small>{% endif %}</td>
       <td data-label="Medicine">{% for i in r.items %}<div>{{ i.name }} <small style="color:var(--mute)">· last bought {{ i.last|date:"d M Y" }}</small></div>{% endfor %}</td>
       <td data-label="Status"><span class="badge {{ r.cls }}">{{ r.status }}</span></td>
-      <td data-label="" style="white-space:nowrap">{% if r.link %}<a class="btn sm" href="{{ r.link }}" target="_blank" rel="noopener">💬 WhatsApp</a>{% else %}<span class="badge amber" title="Add a phone number in Customers">No phone</span>{% endif %}</td>
+      <td data-label="" style="white-space:nowrap">{% if r.link %}<a class="btn sm" href="{{ r.link }}" target="_blank" rel="noopener">{% icon 'message' %} WhatsApp</a>{% else %}<span class="badge amber" title="Add a phone number in Customers">No phone</span>{% endif %}</td>
     </tr>{% endfor %}
     </tbody>
   </table></div>
   {% else %}
-  <div class="empty">No refill is due right now. 🎉<br><small style="color:var(--mute)">This list fills up as regular customers are billed with their name selected.</small></div>
+  <div class="empty">No refill is due right now. {% icon 'sparkles' %}<br><small style="color:var(--mute)">This list fills up as regular customers are billed with their name selected.</small></div>
   {% endif %}
 </div>
 {% endblock %}

@@ -1,7 +1,8 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Ticket #{{ ticket.pk }}{% endblock %}
 {% block content %}
-<div class="head"><h1>🎫 #{{ ticket.pk }} {{ ticket.subject }}</h1><a class="btn ghost" href="{% url 'support' %}">All tickets</a></div>
+<div class="head"><h1>{% icon 'ticket' %} #{{ ticket.pk }} {{ ticket.subject }}</h1><a class="btn ghost" href="{% url 'support' %}">All tickets</a></div>
 <p style="color:var(--mute);margin-top:-8px">{{ ticket.get_category_display }} &middot; {{ ticket.get_status_display }} &middot; opened {{ ticket.created_at|date:"d M Y, h:i A" }}</p>
 {% for m in thread %}<div class="card" style="margin-bottom:10px;{% if not m.from_shop %}border-left:4px solid var(--pri){% endif %}">
   <div style="color:var(--mute);margin-bottom:6px"><b>{% if m.from_shop %}{{ m.author|default:"You" }}{% else %}Symaso support{% endif %}</b> &middot; {{ m.created_at|date:"d M Y, h:i A" }}{% if m.page %} &middot; page {{ m.page }}{% endif %}</div>

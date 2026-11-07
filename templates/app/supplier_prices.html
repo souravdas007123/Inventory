@@ -1,9 +1,10 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Supplier Prices{% endblock %}
 {% block content %}
-<div class="head"><h1>⚖️ Supplier Prices</h1>
+<div class="head"><h1>{% icon 'scale' %} Supplier Prices</h1>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-    <a class="btn ghost" href="?{{ base }}&export=xlsx" title="Download this list as Excel">⬇ Excel</a>
+    <a class="btn ghost" href="?{{ base }}&export=xlsx" title="Download this list as Excel">{% icon 'download' %} Excel</a>
     <a class="btn ghost" href="?{{ base }}&export=csv">CSV</a>
   </div></div>
 <div class="msg info">Compare what each supplier charged for the same product. Prices come from your Purchases / Stock Entry (total paid incl. GST ÷ quantity in base units), so different pack sizes can be compared fairly. Click <b>Compare</b> to see every supplier and the full price history.</div>

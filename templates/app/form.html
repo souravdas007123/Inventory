@@ -1,14 +1,15 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
 <div class="head"><h1>{{ title }}</h1><a class="btn ghost" href="{{ back_url }}">← Back</a></div>
 {% if key == 'bills' and held_list %}
 <div class="card" style="margin-bottom:12px" id="held-bar">
-  <b>⏸ Bills on hold ({{ held_list|length }})</b>
+  <b>{% icon 'pause' %} Bills on hold ({{ held_list|length }})</b>
   <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
     {% for h in held_list %}<div style="display:flex;gap:4px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:4px 6px{% if h.id == held_id %};background:var(--soft){% endif %}">
-      <a class="btn sm" href="?resume={{ h.id }}" title="Open this bill again">▶ {{ h.label }} · {{ h.count }} item{{ h.count|pluralize }} · {{ h.time }}</a>
-      <form method="post" action="{% url 'bill_hold_discard' h.id %}" style="display:inline" data-confirm="Discard this held bill? It cannot be brought back." data-confirm-yes="Yes, discard">{% csrf_token %}<button class="btn red sm" title="Discard this held bill">✕</button></form>
+      <a class="btn sm" href="?resume={{ h.id }}" title="Open this bill again">{% icon 'play' %} {{ h.label }} · {{ h.count }} item{{ h.count|pluralize }} · {{ h.time }}</a>
+      <form method="post" action="{% url 'bill_hold_discard' h.id %}" style="display:inline" data-confirm="Discard this held bill? It cannot be brought back." data-confirm-yes="Yes, discard">{% csrf_token %}<button class="btn red sm" title="Discard this held bill">{% icon 'x' %}</button></form>
     </div>{% endfor %}
   </div>
 </div>
@@ -32,25 +33,25 @@
   <h3>{{ inline_title }}</h3>
   {% if key == 'bills' %}
   <div id="scan-box" style="margin-bottom:12px">
-    <input id="scan" type="text" autocomplete="off" placeholder="🔍 Scan a barcode or type a medicine name (press Enter to add)">
+    <input id="scan" type="text" autocomplete="off" placeholder="Scan a barcode or type a medicine name (press Enter to add)">
     <small style="color:var(--mute);display:block;margin-top:4px">Shortcuts: <b>F2</b> search · <b>Enter</b> next field · <b>F9</b> save bill</small>
     <div id="scan-results" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
   </div>
   {% endif %}
   {% if key == 'purchases' %}
-  {% if po %}<div class="msg info">📥 Receiving <b>{{ po.number }}</b> from <b>{{ po.supplier }}</b>: {{ po.lines }}. Products and quantities are filled in, and prices come from the last purchase. Enter the bill's batch, expiry and check the prices.</div>{% endif %}
+  {% if po %}<div class="msg info">{% icon 'download' %} Receiving <b>{{ po.number }}</b> from <b>{{ po.supplier }}</b>: {{ po.lines }}. Products and quantities are filled in, and prices come from the last purchase. Enter the bill's batch, expiry and check the prices.</div>{% endif %}
   {% if no_products %}<div class="msg info"><b>No products yet - no import needed.</b> Type the medicine name below and press Enter. If it is not in the system, it is created right here (GST and unit are suggested) and added to this invoice. Next time it is already there.</div>{% endif %}
-  <div id="pq-box" style="margin-bottom:10px"><input id="pq" type="text" autocomplete="off" placeholder="🔍 Type a medicine name or barcode and press Enter to add it to this invoice">
+  <div id="pq-box" style="margin-bottom:10px"><input id="pq" type="text" autocomplete="off" placeholder="Type a medicine name or barcode and press Enter to add it to this invoice">
     <div id="pq-res" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div></div>
   <div style="margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-    {% if can_add_product %}<button type="button" class="btn ghost sm" id="new-product" title="Add a medicine that is not in Products yet, without leaving this page">➕ New product</button>{% endif %}
+    {% if can_add_product %}<button type="button" class="btn ghost sm" id="new-product" title="Add a medicine that is not in Products yet, without leaving this page">{% icon 'plus' %} New product</button>{% endif %}
     {% if not form.instance.pk %}<button type="button" class="btn ghost sm" id="copy-last">↻ Copy items from this supplier's last invoice</button>{% endif %}<small id="copy-msg" style="color:var(--mute)"></small></div>{% endif %}
   {{ fs.management_form }}{{ fs.non_form_errors }}
   <div class="tw"><table class="t stack{% if key == 'purchases' %} hide-extra{% endif %}" id="items-table">
     <thead><tr>{% for f in fs.empty_form.visible_fields %}{% if f.name == 'DELETE' %}<th class="delcell">Remove</th>{% else %}<th>{{ f.label }}</th>{% endif %}{% endfor %}</tr></thead>
     <tbody id="rows">
       {% for r in fs %}<tr>{% for h in r.hidden_fields %}{{ h }}{% endfor %}{{ r.non_field_errors }}
-        {% for f in r.visible_fields %}{% if f.name == 'DELETE' %}<td class="delcell" data-label="Remove">{{ f }}<button type="button" class="rowdel" title="Remove this row" aria-label="Remove this row">✕</button></td>{% else %}<td data-label="{{ f.label }}">{{ f }}{{ f.errors }}</td>{% endif %}{% endfor %}</tr>{% endfor %}
+        {% for f in r.visible_fields %}{% if f.name == 'DELETE' %}<td class="delcell" data-label="Remove">{{ f }}<button type="button" class="rowdel" title="Remove this row" aria-label="Remove this row">{% icon 'x' %}</button></td>{% else %}<td data-label="{{ f.label }}">{{ f }}{{ f.errors }}</td>{% endif %}{% endfor %}</tr>{% endfor %}
     </tbody>
   </table></div>
   <button type="button" class="btn ghost" id="add" style="margin-top:10px">+ Add row</button>
@@ -90,17 +91,17 @@
   </div>
   {% endif %}
   <template id="tpl"><tr>{% for h in fs.empty_form.hidden_fields %}{{ h }}{% endfor %}
-    {% for f in fs.empty_form.visible_fields %}{% if f.name == 'DELETE' %}<td class="delcell" data-label="Remove">{{ f }}<button type="button" class="rowdel" title="Remove this row" aria-label="Remove this row">✕</button></td>{% else %}<td data-label="{{ f.label }}">{{ f }}</td>{% endif %}{% endfor %}</tr></template>
+    {% for f in fs.empty_form.visible_fields %}{% if f.name == 'DELETE' %}<td class="delcell" data-label="Remove">{{ f }}<button type="button" class="rowdel" title="Remove this row" aria-label="Remove this row">{% icon 'x' %}</button></td>{% else %}<td data-label="{{ f.label }}">{{ f }}</td>{% endif %}{% endfor %}</tr></template>
   </div>
   {% endif %}
 
-  <div class="bar">{% if warnings %}<button class="btn" name="confirm_warnings" value="1">✔ Save anyway</button>{% else %}<button class="btn">💾 Save</button>{% endif %}{% if key == 'bills' and not form.instance.pk %}<button type="button" class="btn ghost" id="hold-btn" title="Park this bill and open it again later (no stock is used)">⏸ Hold bill</button>{% endif %}<a class="btn ghost" href="{{ back_url }}">Cancel</a></div>
+  <div class="bar">{% if warnings %}<button class="btn" name="confirm_warnings" value="1">{% icon 'check' %} Save anyway</button>{% else %}<button class="btn">{% icon 'save' %} Save</button>{% endif %}{% if key == 'bills' and not form.instance.pk %}<button type="button" class="btn ghost" id="hold-btn" title="Park this bill and open it again later (no stock is used)">{% icon 'pause' %} Hold bill</button>{% endif %}<a class="btn ghost" href="{{ back_url }}">Cancel</a></div>
 </form>
 {% if key == 'bills' and held_resume %}{{ held_resume|json_script:"held-resume" }}{% endif %}
 {% if saved_gst %}{{ saved_gst|json_script:"saved-gst" }}{% endif %}
 {% if key == 'purchases' and can_add_product %}
 <dialog id="np-dialog" class="dlg">
-  <div class="np-head"><h3>➕ New product</h3><button type="button" class="btn ghost sm" id="np-close" aria-label="Close">✕</button></div>
+  <div class="np-head"><h3>{% icon 'plus' %} New product</h3><button type="button" class="btn ghost sm" id="np-close" aria-label="Close">{% icon 'x' %}</button></div>
   <small id="np-note" style="color:var(--mute);display:block;margin-bottom:10px"></small>
   <div class="grid">
     <div class="fld" style="grid-column:1/-1"><label for="np-name">Product name *</label><input id="np-name" maxlength="255" autocomplete="off" placeholder="e.g. Dolo 650"></div>
@@ -127,7 +128,7 @@
 // Once the entry is changed, the warnings no longer apply: the button goes back to a normal Save (which checks again).
 (function () {
   const btn = document.querySelector('button[name=confirm_warnings]'); if (!btn) return;
-  btn.form.addEventListener('input', () => { btn.removeAttribute('name'); btn.textContent = '💾 Save'; }, {once: true});
+  btn.form.addEventListener('input', () => { btn.removeAttribute('name'); setLabel(btn, '@save Save'); }, {once: true});
 })();
 </script>{% endif %}{% if key == 'bills' %}
 <script>
@@ -228,7 +229,7 @@ function batchRow(tr, create) {
   return hr;
 }
 function bchip(box, text, cls) {
-  const b = document.createElement('span'); b.className = 'badge ' + (cls || 'grey'); b.textContent = text;
+  const b = document.createElement('span'); b.className = 'badge ' + (cls || 'grey'); setLabel(b, text);
   b.style.cssText = 'white-space:normal;font-weight:500;font-size:12px;padding:3px 10px;text-align:left';
   box.appendChild(b);
 }
@@ -248,7 +249,7 @@ function drawUnits(tr, p, box) {
 }
 // The salt (composition) of the medicine, in its own colour, so it is the first thing seen under the row
 function saltChip(box, comp) {
-  if (comp) bchip(box, '\u{1F48A} Salt: ' + comp, 'salt');
+  if (comp) bchip(box, '@pill Salt: ' + comp, 'salt');
   else bchip(box, 'Salt not written for this medicine (add it in Products)', 'amber');
 }
 function drawBatches(tr, p) {
@@ -296,7 +297,7 @@ function drawAlts(tr, p, box) {
 }
 function listAlts(tr, alts, box, out, heading, comp) {
   bchip(box, heading, 'amber');
-  if (comp) bchip(box, '\u{1F48A} Salt: ' + comp, 'salt');
+  if (comp) bchip(box, '@pill Salt: ' + comp, 'salt');
   alts.forEach(a => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost sm';
     b.textContent = a.name + ' · ' + a.stock + (a.mrp ? ' · MRP ₹' + (+a.mrp).toFixed(2) + (a.unit_name ? ' per ' + a.unit_name : '') : '') + (a.schedule && a.schedule !== 'NONE' ? ' · Sch ' + a.schedule : '');
@@ -328,7 +329,7 @@ rowsBody.addEventListener('input', e => {
   const tr = e.target.closest('tr'); clearTimeout(batchTimer); batchTimer = setTimeout(() => showBatches(tr), 200);
 });
 rowsBody.querySelectorAll('tr').forEach(tr => { if (rowField(tr, 'product') && rowField(tr, 'product').value) showBatches(tr); });
-const isGone = tr => { const d = tr.querySelector('[name$="-DELETE"]'); return !!(d && d.checked); };      // a saved row marked with ✕
+const isGone = tr => { const d = tr.querySelector('[name$="-DELETE"]'); return !!(d && d.checked); };      // a saved row marked with a cross
 function addProduct(p, jump) {
   const toQty = tr => { if (!jump) return; const q = rowField(tr, 'qty'); if (q) { q.focus(); q.select(); } };
   for (const tr of rowsBody.querySelectorAll('tr')) {          // if the row already exists, qty +1
@@ -488,7 +489,7 @@ if (holdBtn) holdBtn.addEventListener('click', async () => {
   const say = (text, cls) => {
     info.textContent = '';
     if (!text) return;
-    const b = document.createElement('span'); b.className = 'badge ' + (cls || 'grey'); b.textContent = text;
+    const b = document.createElement('span'); b.className = 'badge ' + (cls || 'grey'); setLabel(b, text);
     b.style.cssText = 'white-space:normal;font-weight:500;font-size:12px;padding:3px 10px;margin-top:4px;display:inline-block';
     info.appendChild(b);
   };
@@ -574,7 +575,7 @@ if (scan) {
     return box;
   }
   function chip(el, text, cls, tip) {
-    const c = document.createElement('span'); c.className = 'badge ' + (cls || 'grey'); c.textContent = text;
+    const c = document.createElement('span'); c.className = 'badge ' + (cls || 'grey'); setLabel(c, text);
     if (tip) c.title = tip;
     c.style.cssText = 'white-space:normal;font-weight:500;font-size:12px;padding:3px 10px;line-height:1.35';
     el.appendChild(c);
@@ -613,7 +614,7 @@ if (scan) {
     const qty = parseFloat(field(tr, 'qty') && field(tr, 'qty').value), price = parseFloat(field(tr, 'purchase_price') && field(tr, 'purchase_price').value);
     if (qty > 0 && price >= 0) {
       const cost = price / qty, margin = (sell - cost) / sell * 100;
-      if (sell < cost) chip(el, '⚠ Selling ' + fmt(sell) + '/' + name + ' is below the cost ' + fmt(cost), 'red', 'Selling price is lower than what you pay (both incl. GST)');
+      if (sell < cost) chip(el, '@alert Selling ' + fmt(sell) + '/' + name + ' is below the cost ' + fmt(cost), 'red', 'Selling price is lower than what you pay (both incl. GST)');
       else chip(el, 'Selling ' + fmt(sell) + '/' + name + ' · margin ' + margin.toFixed(1) + '%', margin < 5 ? 'amber' : 'green', 'Profit ' + fmt(sell - cost) + ' per ' + name + ' (MRP vs purchase price, both incl. GST)');
     } else chip(el, 'Selling ' + fmt(sell) + '/' + name, 'grey');
   }
@@ -651,9 +652,9 @@ if (scan) {
     el.appendChild(lead);
     if (mine) chip(el, 'Last ' + mine.rate_txt + ' · ' + mine.date, 'grey', 'Last price from this supplier' + (packTip(mine) ? ' · ' + packTip(mine) : ''));
     else chip(el, supplierSel.value ? 'New supplier for this product' : 'Select a supplier', 'grey');
-    if (filled) chip(el, '✎ Price filled from the last purchase. Check it against the bill', 'amber', 'Last rate from this supplier x qty. Type the bill price if it is different');
+    if (filled) chip(el, '@pencil Price filled from the last purchase. Check it against the bill', 'amber', 'Last rate from this supplier x qty. Type the bill price if it is different');
     if (best && (!mine || best.id !== mine.id)) chip(el, 'Cheapest ' + best.rate_txt + ' · ' + best.name, 'blue', packTip(best));
-    else if (best && mine && best.id === mine.id) chip(el, '✓ Cheapest supplier', 'green');
+    else if (best && mine && best.id === mine.id) chip(el, '@check Cheapest supplier', 'green');
     const qtyEl = field(tr, 'qty'), priceEl = field(tr, 'purchase_price'), uSel = field(tr, 'unit');
     const qty = parseFloat(qtyEl && qtyEl.value), price = parseFloat(priceEl && priceEl.value);
     const factor = uSel && uSel.value ? d.factors[uSel.value] : 1;
@@ -817,7 +818,7 @@ if (scan) {
       if (enter && (exact || list.length === 1)) { pqPick(exact || list[0]); return; }
       if (enter && !list.length && openNewProduct) { pqCreate(q); return; }
       list.forEach(p => pqBtn(p.label, () => pqPick(p), false, p.composition));
-      if (openNewProduct && !exact) pqBtn('\u2795 Create "' + q + '" as a new product', () => pqCreate(q), true);
+      if (openNewProduct && !exact) pqBtn('+ Create "' + q + '" as a new product', () => pqCreate(q), true);
       if (!list.length && !openNewProduct) { const m = document.createElement('small'); m.textContent = 'No product found. Ask the owner to add it in Products.'; pqRes.appendChild(m); }
     }
     pq.addEventListener('input', () => { clearTimeout(pqTimer); pqTimer = setTimeout(() => pqFind(false), 250); });
@@ -868,7 +869,7 @@ document.getElementById('add').onclick = () => {
     document.getElementById('tpl').innerHTML.replace(/__prefix__/g, n));
   total.value = n + 1;
 };
-// ✕ on a row: a new row is simply removed (the last one is cleared instead, so the form never has no row); a saved row is
+// the cross on a row: a new row is simply removed (the last one is cleared instead, so the form never has no row); a saved row is
 // marked for deletion (it is removed when the form is saved) and the same button then brings it back.
 document.getElementById('rows').addEventListener('click', e => {
   const b = e.target.closest('.rowdel'); if (!b) return;
@@ -877,7 +878,7 @@ document.getElementById('rows').addEventListener('click', e => {
   if (idf && idf.value) {
     del.checked = !del.checked;
     tr.classList.toggle('row-deleted', del.checked);
-    b.textContent = del.checked ? '↶' : '✕'; b.title = b.ariaLabel = del.checked ? 'Bring this row back' : 'Remove this row';
+    setLabel(b, del.checked ? '@undo' : '@x'); b.title = b.ariaLabel = del.checked ? 'Bring this row back' : 'Remove this row';
     const hx = tr.nextElementSibling; if (hx && hx.classList.contains('hintrow')) hx.style.display = del.checked ? 'none' : '';
     fire(del, 'change'); return;
   }

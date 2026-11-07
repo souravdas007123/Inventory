@@ -1,7 +1,8 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Profit & Loss{% endblock %}
 {% block content %}
-<div class="head"><h1>📊 Profit &amp; Loss <small style="font-size:15px;color:var(--mute)">{{ month_name }} {{ year }}</small></h1>
+<div class="head"><h1>{% icon 'chart' %} Profit &amp; Loss <small style="font-size:15px;color:var(--mute)">{{ month_name }} {{ year }}</small></h1>
   <form method="get" class="search" style="margin:0">
     <select name="month" style="width:auto">{% for n, name in months %}<option value="{{ n }}" {% if n == month %}selected{% endif %}>{{ name }}</option>{% endfor %}</select>
     <select name="year" style="width:auto">{% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}</select>

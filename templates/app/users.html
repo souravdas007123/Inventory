@@ -1,7 +1,8 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Users & Sign-ins{% endblock %}
 {% block content %}
-<div class="head"><h1>👤 Users &amp; Sign-ins</h1><a class="btn ghost sm" href="/audit/?q=LOGIN">Sign-in history</a></div>
+<div class="head"><h1>{% icon 'user' %} Users &amp; Sign-ins</h1><a class="btn ghost sm" href="/audit/?q=LOGIN">Sign-in history</a></div>
 <div class="msg info">Every sign-in, sign-out and failed sign-in is written to the Audit Log with the IP address. Many failed sign-ins for one user can mean that someone is guessing the password.</div>
 <div class="card"><div class="tw"><table class="t">
   <thead><tr><th>User</th><th>Role</th><th>Last sign-in</th><th>Last action</th><th style="text-align:right">Actions (7 days)</th><th style="text-align:right">Failed sign-ins (7 days)</th></tr></thead>

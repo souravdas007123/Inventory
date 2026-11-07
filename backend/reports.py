@@ -486,13 +486,13 @@ def dashboard_overview(today=None, include_money=False):
     # ---- Recent activity ----
     acts = []
     for b in final.prefetch_related('items').order_by('-date', '-id')[:5]:
-        acts.append(dict(date=b.date, icon='🧾', text=f"Bill {b.display_number} · {b.customer_name} · ₹{b.grand_total}",
+        acts.append(dict(date=b.date, icon='receipt', text=f"Bill {b.display_number} · {b.customer_name} · ₹{b.grand_total}",
                          url=f"/bills/{b.pk}/invoice/"))
     for r in SalesReturn.objects.select_related('bill').order_by('-date', '-id')[:3]:
-        acts.append(dict(date=r.date, icon='↩️', text=f"Return {r.note_number} · {r.bill.display_number}",
+        acts.append(dict(date=r.date, icon='undo', text=f"Return {r.note_number} · {r.bill.display_number}",
                          url=f"/sales_returns/{r.pk}/note/"))
     for r in CustomerPayment.objects.select_related('customer').order_by('-date', '-id')[:3]:
-        acts.append(dict(date=r.date, icon='💰', text=f"Receipt ₹{r.amount} · {r.customer.name}",
+        acts.append(dict(date=r.date, icon='cash', text=f"Receipt ₹{r.amount} · {r.customer.name}",
                          url=f"/customers/{r.customer_id}/ledger/"))
     acts.sort(key=lambda a: a['date'] or today, reverse=True)
     out['activity'] = acts[:8]

@@ -233,7 +233,7 @@ def sales_return_new(request, pk):
                     for it, q in qtys.items():
                         SalesReturnItem(sales_return=sr, invoice_item=it, qty=q).save()
                 auditlog.record(request, 'RETURN', 'Sales return', f"{sr.note_number} (bill {bill.display_number})")
-                messages.success(request, f"{sr.note_number} created. Stock has been added back ✅")
+                messages.success(request, f"{sr.note_number} created. Stock has been added back")
                 return redirect('sales_return_note', pk=sr.pk)
             except ValidationError as e:
                 messages.error(request, ' '.join(e.messages))
@@ -288,7 +288,7 @@ def purchase_return_new(request, pk):
                         line.save()
                 auditlog.record(request, 'RETURN', 'Purchase return', pr.note_number)
                 kept = pr.deduction_total
-                messages.success(request, f"{pr.note_number} created. Stock and supplier balance adjusted ✅"
+                messages.success(request, f"{pr.note_number} created. Stock and supplier balance adjusted"
                                  + (f" The supplier kept \u20b9{kept:,.2f}; it is shown as a loss in the Profit & Loss report." if kept else ''))
                 return redirect('purchase_return_note', pk=pr.pk)
             except ValidationError as e:
@@ -1208,7 +1208,7 @@ def po_email(request, pk):
     if po.status == 'PENDING':
         po.status = 'SENT'
         po.save(update_fields=['status'])
-    messages.success(request, f"{po.po_number} sent to {po.supplier.email} ✅")
+    messages.success(request, f"{po.po_number} sent to {po.supplier.email}")
     return redirect('list', key='purchase_orders')
 
 
@@ -1282,7 +1282,7 @@ def audit_count(request, pk):
                 try:
                     audit.apply()
                     auditlog.record(request, 'STOCK-AUDIT', 'Stock Audit', f"#{audit.pk} applied; stock set to counted quantities")
-                    messages.success(request, 'Stock adjusted ✅ (products with a counted quantity now match their count).')
+                    messages.success(request, 'Stock adjusted (products with a counted quantity now match their count).')
                 except ValidationError as e:
                     messages.error(request, ' '.join(e.messages))
             else:

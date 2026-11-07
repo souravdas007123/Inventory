@@ -1,7 +1,8 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Import {{ imp.title }}{% endblock %}
 {% block content %}
-<div class="head"><h1>{{ imp.icon }} Import: {{ imp.title }}</h1><a class="btn ghost" href="{% url 'import_home' %}">← Import / Export</a></div>
+<div class="head"><h1>{% icon imp.icon %} Import: {{ imp.title }}</h1><a class="btn ghost" href="{% url 'import_home' %}">← Import / Export</a></div>
 
 {% if stage == 'done' %}
   <div class="msg success">Import complete{% if filename %} ({{ filename }}){% endif %}.</div>
@@ -53,14 +54,14 @@
   {% if kind == 'stock' %}<div class="msg info">If a medicine is <b>not in Products yet</b> it is created from its row, so that row needs: <b>gst_rate</b> (0, 5, 12 or 18) and <b>base_unit</b> (or the <b>unit</b> column when there is no pack); <b>pack_unit</b> and <b>pack_size</b> go together. For medicines already in Products these are not needed.</div>{% endif %}
   {% if layout_used %}<div class="msg info">The column matching saved earlier for this file layout was applied.</div>{% endif %}
   {% if ignored %}<div class="msg warning">These columns were not recognised and were ignored: {{ ignored|join:", " }}
-    <form method="post" style="display:inline;margin-left:8px">{% csrf_token %}<input type="hidden" name="action" value="remap"><input type="hidden" name="raw_token" value="{{ raw_token }}"><button class="btn ghost sm">⚙ Match columns</button></form></div>
-  {% elif layout_used %}<form method="post" style="margin-bottom:10px">{% csrf_token %}<input type="hidden" name="action" value="remap"><input type="hidden" name="raw_token" value="{{ raw_token }}"><button class="btn ghost sm">⚙ Change column matching</button></form>{% endif %}
+    <form method="post" style="display:inline;margin-left:8px">{% csrf_token %}<input type="hidden" name="action" value="remap"><input type="hidden" name="raw_token" value="{{ raw_token }}"><button class="btn ghost sm">{% icon 'settings' %} Match columns</button></form></div>
+  {% elif layout_used %}<form method="post" style="margin-bottom:10px">{% csrf_token %}<input type="hidden" name="action" value="remap"><input type="hidden" name="raw_token" value="{{ raw_token }}"><button class="btn ghost sm">{% icon 'settings' %} Change column matching</button></form>{% endif %}
   {% if counts.error %}<div class="msg error">{{ counts.error }} row(s) have errors. Please review them below. Rows with errors will <b>not</b> be imported; the valid rows will be. You can also fix the file and upload it again.</div>{% endif %}
 
   <form method="post" class="card" style="margin-bottom:14px">{% csrf_token %}
     <input type="hidden" name="action" value="commit"><input type="hidden" name="token" value="{{ token }}">
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-      <button class="btn" {% if not ok_count %}disabled style="opacity:.5;cursor:not-allowed"{% endif %}>✅ Import {{ ok_count }} rows</button>
+      <button class="btn" {% if not ok_count %}disabled style="opacity:.5;cursor:not-allowed"{% endif %}>{% icon 'check-circle' %} Import {{ ok_count }} rows</button>
       <a class="btn ghost" href="{% url 'import' kind %}">Cancel / choose another file</a>
     </div>
     {% if not ok_count %}<p style="color:var(--red-t);margin:10px 0 0">No valid rows were found. Please fix the file and upload it again.</p>{% endif %}
@@ -93,8 +94,8 @@
         {% if imp.can_create_products %}<div class="fld"><label><input type="checkbox" name="create_products" value="1" checked> Create new products automatically</label><small>If a medicine in the file is not in Products yet, it is created from the row (fill gst_rate and base_unit; pack_unit, pack_size, composition, category, brand and hsn_code are optional). No separate Products import is needed.</small></div>{% endif %}
         {% if imp.has_update %}<div class="fld"><label><input type="checkbox" name="update" value="1"> Update records that already exist</label><small>If unticked, rows that match an existing name / barcode / phone are skipped. When updating, only the columns filled in the file are changed.</small></div>{% endif %}
       </div>
-      <div class="bar"><button class="btn">🔍 Preview</button>
-        {% if can_export %}<a class="btn ghost" href="?export=xlsx">⬇ Export existing data (edit it and import it back)</a>{% endif %}</div>
+      <div class="bar"><button class="btn">{% icon 'search' %} Preview</button>
+        {% if can_export %}<a class="btn ghost" href="?export=xlsx">{% icon 'download' %} Export existing data (edit it and import it back)</a>{% endif %}</div>
     </form>
   </div>
   <div class="card"><h3 style="margin-top:0">Columns</h3>

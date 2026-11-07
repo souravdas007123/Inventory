@@ -1,7 +1,8 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}GSTR-2B Check{% endblock %}
 {% block content %}
-<div class="head"><h1>🧾 GSTR-2B Check</h1></div>
+<div class="head"><h1>{% icon 'receipt' %} GSTR-2B Check</h1></div>
 <div class="msg info">You can claim Input Tax Credit (ITC) only for purchase bills that show in your GSTR-2B. Upload the file from the GST portal and this page compares it with your purchases: which bills are missing, and which have a different amount. The file is read and not stored.<br>
 <b>How to get the file:</b> GST portal &rarr; Returns &rarr; GSTR-2B &rarr; choose the month &rarr; <b>Download</b> (the JSON file). A plain Excel / CSV list with the columns GSTIN, Invoice number, Invoice date, Taxable value, CGST, SGST, IGST also works.</div>
 <form method="post" enctype="multipart/form-data" class="card">
@@ -11,7 +12,7 @@
     <div class="fld"><label for="gmonth">Month to check (optional)</label><input id="gmonth" type="month" name="month" value="{{ month }}"><small style="color:var(--mute)">Leave empty to use the month in the file.</small></div>
   </div>
   {% if error %}<div class="msg error">{{ error }}</div>{% endif %}
-  <div class="bar"><button class="btn">Check now</button><button class="btn ghost" name="export" value="1">⬇ Check and download Excel</button></div>
+  <div class="bar"><button class="btn">Check now</button><button class="btn ghost" name="export" value="1">{% icon 'download' %} Check and download Excel</button></div>
 </form>
 
 {% if result %}
@@ -19,11 +20,11 @@
 <div class="card" style="margin-top:14px">
   <h3 style="margin-top:0">{{ first|date:"F Y" }} · {{ filename }}</h3>
   <div class="tw"><table class="t">
-    <tr><td>✅ Matched invoices</td><td style="text-align:right">{{ result.totals.counts.MATCHED }}</td><td style="text-align:right">ITC ₹{{ result.totals.itc_matched|floatformat:2 }}</td></tr>
-    <tr><td>⚠️ Amount differs</td><td style="text-align:right">{{ result.totals.counts.MISMATCH }}</td><td></td></tr>
-    <tr><td>⛔ In your books, not in GSTR-2B</td><td style="text-align:right">{{ result.totals.counts.ONLY_BOOKS }}</td><td style="text-align:right">Do not claim ₹{{ result.totals.itc_at_risk|floatformat:2 }} yet</td></tr>
-    <tr><td>📥 In GSTR-2B, not in your books</td><td style="text-align:right">{{ result.totals.counts.ONLY_2B }}</td><td style="text-align:right">Tax ₹{{ result.totals.itc_not_in_books|floatformat:2 }}</td></tr>
-    <tr><td>🔁 Invoice number or supplier GSTIN differs</td><td style="text-align:right">{{ result.totals.counts.NUMBER_DIFF|add:result.totals.counts.GSTIN_DIFF }}</td><td></td></tr>
+    <tr><td>{% icon 'check-circle' %} Matched invoices</td><td style="text-align:right">{{ result.totals.counts.MATCHED }}</td><td style="text-align:right">ITC ₹{{ result.totals.itc_matched|floatformat:2 }}</td></tr>
+    <tr><td>{% icon 'alert' %} Amount differs</td><td style="text-align:right">{{ result.totals.counts.MISMATCH }}</td><td></td></tr>
+    <tr><td>{% icon 'x-circle' %} In your books, not in GSTR-2B</td><td style="text-align:right">{{ result.totals.counts.ONLY_BOOKS }}</td><td style="text-align:right">Do not claim ₹{{ result.totals.itc_at_risk|floatformat:2 }} yet</td></tr>
+    <tr><td>{% icon 'download' %} In GSTR-2B, not in your books</td><td style="text-align:right">{{ result.totals.counts.ONLY_2B }}</td><td style="text-align:right">Tax ₹{{ result.totals.itc_not_in_books|floatformat:2 }}</td></tr>
+    <tr><td>{% icon 'refresh' %} Invoice number or supplier GSTIN differs</td><td style="text-align:right">{{ result.totals.counts.NUMBER_DIFF|add:result.totals.counts.GSTIN_DIFF }}</td><td></td></tr>
   </table></div>
   <p style="color:var(--mute);font-size:13px;margin:10px 0 0">Credit notes in the file: {{ result.totals.credit_note_count }} (tax ₹{{ result.totals.credit_notes|floatformat:2 }}) · Debit notes: {{ result.totals.debit_note_count }} (tax ₹{{ result.totals.debit_notes|floatformat:2 }}) — these reduce / change your ITC and are not matched one by one.
   {% if result.totals.no_gstin %}· {{ result.totals.no_gstin }} purchase(s) this month are from suppliers without a GSTIN (no ITC is possible on them).{% endif %}

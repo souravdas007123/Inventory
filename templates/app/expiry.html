@@ -1,8 +1,9 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% load l10n %}
 {% block title %}Expiry Returns{% endblock %}
 {% block content %}
-<div class="head"><h1>⏳ Expiry Returns</h1>
+<div class="head"><h1>{% icon 'hourglass' %} Expiry Returns</h1>
   <div style="display:flex;gap:6px;flex-wrap:wrap">{% for d in day_choices %}<a class="btn {% if d != days %}ghost{% endif %} sm" href="?days={{ d }}">{{ d }} days</a>{% endfor %}</div></div>
 <div class="msg info">
   Batches that are <b>expired</b> or expire within <b>{{ days }} days</b>, grouped by the supplier they were bought from. Tick what you want to send back and press
@@ -19,7 +20,7 @@
   <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
     <h3 style="margin:0">{{ g.supplier }} <small style="color:var(--mute);font-weight:400">· {{ g.count }} batch{{ g.count|pluralize:"es" }} · about ₹{{ g.total }}</small></h3>
     <div style="display:flex;gap:6px;flex-wrap:wrap">
-      {% if g.wa %}<a class="btn ghost sm" href="{{ g.wa }}" target="_blank" rel="noopener">💬 WhatsApp supplier</a>{% endif %}
+      {% if g.wa %}<a class="btn ghost sm" href="{{ g.wa }}" target="_blank" rel="noopener">{% icon 'message' %} WhatsApp supplier</a>{% endif %}
       <button type="button" class="btn ghost sm" onclick="this.closest('form').querySelectorAll('input[name=batch]:not(:disabled)').forEach(function(c){c.checked=true})">Tick all</button>
       <button type="button" class="btn ghost sm" onclick="this.closest('form').querySelectorAll('input[name=batch]').forEach(function(c){c.checked=false})">Clear</button>
     </div>
@@ -44,12 +45,12 @@
   <div class="credit-sum msg info" hidden style="margin-top:10px"></div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px">
     <input type="text" name="reason" value="Expired / near expiry" maxlength="255" style="flex:1;min-width:200px" aria-label="Reason">
-    <button class="btn" data-confirm="Return the ticked batches to {{ g.supplier }}? Stock and the supplier balance will change." data-confirm-yes="Yes, return">📤 Return ticked batches</button>
+    <button class="btn" data-confirm="Return the ticked batches to {{ g.supplier }}? Stock and the supplier balance will change." data-confirm-yes="Yes, return">{% icon 'upload' %} Return ticked batches</button>
   </div>
 </form>
 {% endfor %}
 {% else %}
-<div class="card"><div class="empty">Nothing is expired or about to expire in the next {{ days }} days. 🎉</div></div>
+<div class="card"><div class="empty">Nothing is expired or about to expire in the next {{ days }} days. {% icon 'sparkles' %}</div></div>
 {% endif %}
 {% endblock %}
 {% block scripts %}{% if suppliers %}<script>{% include "app/_credit.js" %}

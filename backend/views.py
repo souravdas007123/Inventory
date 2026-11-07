@@ -33,55 +33,55 @@ IMPORT_KINDS = {'products': 'products', 'customers': 'customers', 'suppliers': '
                 'categories': 'categories', 'brands': 'brands', 'units': 'units', 'expenses': 'expenses'}
 
 NAV = [
-    {'key': 'dashboard', 'url': '/', 'label': 'Dashboard', 'icon': '🏠', 'group': ''},
-    {'key': 'bills', 'url': '/bills/', 'label': 'Billing', 'icon': '🧾', 'group': ''},
-    {'key': 'products', 'url': '/products/', 'label': 'Products', 'icon': '🧴', 'group': ''},
-    {'key': 'purchases', 'url': '/purchases/', 'label': 'Purchases', 'icon': '📦', 'group': ''},
-    {'key': 'batches', 'url': '/batches/', 'label': 'Batch & Expiry', 'icon': '⏳', 'group': ''},
-    {'key': 'customers', 'url': '/customers/', 'label': 'Customers (Credit)', 'icon': '👥', 'group': 'Customers'},
-    {'key': 'customer_payments', 'url': '/customer_payments/', 'label': 'Credit Receipts', 'icon': '💰', 'group': 'Customers'},
-    {'key': 'history', 'url': '/history/', 'label': 'Customer History', 'icon': '🕘', 'group': 'Customers'},
-    {'key': 'reminders', 'url': '/reminders/', 'label': 'Payment Reminders', 'icon': '🔔', 'group': 'Customers'},
-    {'key': 'orders', 'url': '/orders/', 'label': 'Customer Orders', 'icon': '🛒', 'group': 'Customers'},
-    {'key': 'refill', 'url': '/refill/', 'label': 'Refill Reminders', 'icon': '💊', 'group': 'Customers'},
-    {'key': 'sales_returns', 'url': '/sales_returns/', 'label': 'Sales Returns', 'icon': '↩️', 'group': 'Customers'},
-    {'key': 'suppliers', 'url': '/suppliers/', 'label': 'Suppliers', 'icon': '🏭', 'group': 'Suppliers'},
-    {'key': 'purchase_orders', 'url': '/purchase_orders/', 'label': 'Purchase Orders', 'icon': '📋', 'group': 'Suppliers'},
-    {'key': 'reorder', 'url': '/reorder/', 'label': 'Reorder Suggestions', 'icon': '🔄', 'group': 'Suppliers'},
-    {'key': 'supplier_prices', 'url': '/supplier_prices/', 'label': 'Supplier Prices', 'icon': '⚖️', 'group': 'Suppliers'},
-    {'key': 'payments', 'url': '/payments/', 'label': 'Supplier Payments', 'icon': '💳', 'group': 'Suppliers'},
-    {'key': 'purchase_returns', 'url': '/purchase_returns/', 'label': 'Purchase Returns', 'icon': '📤', 'group': 'Suppliers'},
-    {'key': 'expiry', 'url': '/expiry/', 'label': 'Expiry Returns', 'icon': '⚠️', 'group': 'Suppliers'},
-    {'key': 'sales', 'url': '/sales/', 'label': 'Sales', 'icon': '📈', 'group': 'Accounts'},
-    {'key': 'transactions', 'url': '/transactions/', 'label': 'Transactions', 'icon': '🔁', 'group': 'Accounts'},
-    {'key': 'expenses', 'url': '/expenses/', 'label': 'Expenses', 'icon': '💸', 'group': 'Accounts'},
-    {'key': 'fixed_expenses', 'url': '/fixed_expenses/', 'label': 'Fixed Expenses', 'icon': '📆', 'group': 'Accounts'},
-    {'key': 'employees', 'url': '/employees/', 'label': 'Employees', 'icon': '👨‍⚕️', 'group': 'Accounts'},
-    {'key': 'salary', 'url': '/salary/', 'label': 'Salary Sheet', 'icon': '💼', 'group': 'Accounts'},
-    {'key': 'report', 'url': '/report/', 'label': 'Profit & Loss', 'icon': '📊', 'group': 'Accounts', 'staff': True},
-    {'key': 'gst', 'url': '/gst/', 'label': 'GST Reports', 'icon': '🧮', 'group': 'Accounts', 'staff': True},
-    {'key': 'gstr2b', 'url': '/gstr2b/', 'label': 'GSTR-2B Check', 'icon': '🧾', 'group': 'Accounts', 'staff': True},
-    {'key': 'ca_export', 'url': '/ca_export/', 'label': 'CA / Accountant Export', 'icon': '📤', 'group': 'Accounts', 'staff': True},
-    {'key': 'finder', 'url': '/finder/', 'label': 'Medicine Finder', 'icon': '🔎', 'group': 'Stock'},
-    {'key': 'movement', 'url': '/movement/', 'label': 'Fast & Dead Stock', 'icon': '🚚', 'group': 'Stock', 'staff': True},
-    {'key': 'drug_register', 'url': '/drug_register/', 'label': 'Drug Register (H/H1)', 'icon': '📒', 'group': 'Stock'},
-    {'key': 'writeoffs', 'url': '/writeoffs/', 'label': 'Stock Write-off', 'icon': '🗑️', 'group': 'Stock'},
-    {'key': 'stock_audits', 'url': '/stock_audits/', 'label': 'Stock Audit', 'icon': '🔎', 'group': 'Stock', 'staff': True},
-    {'key': 'categories', 'url': '/categories/', 'label': 'Categories', 'icon': '🗂️', 'group': 'Master Data'},
-    {'key': 'brands', 'url': '/brands/', 'label': 'Brands', 'icon': '🏷️', 'group': 'Master Data'},
-    {'key': 'units', 'url': '/units/', 'label': 'Units', 'icon': '📏', 'group': 'Master Data'},
-    {'key': 'import', 'url': '/import/', 'label': 'Import / Export', 'icon': '📥', 'group': 'Master Data'},
-    {'key': 'audit', 'url': '/audit/', 'label': 'Audit Log', 'icon': '🕵️', 'group': 'Master Data', 'staff': True},
-    {'key': 'users', 'url': '/users/', 'label': 'Users & Sign-ins', 'icon': '👤', 'group': 'Master Data', 'staff': True},
-    {'key': 'health', 'url': '/health/', 'label': 'Health Score', 'icon': '🩺', 'group': 'Master Data', 'staff': True},
-    {'key': 'backup', 'url': '/backup/', 'label': 'Backup', 'icon': '💾', 'group': 'Master Data', 'staff': True},
-    {'key': 'setup', 'url': '/setup/', 'label': 'Setup guide', 'icon': '🚀', 'group': 'Master Data'},
-    {'key': 'help', 'url': '/help/', 'label': 'Help and support', 'icon': '🛟', 'group': 'Master Data', 'always': True},
-    {'key': 'security', 'url': '/security/', 'label': 'Sign-in security', 'icon': '🔐', 'group': 'Master Data', 'always': True},
-    {'key': 'support', 'url': '/support/', 'label': 'Support tickets', 'icon': '🎫', 'group': 'Master Data', 'always': True, 'shop_only': True},
-    {'key': 'plan', 'url': '/plan/', 'label': 'Plan & Payments', 'icon': '💳', 'group': 'Master Data', 'staff': True, 'shop_only': True},
-    {'key': 'shop', 'url': '/shop/', 'label': 'Shop Settings', 'icon': '🏪', 'group': 'Master Data', 'staff': True},
-    {'key': 'reset', 'url': '/reset/', 'label': 'Reset Data', 'icon': '♻️', 'group': 'Master Data', 'staff': True},
+    {'key': 'dashboard', 'url': '/', 'label': 'Dashboard', 'icon': 'home', 'group': ''},
+    {'key': 'bills', 'url': '/bills/', 'label': 'Billing', 'icon': 'receipt', 'group': ''},
+    {'key': 'products', 'url': '/products/', 'label': 'Products', 'icon': 'bottle', 'group': ''},
+    {'key': 'purchases', 'url': '/purchases/', 'label': 'Purchases', 'icon': 'package', 'group': ''},
+    {'key': 'batches', 'url': '/batches/', 'label': 'Batch & Expiry', 'icon': 'hourglass', 'group': ''},
+    {'key': 'customers', 'url': '/customers/', 'label': 'Customers (Credit)', 'icon': 'users', 'group': 'Customers'},
+    {'key': 'customer_payments', 'url': '/customer_payments/', 'label': 'Credit Receipts', 'icon': 'cash', 'group': 'Customers'},
+    {'key': 'history', 'url': '/history/', 'label': 'Customer History', 'icon': 'clock', 'group': 'Customers'},
+    {'key': 'reminders', 'url': '/reminders/', 'label': 'Payment Reminders', 'icon': 'bell', 'group': 'Customers'},
+    {'key': 'orders', 'url': '/orders/', 'label': 'Customer Orders', 'icon': 'cart', 'group': 'Customers'},
+    {'key': 'refill', 'url': '/refill/', 'label': 'Refill Reminders', 'icon': 'pill', 'group': 'Customers'},
+    {'key': 'sales_returns', 'url': '/sales_returns/', 'label': 'Sales Returns', 'icon': 'undo', 'group': 'Customers'},
+    {'key': 'suppliers', 'url': '/suppliers/', 'label': 'Suppliers', 'icon': 'factory', 'group': 'Suppliers'},
+    {'key': 'purchase_orders', 'url': '/purchase_orders/', 'label': 'Purchase Orders', 'icon': 'clipboard', 'group': 'Suppliers'},
+    {'key': 'reorder', 'url': '/reorder/', 'label': 'Reorder Suggestions', 'icon': 'refresh', 'group': 'Suppliers'},
+    {'key': 'supplier_prices', 'url': '/supplier_prices/', 'label': 'Supplier Prices', 'icon': 'scale', 'group': 'Suppliers'},
+    {'key': 'payments', 'url': '/payments/', 'label': 'Supplier Payments', 'icon': 'card', 'group': 'Suppliers'},
+    {'key': 'purchase_returns', 'url': '/purchase_returns/', 'label': 'Purchase Returns', 'icon': 'upload', 'group': 'Suppliers'},
+    {'key': 'expiry', 'url': '/expiry/', 'label': 'Expiry Returns', 'icon': 'alert', 'group': 'Suppliers'},
+    {'key': 'sales', 'url': '/sales/', 'label': 'Sales', 'icon': 'trend', 'group': 'Accounts'},
+    {'key': 'transactions', 'url': '/transactions/', 'label': 'Transactions', 'icon': 'refresh', 'group': 'Accounts'},
+    {'key': 'expenses', 'url': '/expenses/', 'label': 'Expenses', 'icon': 'cash', 'group': 'Accounts'},
+    {'key': 'fixed_expenses', 'url': '/fixed_expenses/', 'label': 'Fixed Expenses', 'icon': 'calendar', 'group': 'Accounts'},
+    {'key': 'employees', 'url': '/employees/', 'label': 'Employees', 'icon': 'user', 'group': 'Accounts'},
+    {'key': 'salary', 'url': '/salary/', 'label': 'Salary Sheet', 'icon': 'briefcase', 'group': 'Accounts'},
+    {'key': 'report', 'url': '/report/', 'label': 'Profit & Loss', 'icon': 'chart', 'group': 'Accounts', 'staff': True},
+    {'key': 'gst', 'url': '/gst/', 'label': 'GST Reports', 'icon': 'calculator', 'group': 'Accounts', 'staff': True},
+    {'key': 'gstr2b', 'url': '/gstr2b/', 'label': 'GSTR-2B Check', 'icon': 'receipt', 'group': 'Accounts', 'staff': True},
+    {'key': 'ca_export', 'url': '/ca_export/', 'label': 'CA / Accountant Export', 'icon': 'upload', 'group': 'Accounts', 'staff': True},
+    {'key': 'finder', 'url': '/finder/', 'label': 'Medicine Finder', 'icon': 'search', 'group': 'Stock'},
+    {'key': 'movement', 'url': '/movement/', 'label': 'Fast & Dead Stock', 'icon': 'truck', 'group': 'Stock', 'staff': True},
+    {'key': 'drug_register', 'url': '/drug_register/', 'label': 'Drug Register (H/H1)', 'icon': 'book', 'group': 'Stock'},
+    {'key': 'writeoffs', 'url': '/writeoffs/', 'label': 'Stock Write-off', 'icon': 'trash', 'group': 'Stock'},
+    {'key': 'stock_audits', 'url': '/stock_audits/', 'label': 'Stock Audit', 'icon': 'search', 'group': 'Stock', 'staff': True},
+    {'key': 'categories', 'url': '/categories/', 'label': 'Categories', 'icon': 'folder', 'group': 'Master Data'},
+    {'key': 'brands', 'url': '/brands/', 'label': 'Brands', 'icon': 'tag', 'group': 'Master Data'},
+    {'key': 'units', 'url': '/units/', 'label': 'Units', 'icon': 'ruler', 'group': 'Master Data'},
+    {'key': 'import', 'url': '/import/', 'label': 'Import / Export', 'icon': 'download', 'group': 'Master Data'},
+    {'key': 'audit', 'url': '/audit/', 'label': 'Audit Log', 'icon': 'eye', 'group': 'Master Data', 'staff': True},
+    {'key': 'users', 'url': '/users/', 'label': 'Users & Sign-ins', 'icon': 'user', 'group': 'Master Data', 'staff': True},
+    {'key': 'health', 'url': '/health/', 'label': 'Health Score', 'icon': 'pulse', 'group': 'Master Data', 'staff': True},
+    {'key': 'backup', 'url': '/backup/', 'label': 'Backup', 'icon': 'save', 'group': 'Master Data', 'staff': True},
+    {'key': 'setup', 'url': '/setup/', 'label': 'Setup guide', 'icon': 'rocket', 'group': 'Master Data'},
+    {'key': 'help', 'url': '/help/', 'label': 'Help and support', 'icon': 'lifebuoy', 'group': 'Master Data', 'always': True},
+    {'key': 'security', 'url': '/security/', 'label': 'Sign-in security', 'icon': 'lock', 'group': 'Master Data', 'always': True},
+    {'key': 'support', 'url': '/support/', 'label': 'Support tickets', 'icon': 'ticket', 'group': 'Master Data', 'always': True, 'shop_only': True},
+    {'key': 'plan', 'url': '/plan/', 'label': 'Plan & Payments', 'icon': 'card', 'group': 'Master Data', 'staff': True, 'shop_only': True},
+    {'key': 'shop', 'url': '/shop/', 'label': 'Shop Settings', 'icon': 'store', 'group': 'Master Data', 'staff': True},
+    {'key': 'reset', 'url': '/reset/', 'label': 'Reset Data', 'icon': 'reset', 'group': 'Master Data', 'staff': True},
 ]
 
 
@@ -155,9 +155,9 @@ def po_actions(o):
     if o.status in ('PENDING', 'SENT'):
         acts.append(dict(label='📥 Receive', url=f"/purchases/new/?from_po={o.pk}"))
     acts += [
-        dict(label='🖨️ Print', url=f"/purchase_orders/{o.pk}/print/", target='_blank'),
+        dict(label='🖨 Print', url=f"/purchase_orders/{o.pk}/print/", target='_blank'),
         dict(label='💬 WhatsApp', url=f"/purchase_orders/{o.pk}/whatsapp/", target='_blank'),
-        dict(label='✉️ Email', url=f"/purchase_orders/{o.pk}/email/", post=True,
+        dict(label='✉ Email', url=f"/purchase_orders/{o.pk}/email/", post=True,
              confirm='Send an email to the supplier?'),
     ]
     return acts
@@ -165,7 +165,7 @@ def po_actions(o):
 
 def batch_actions(o):
     if o.qty > 0 and o.expiry_status == 'Expired':
-        return [dict(label='🗑️ Write-off', url=f"/batches/{o.pk}/writeoff/", post=True, cls='red',
+        return [dict(label='🗑 Write-off', url=f"/batches/{o.pk}/writeoff/", post=True, cls='red',
                      confirm='Write off all remaining stock of this batch? (It will be counted as a loss in the P&L)')]
     return []
 
@@ -273,7 +273,7 @@ CONFIG = {
                 'schedule', 'default_supplier', 'location', 'rack', 'row', 'is_active'],
         inline=dict(model=ProductUnit, fields=['unit', 'factor'],
                     title='Unit conversions (e.g. 1 Strip = 15 Tablet)'),
-        actions=lambda o: [dict(label='⚖️ Prices', url=f'/supplier_prices/{o.pk}/')],
+        actions=lambda o: [dict(label='⚖ Prices', url=f'/supplier_prices/{o.pk}/')],
     ),
     'suppliers': dict(
         title='Suppliers', one='Supplier', model=Supplier, order=['company'],
@@ -472,7 +472,7 @@ CONFIG = {
               ('Against bill', lambda o: o.bill.display_number), ('Customer', lambda o: o.bill.customer_name),
               ('Items', lambda o: o.total_items), ('Taxable', lambda o: rs(o.taxable)),
               ('Total', lambda o: rs(o.total)), ('Refund', lambda o: o.get_refund_mode_display())],
-        actions=lambda o: [dict(label='🖨️ Note', url=f"/sales_returns/{o.pk}/note/", target='_blank')],
+        actions=lambda o: [dict(label='🖨 Note', url=f"/sales_returns/{o.pk}/note/", target='_blank')],
     ),
     'purchase_returns': dict(
         title='Purchase Returns (Debit Notes)', one='Purchase Return', model=PurchaseReturn, order=['-id'],
@@ -484,7 +484,7 @@ CONFIG = {
               ('Supplier', lambda o: o.purchase.supplier.company), ('Items', lambda o: o.total_items),
               ('Taxable', lambda o: rs(o.taxable)), ('Total', lambda o: rs(o.total)),
               ('Supplier credit', lambda o: rs(o.credit_total)), ('Kept by supplier', lambda o: rs(o.deduction_total) if o.deduction_total else '-')],
-        actions=lambda o: [dict(label='🖨️ Note', url=f"/purchase_returns/{o.pk}/note/", target='_blank')],
+        actions=lambda o: [dict(label='🖨 Note', url=f"/purchase_returns/{o.pk}/note/", target='_blank')],
     ),
     'writeoffs': dict(
         title='Stock Write-off (Expired / Damaged)', one='Write-off', model=StockWriteOff, order=['-id'],
@@ -937,7 +937,7 @@ def edit(request, key, pk=None):
                         po.save(update_fields=['status'])
                 auditlog.record(request, 'EDIT' if obj else 'CREATE', cfg['one'], str(form.instance))
                 if not sync:
-                    messages.success(request, f"{cfg['one']} saved ✅")
+                    messages.success(request, f"{cfg['one']} saved")
                 if key == 'bills' and not obj and held_id:       # this bill was resumed from "hold": it is done now
                     HeldBill.objects.filter(pk=held_id).delete()
                 if sync:
@@ -1126,7 +1126,7 @@ def shop(request):
         if form.instance.books_closed_until != before:
             auditlog.record(request, 'LOCK', 'Books closed up to',
                             f"{before or 'not set'} -> {form.instance.books_closed_until or 'not set'}")
-        messages.success(request, 'Shop details saved ✅')
+        messages.success(request, 'Shop details saved')
         return redirect('shop')
     return page(request, 'app/form.html', key='shop', active='shop', title='Shop Settings',
                 form=form, fs=None, back_url='/')

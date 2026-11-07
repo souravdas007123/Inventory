@@ -1,3 +1,4 @@
+{% load icons %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -35,7 +36,7 @@ table{width:100%;border-collapse:collapse}
 </style>
 </head>
 <body>
-<div class="bar"><button onclick="window.print()">🖨️ Print</button><a class="g" href="{{ back_url }}">← Back</a></div>
+<div class="bar"><button onclick="window.print()">{% icon 'printer' %} Print</button><a class="g" href="{{ back_url }}">← Back</a></div>
 <div class="sheet">
   <div class="top">
     <div class="shop">

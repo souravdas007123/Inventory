@@ -1,4 +1,5 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% load l10n %}
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
@@ -38,7 +39,7 @@
   <div class="credit-sum msg info" hidden style="margin-top:12px"></div>
   <small style="color:var(--mute);display:block;margin-top:8px">Does the supplier keep a part of the value (for example for expired goods)? Change the <b>%</b> (or type the <b>₹</b> amount) of that line. The debit note stays at the full value; the supplier balance goes down by the credit only, and what the supplier keeps is shown as a loss in the Profit &amp; Loss report. Leave 100% if the supplier credits everything.</small>
   {% endif %}
-  <div class="bar"><button class="btn">↩ Save return</button><a class="btn ghost" href="{{ back_url }}">Cancel</a></div>
+  <div class="bar"><button class="btn">{% icon 'undo' %} Save return</button><a class="btn ghost" href="{{ back_url }}">Cancel</a></div>
 </form>
 {% endblock %}
 {% block scripts %}{% if kind == 'purchase' %}<script>{% include "app/_credit.js" %}

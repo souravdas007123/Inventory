@@ -78,8 +78,8 @@
     }
     badge.style.display = '';
     badge.style.background = failed ? '#c0392b' : wait ? '#d98b0c' : '#566';
-    badge.textContent = failed ? '⚠ ' + failed + ' bill' + (failed > 1 ? 's' : '') + ' need' + (failed > 1 ? '' : 's') + ' attention'
-      : wait ? '⏳ ' + wait + ' bill' + (wait > 1 ? 's' : '') + ' waiting to be saved' : '📴 Offline: billing still works';
+    setLabel(badge, failed ? '@alert ' + failed + ' bill' + (failed > 1 ? 's' : '') + ' need' + (failed > 1 ? '' : 's') + ' attention'
+      : wait ? '@hourglass ' + wait + ' bill' + (wait > 1 ? 's' : '') + ' waiting to be saved' : '@wifi-off Offline: billing still works');
     if (panel.style.display !== 'none') drawPanel();
   }
   async function drawPanel() {

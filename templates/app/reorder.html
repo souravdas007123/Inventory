@@ -1,7 +1,8 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Reorder Suggestions{% endblock %}
 {% block content %}
-<div class="head"><h1>🔄 Reorder Suggestions</h1></div>
+<div class="head"><h1>{% icon 'refresh' %} Reorder Suggestions</h1></div>
 <div class="msg info">
   {% if days %}Based on what you actually sold in the last <b>{{ days }} days</b>, this shows the products that will run out soon and how much to order to have about <b>{{ cover }} days</b> of stock.
   {% else %}Based on what you actually sold, this shows <b>every product that needs ordering</b> and how much to order to have about <b>{{ cover }} days</b> of stock. Each product is checked against the last 15, 30, 60 and 90 days, and the fastest selling period counts, so nothing is missed. Pick one period below to look at only that.{% endif %}
@@ -32,10 +33,10 @@
     </tr>{% endfor %}
     </tbody>
   </table></div>
-  <div class="bar"><button class="btn">📋 Create purchase order</button><small style="color:var(--mute)">Products of the same supplier go into one order. You can review and send it from Purchase Orders.</small></div>
+  <div class="bar"><button class="btn">{% icon 'clipboard' %} Create purchase order</button><small style="color:var(--mute)">Products of the same supplier go into one order. You can review and send it from Purchase Orders.</small></div>
   </form>
   {% else %}
-  <div class="empty">Nothing needs to be ordered right now. Stock is enough for your sales{% if days %} of the last {{ days }} days{% endif %}. 🎉</div>
+  <div class="empty">Nothing needs to be ordered right now. Stock is enough for your sales{% if days %} of the last {{ days }} days{% endif %}. {% icon 'sparkles' %}</div>
   {% endif %}
 </div>
 {% endblock %}

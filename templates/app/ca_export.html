@@ -1,7 +1,8 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}CA / Accountant Export{% endblock %}
 {% block content %}
-<div class="head"><h1>📤 CA / Accountant Export</h1></div>
+<div class="head"><h1>{% icon 'upload' %} CA / Accountant Export</h1></div>
 <div class="msg info">One Excel file for your CA: sales and purchase registers, credit / debit notes, GST by rate, expenses and payments. Only final bills are counted. Please verify the figures with your CA before filing a return.</div>
 <form method="get" class="card">
   <div class="grid">
@@ -13,7 +14,7 @@
   </div>
   {% if error %}<div class="msg error">{{ error }}</div>{% endif %}
   <div class="bar"><button class="btn ghost">Show totals</button>
-    {% if not error %}<button class="btn" name="export" value="xlsx">⬇ Download Excel</button>{% endif %}</div>
+    {% if not error %}<button class="btn" name="export" value="xlsx">{% icon 'download' %} Download Excel</button>{% endif %}</div>
 </form>
 {% if info %}
 <div class="card" style="margin-top:14px"><h3 style="margin-top:0">{{ start|date:"d M Y" }} to {{ end|date:"d M Y" }}</h3>

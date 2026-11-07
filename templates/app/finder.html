@@ -1,11 +1,12 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Medicine Finder{% endblock %}
 {% block content %}
-<div class="head"><h1>💊 Medicine Finder</h1></div>
+<div class="head"><h1>{% icon 'pill' %} Medicine Finder</h1></div>
 <div class="msg info">Type a medicine name or a salt (for example <i>Paracetamol</i>). For each medicine you see the other medicines with exactly the same composition, in stock first and cheapest first. This is how you offer a customer another brand when theirs is not available.</div>
 <form method="get" class="card" style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:end">
   <div class="fld" style="margin:0;flex:1;min-width:220px"><label for="q">Medicine or salt</label><input id="q" name="q" value="{{ q }}" maxlength="100" autofocus autocomplete="off"></div>
-  <button class="btn">🔍 Find</button>{% if searched %}<a class="btn ghost" href="{% url 'finder' %}">Clear</a>{% endif %}
+  <button class="btn">{% icon 'search' %} Find</button>{% if searched %}<a class="btn ghost" href="{% url 'finder' %}">Clear</a>{% endif %}
 </form>
 {% for r in results %}
 <div class="card" style="margin-bottom:14px">

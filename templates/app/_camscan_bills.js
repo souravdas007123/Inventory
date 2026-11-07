@@ -2,7 +2,7 @@
 (function (input) {
   if (!input || !('BarcodeDetector' in window) || !window.isSecureContext || !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) return;
   const btn = document.createElement('button');
-  btn.type = 'button'; btn.className = 'btn ghost sm'; btn.id = 'cam-open'; btn.textContent = '📷 Scan with camera';
+  btn.type = 'button'; btn.className = 'btn ghost sm'; btn.id = 'cam-open'; setLabel(btn, '@camera Scan with camera');
   btn.style.marginTop = '6px';
   input.insertAdjacentElement('afterend', btn);
   const dlg = document.createElement('dialog');

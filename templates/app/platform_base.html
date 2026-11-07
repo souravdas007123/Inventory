@@ -1,3 +1,4 @@
+{% load icons %}
 <!doctype html>
 <html lang="en"><head>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -97,5 +98,5 @@ pre{white-space:pre-wrap;margin:0;font:inherit}
 <a class="nav" href="/admin/backend/blogpost/">Blog articles</a>
 <a class="nav" href="/admin/tenants/shop/">Shops (admin)</a>
 <div class="sep"></div><a class="nav push" href="/">My shop</a></nav>
-<main class="content">{% if maintenance_bar %}<div class="warnbar"><b>🛠️ {{ maintenance_bar }}</b> <a href="{% url 'platform_maintenance' %}">Manage</a></div>{% endif %}{% for m in messages %}<div class="msg {{ m.tags }}" role="status">{{ m }}</div>{% endfor %}{% block content %}{% endblock %}</main>
+<main class="content">{% if maintenance_bar %}<div class="warnbar"><b>{% icon 'wrench' %} {{ maintenance_bar }}</b> <a href="{% url 'platform_maintenance' %}">Manage</a></div>{% endif %}{% for m in messages %}<div class="msg {{ m.tags }}" role="status">{{ m }}</div>{% endfor %}{% block content %}{% endblock %}</main>
 </div></body></html>

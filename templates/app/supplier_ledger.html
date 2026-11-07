@@ -1,8 +1,9 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Ledger · {{ supplier.company }}{% endblock %}
 {% block content %}
 <div class="head">
-  <div><h1>📒 {{ supplier.company }}</h1>
+  <div><h1>{% icon 'book' %} {{ supplier.company }}</h1>
     <small style="color:var(--mute)">{% if supplier.phone %}Ph: {{ supplier.phone }}{% endif %}{% if supplier.gstin %} · GSTIN: {{ supplier.gstin }}{% endif %}</small></div>
   <div style="display:flex;gap:8px"><a class="btn" href="/payments/new/?supplier={{ supplier.pk }}">+ Payment</a><a class="btn ghost" href="/suppliers/">← Back</a></div>
 </div>

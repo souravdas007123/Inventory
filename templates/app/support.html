@@ -1,7 +1,8 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Support tickets{% endblock %}
 {% block content %}
-<div class="head"><h1>🎫 Support tickets</h1></div>
+<div class="head"><h1>{% icon 'ticket' %} Support tickets</h1></div>
 <div class="card" style="margin-bottom:14px">
   <h3 style="margin-top:0">Ask us for help</h3>
   <p style="margin:0 0 12px;color:var(--mute)">Tell us what went wrong or what you need. We reply here, and you also get an e-mail. Please say what you were doing and what you expected to happen.</p>

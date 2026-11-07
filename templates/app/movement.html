@@ -1,8 +1,9 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Fast & Dead Stock{% endblock %}
 {% block content %}
-<div class="head"><h1>📦 Fast &amp; Dead Stock</h1>
-  <div class="bar"><a class="btn ghost sm" href="?days={{ days }}&show={{ shown }}&export=xlsx">⬇ Excel</a><a class="btn ghost sm" href="?days={{ days }}&show={{ shown }}&export=csv">CSV</a></div></div>
+<div class="head"><h1>{% icon 'package' %} Fast &amp; Dead Stock</h1>
+  <div class="bar"><a class="btn ghost sm" href="?days={{ days }}&show={{ shown }}&export=xlsx">{% icon 'download' %} Excel</a><a class="btn ghost sm" href="?days={{ days }}&show={{ shown }}&export=csv">CSV</a></div></div>
 <div class="msg info">
   Shows which medicines sell quickly and which ones hold your money. It looks at what was billed in the last <b>{{ days }} days</b>.
   <b>Fast</b>: the stock lasts {{ fast_cover }} days or less at that pace. <b>Slow</b>: it lasts more than {{ slow_cover }} days.
@@ -36,6 +37,6 @@
       <td data-label="Expiry">{% if r.expiry %}{{ r.expiry|date:"d M Y" }}{% else %}-{% endif %}</td>
     </tr>{% endfor %}</tbody>
   </table></div>
-  {% else %}<div class="empty">Nothing to show here. 🎉</div>{% endif %}
+  {% else %}<div class="empty">Nothing to show here. {% icon 'sparkles' %}</div>{% endif %}
 </div>
 {% endblock %}

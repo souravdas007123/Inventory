@@ -867,40 +867,40 @@ def _commit_each(results, apply):
 
 IMPORTERS = {
     'products': dict(
-        title='Products', icon='🧴', cols=PRODUCT_COLS, aliases=PRODUCT_ALIASES, validate=validate_products,
+        title='Products', icon='bottle', cols=PRODUCT_COLS, aliases=PRODUCT_ALIASES, validate=validate_products,
         commit=commit_products, export=export_products, has_update=True, max_rows=3000,
         desc='Add a whole list of medicines at once. Name, unit and GST are required. You can also fill in barcode, MRP and packs (Strip/Box).',
         after='Next, add stock using Stock Entry.'),
     'customers': dict(
-        title='Customers', icon='👥', cols=CUSTOMER_COLS, aliases=CUSTOMER_ALIASES, validate=validate_customers,
+        title='Customers', icon='users', cols=CUSTOMER_COLS, aliases=CUSTOMER_ALIASES, validate=validate_customers,
         commit=commit_customers, export=export_customers, has_update=True, max_rows=3000,
         desc='Regular customers and their credit limits. Existing credit balances are not entered here; they build up from bills and receipts.',
         after=''),
     'suppliers': dict(
-        title='Suppliers', icon='🏭', cols=SUPPLIER_COLS, aliases=SUPPLIER_ALIASES, validate=validate_suppliers,
+        title='Suppliers', icon='factory', cols=SUPPLIER_COLS, aliases=SUPPLIER_ALIASES, validate=validate_suppliers,
         commit=commit_suppliers, export=export_suppliers, has_update=True, max_rows=3000,
         desc='List of distributors / suppliers. When a GSTIN is given, the state and PAN are filled in automatically.',
         after='Suppliers must exist before a Stock Entry (purchase) import. Products do not: new medicines are created from the purchase rows.'),
     'stock': dict(
-        title='Stock Entry (Purchases)', icon='📦', cols=STOCK_COLS, aliases=STOCK_ALIASES, validate=validate_stock,
+        title='Stock Entry (Purchases)', icon='package', cols=STOCK_COLS, aliases=STOCK_ALIASES, validate=validate_stock,
         commit=commit_stock, export=None, has_update=False, max_rows=1500, can_create_products=True, barcode_as_product=True,
         desc='Create purchases and stock/batches at once from supplier bill rows. Use the same supplier and invoice number on every row of one invoice. '
              'Use this for opening stock as well.',
         after='The created bills will appear on the Purchases page. If there is a mistake, create a Purchase Return from there.'),
 }
 IMPORTERS['expenses'] = dict(
-    title='Expenses', icon='💸', cols=EXPENSE_COLS, aliases=EXPENSE_ALIASES, validate=validate_expenses,
+    title='Expenses', icon='cash', cols=EXPENSE_COLS, aliases=EXPENSE_ALIASES, validate=validate_expenses,
     commit=commit_expenses, export=export_expenses, has_update=False, max_rows=3000,
     desc='Add expenses (Rent, Salary, Electricity...) at once. A row with the same date, type and amount is not imported again.',
     after='These expenses are included in Profit & Loss automatically.')
 IMPORTERS['categories'] = dict(
-    title='Categories', icon='🗂️', desc='Medicine categories (Tablet, Syrup, Injection...). A category written in the Products import is also created automatically.',
+    title='Categories', icon='folder', desc='Medicine categories (Tablet, Syrup, Injection...). A category written in the Products import is also created automatically.',
     after='', **_simple_importer(Category, ('Tablet', 'Syrup')))
 IMPORTERS['brands'] = dict(
-    title='Brands', icon='🏷️', desc='Brand / company names (Cipla, Sun Pharma...). A brand written in the Products import is also created automatically.',
+    title='Brands', icon='tag', desc='Brand / company names (Cipla, Sun Pharma...). A brand written in the Products import is also created automatically.',
     after='', **_simple_importer(Brand, ('Cipla', 'Sun Pharma')))
 IMPORTERS['units'] = dict(
-    title='Units', icon='📏', desc='Units (Tablet, Strip, Box, Bottle...). Short names (tab, strips, btl) are converted to the correct name automatically.',
+    title='Units', icon='ruler', desc='Units (Tablet, Strip, Box, Bottle...). Short names (tab, strips, btl) are converted to the correct name automatically.',
     after='Conversions for larger packs such as Strip/Box are set from the pack1/pack2 columns of the Products import.',
     **_simple_importer(Unit, ('Tablet', 'Strip'), alias_units=True))
 IMPORTERS['stock']['desc_extra'] = ('One row = one medicine. For a bill with several medicines, add one row per medicine and repeat the same supplier and invoice_number on each row. '

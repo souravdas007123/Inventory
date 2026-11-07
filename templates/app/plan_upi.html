@@ -1,7 +1,8 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Pay by UPI{% endblock %}
 {% block content %}
-<div class="head"><h1>📲 Pay by UPI</h1><a class="btn ghost" href="{% url 'plan' %}">&larr; Back</a></div>
+<div class="head"><h1>{% icon 'card' %} Pay by UPI</h1><a class="btn ghost" href="{% url 'plan' %}">&larr; Back</a></div>
 <div class="card" style="margin-bottom:14px;max-width:640px">
   <h3 style="margin-top:0">Step 1: pay Rs {{ order.amount|floatformat:0 }} ({{ order.get_plan_display }} plan, GST included)</h3>
   {% if qr_svg %}<div style="text-align:center;margin:8px 0">{{ qr_svg }}<p style="margin:4px 0 0;color:var(--mute);font-size:13px">Scan with any UPI app (PhonePe, Google Pay, Paytm, BHIM ...)</p></div>{% endif %}

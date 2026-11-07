@@ -1,8 +1,9 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% load static %}
 {% block title %}Help and support{% endblock %}
 {% block content %}
-<div class="head"><h1>🛟 Help and support</h1></div>
+<div class="head"><h1>{% icon 'lifebuoy' %} Help and support</h1></div>
 {% include "app/_tutorial.html" %}
 {% if tickets_on %}<div class="card" style="margin-bottom:14px">
   <h3 style="margin-top:0">Send us a support ticket</h3>

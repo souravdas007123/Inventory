@@ -1,7 +1,8 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Import / Export{% endblock %}
 {% block content %}
-<div class="head"><h1>📥 Import / Export</h1></div>
+<div class="head"><h1>{% icon 'download' %} Import / Export</h1></div>
 <div class="msg info">Instead of entering records one by one, add all your data at once from an Excel (.xlsx) or CSV file. Download the template, fill it in, then upload it. A <b>preview</b> is shown after upload, and nothing is saved until you confirm.</div>
 <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))">
   {% for it in items %}
@@ -10,13 +11,13 @@
       {% if it.step %}<span class="badge grey">{{ it.step }}</span>{% endif %}
       {% if it.required %}<span class="badge amber">Required</span>{% else %}<span class="badge grey">Optional</span>{% endif %}
     </div>
-    <h3 style="margin:0">{{ it.icon }} {{ it.title }}</h3>
+    <h3 style="margin:0">{% icon it.icon %} {{ it.title }}</h3>
     <p style="margin:0;color:var(--mute);flex:1">{{ it.desc }}</p>
     {% if it.why %}<p style="margin:0;font-size:13px"><b>{% if it.required %}Why now:{% else %}When:{% endif %}</b> {{ it.why }}</p>{% endif %}
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <a class="btn" href="{% url 'import' it.key %}">⬆ Import</a>
+      <a class="btn" href="{% url 'import' it.key %}">{% icon 'upload' %} Import</a>
       <a class="btn ghost" href="{% url 'import' it.key %}?template=1">Template</a>
-      {% if it.can_export %}<a class="btn ghost" href="{% url 'import' it.key %}?export=xlsx">⬇ Export</a>{% endif %}
+      {% if it.can_export %}<a class="btn ghost" href="{% url 'import' it.key %}?export=xlsx">{% icon 'download' %} Export</a>{% endif %}
     </div>
   </div>
   {% endfor %}
@@ -28,6 +29,6 @@
     <li><i>(Optional)</i> Import <b>Products</b> to add medicines that have no stock yet, or to fill in MRP, barcode and packs.</li>
     <li><i>(Optional, any time)</i> <b>Customers</b>, <b>Expenses</b>, and <b>Units, Categories, Brands</b> (these are also created automatically).</li>
   </ol>
-  <p style="color:var(--mute);margin:10px 0 0">On every list page (Products, Bills, Purchases...), the <b>⬇ Excel</b> / <b>CSV</b> button downloads the whole list.</p>
+  <p style="color:var(--mute);margin:10px 0 0">On every list page (Products, Bills, Purchases...), the <b>{% icon 'download' %} Excel</b> / <b>CSV</b> button downloads the whole list.</p>
 </div>
 {% endblock %}

@@ -1,4 +1,5 @@
 {% extends "app/base.html" %}
+{% load icons %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
 <style>
@@ -35,25 +36,25 @@
 </style>
 <div class="head"><h1>Dashboard</h1>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-    <a class="btn ghost" href="{% url 'alerts_whatsapp' %}" target="_blank" rel="noopener" title="Send the stock alerts (expiry with rack, out of stock, low stock) on WhatsApp">💬 Alerts WhatsApp</a>
-    {% if is_owner %}<a class="btn ghost" href="{% url 'summary_whatsapp' %}" target="_blank" rel="noopener" title="Open today's summary in WhatsApp (sent to your shop number)">💬 Today's summary</a>{% endif %}
-    {% if is_owner %}<form method="post" action="{% url 'alerts_send' %}" style="margin:0">{% csrf_token %}<button class="btn ghost" title="Email a digest of low stock / expiry">✉️ Alerts Email</button></form>{% endif %}
+    <a class="btn ghost" href="{% url 'alerts_whatsapp' %}" target="_blank" rel="noopener" title="Send the stock alerts (expiry with rack, out of stock, low stock) on WhatsApp">{% icon 'message' %} Alerts WhatsApp</a>
+    {% if is_owner %}<a class="btn ghost" href="{% url 'summary_whatsapp' %}" target="_blank" rel="noopener" title="Open today's summary in WhatsApp (sent to your shop number)">{% icon 'message' %} Today's summary</a>{% endif %}
+    {% if is_owner %}<form method="post" action="{% url 'alerts_send' %}" style="margin:0">{% csrf_token %}<button class="btn ghost" title="Email a digest of low stock / expiry">{% icon 'mail' %} Alerts Email</button></form>{% endif %}
     <a class="btn" href="/bills/new/">+ New Bill</a>
   </div>
 </div>
 {% if setup %}<div class="card" style="margin-bottom:14px" id="setup">
 <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><div><h3 style="margin:0">Get your shop ready</h3><span style="color:var(--mute);font-size:13px">{{ setup.done }} of {{ setup.total }} steps done</span></div>
-<div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm" href="/setup/">Open the setup guide</a><a class="btn ghost sm" href="/help/#video">▶ Watch the 90-second video</a>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm" href="/setup/">Open the setup guide</a><a class="btn ghost sm" href="/help/#video">{% icon 'play' %} Watch the 90-second video</a>
 <form method="post" action="{% url 'hide_setup' %}" style="margin:0">{% csrf_token %}<button class="btn ghost sm">Hide for now</button></form></div></div>
 <div class="hbar" style="margin:10px 0 12px" role="progressbar" aria-valuenow="{{ setup.percent }}" aria-valuemin="0" aria-valuemax="100"><span style="width:{{ setup.percent }}%"></span></div>
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px">
 {% for i in setup.items %}<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;{% if i.done %}opacity:.65{% endif %}">
-<div style="font-weight:700">{% if i.done %}✅{% else %}⬜{% endif %} {{ i.title }}</div>
+<div style="font-weight:700">{% if i.done %}{% icon 'check-circle' %}{% else %}{% icon 'circle' %}{% endif %} {{ i.title }}</div>
 <div style="color:var(--mute);font-size:13px;margin:2px 0 8px">{{ i.text }}</div>
 {% if not i.done %}<a class="btn sm" href="{{ i.url }}">Open</a>{% endif %}</div>{% endfor %}
 </div></div>
 {% if setup.fresh %}<dialog id="welcome" style="max-width:460px;width:calc(100% - 32px);border:1px solid var(--line);border-radius:12px;padding:22px;background:var(--card);color:var(--ink)">
-<h3 style="margin:0 0 8px">Welcome to Symaso 👋</h3>
+<h3 style="margin:0 0 8px">Welcome to Symaso </h3>
 <p style="margin:0 0 8px">Your shop is ready to set up. It takes a few minutes: your shop details, suppliers, medicines and your opening stock.</p>
 <p style="margin:0 0 16px;color:var(--mute)">The setup guide tells you what to enter and import first, and what to avoid, so your data starts clean.</p>
 <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button type="button" class="btn ghost" id="welcome-later">Later</button><a class="btn" href="/setup/" id="welcome-go">Open the setup guide</a></div></dialog>
@@ -73,8 +74,8 @@
   } catch (e) { }
 })();
 </script>{% endif %}{% endif %}
-{% if backup_note %}<div class="msg warning">💾 {{ backup_note }} <a class="link" href="/backup/">Back up now</a></div>{% endif %}
-<div class="sec">📊 Sales</div>
+{% if backup_note %}<div class="msg warning">{% icon 'save' %} {{ backup_note }} <a class="link" href="/backup/">Back up now</a></div>{% endif %}
+<div class="sec">{% icon 'chart' %} Sales</div>
 <div class="stats">
   <div class="card stat"><small>Sales today (after returns)</small><b>₹{{ today_sales|floatformat:2 }}</b><span class="sub">{{ ov.bills_today }} bills</span></div>
   <div class="card stat"><small>Sales this month</small><b>₹{{ month_sales|floatformat:2 }}</b><span class="sub">{{ ov.bills_month }} bills</span></div>
@@ -82,7 +83,7 @@
   <a class="card stat" href="/gst/"><small>GST collected (today / month)</small><b>₹{{ ov.gst_today|floatformat:2 }} / ₹{{ ov.gst_month|floatformat:2 }}</b><span class="sub">View GST report →</span></a>
 </div>
 
-<div class="sec">💰 Money</div>
+<div class="sec">{% icon 'cash' %} Money</div>
 <div class="stats">
   <a class="card stat {% if ov.credit_total %}warn{% endif %}" href="/customers/"><small>To collect from customers (credit)</small><b>₹{{ ov.credit_total|floatformat:2 }}</b><span class="sub">{{ ov.credit_count }} customers owing</span></a>
   <a class="card stat" href="/suppliers/"><small>To pay suppliers</small><b>₹{{ ov.payable_total|floatformat:2 }}</b><span class="sub">{{ ov.payable_count }} suppliers owed</span></a>
@@ -118,13 +119,13 @@
 </div>
 {% endif %}
 
-<div class="sec">📦 Stock alerts</div>
+<div class="sec">{% icon 'package' %} Stock alerts</div>
 <div class="stats">
   <a class="card stat {% if low_count or out_count %}warn{% endif %}" href="/products/"><small>Low stock / Out of stock</small><b>{{ low_count }} / {{ out_count }}</b></a>
   <a class="card stat {% if expiring_count or expired_count %}warn{% endif %}" href="/batches/"><small>Expiring (30 days) / Expired</small><b>{{ expiring_count }} / {{ expired_count }}</b></a>
 </div>
 
-<div class="sec">📈 Charts</div>
+<div class="sec">{% icon 'trend' %} Charts</div>
 <div class="card" style="margin-bottom:14px"><h3 style="margin-top:0">Sales in the last 14 days <small style="color:var(--mute);font-weight:400">(total ₹{{ charts.total_14|floatformat:2 }})</small></h3>
   <div class="bars">
     {% for b in charts.bars %}<div class="col" title="{{ b.label }}: ₹{{ b.value|floatformat:2 }}">
@@ -157,7 +158,7 @@
         <div class="bar{% if not w.pct %} zero{% endif %}" style="height:{% if w.pct %}{{ w.pct }}{% else %}2{% endif %}%"></div><small>{{ w.label }}</small></div>{% endfor %}
     </div>
   </div>
-  <div class="card"><h3 style="margin-top:0">🏆 Top customers (30 days)</h3>
+  <div class="card"><h3 style="margin-top:0">{% icon 'trophy' %} Top customers (30 days)</h3>
     {% for t in ov.top_customers %}<div style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;gap:8px"><span>{{ t.name }}</span><b>₹{{ t.amount|floatformat:2 }}</b></div>
       <div class="hbar"><span style="width:{{ t.pct }}%"></span></div><small style="color:var(--mute)">{{ t.bills }} bill</small></div>
@@ -166,21 +167,21 @@
 </div>
 
 <div class="two" style="margin-bottom:14px">
-  <div class="card"><h3 style="margin-top:0">🏆 Top selling medicines (30 days)</h3>
+  <div class="card"><h3 style="margin-top:0">{% icon 'trophy' %} Top selling medicines (30 days)</h3>
     {% for t in charts.top_rows %}<div style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;gap:8px"><span>{{ t.name }}</span><b>₹{{ t.amount|floatformat:2 }}</b></div>
       <div class="hbar"><span style="width:{{ t.pct }}%"></span></div><small style="color:var(--mute)">{{ t.qty }} sold (base unit)</small></div>
     {% empty %}<div class="empty">No sales data yet.</div>{% endfor %}
   </div>
-  <div class="card"><h3 style="margin-top:0">🧊 Dead stock (no sales in 90 days)</h3>
+  <div class="card"><h3 style="margin-top:0">{% icon 'snowflake' %} Dead stock (no sales in 90 days)</h3>
     <div class="tw"><table class="t mini">
       {% for name, stock in charts.dead_stock %}<tr><td>{{ name }}</td><td>{{ stock }}</td></tr>
-      {% empty %}<tr><td class="empty">No dead stock 👍</td></tr>{% endfor %}
+      {% empty %}<tr><td class="empty">No dead stock {% icon 'thumbs-up' %}</td></tr>{% endfor %}
     </table></div></div>
 </div>
 
-<div class="sec">⚖️ Supplier prices</div>
-<div class="card" style="margin-bottom:14px"><h3 style="margin-top:0">📈 Price increases (last 60 days) <a class="link" href="/supplier_prices/" style="font-size:12px;float:right">Compare suppliers →</a></h3>
+<div class="sec">{% icon 'scale' %} Supplier prices</div>
+<div class="card" style="margin-bottom:14px"><h3 style="margin-top:0">{% icon 'trend' %} Price increases (last 60 days) <a class="link" href="/supplier_prices/" style="font-size:12px;float:right">Compare suppliers →</a></h3>
   <div class="tw"><table class="t mini">
     <thead><tr><th>Medicine</th><th>Supplier</th><th>Old price</th><th>New price</th><th>Rise</th><th>Cheaper option</th><th></th></tr></thead>
     {% for j in ov.price_jumps %}<tr><td><b>{{ j.product }}</b></td><td>{{ j.supplier }}<br><small style="color:var(--mute)">{{ j.date|date:"d M Y" }}</small></td>
@@ -188,50 +189,50 @@
       <td><span class="badge red">▲ {{ j.change }}%</span></td>
       <td>{% if j.alt_supplier %}<b>{{ j.alt_supplier }}</b><br><small>{{ j.alt_txt }}</small>{% else %}-{% endif %}</td>
       <td><a class="btn ghost sm" href="/supplier_prices/{{ j.product_id }}/">Compare</a></td></tr>
-    {% empty %}<tr><td class="empty" colspan="7">No supplier price has risen by 10% or more recently 👍</td></tr>{% endfor %}
+    {% empty %}<tr><td class="empty" colspan="7">No supplier price has risen by 10% or more recently {% icon 'thumbs-up' %}</td></tr>{% endfor %}
   </table></div></div>
 
-<div class="sec">📋 Needs attention</div>
+<div class="sec">{% icon 'clipboard' %} Needs attention</div>
 <div class="two" style="margin-bottom:14px">
-  <div class="card"><h3 style="margin-top:0">💸 Outstanding credit (highest first) <a class="link" href="/customers/" style="font-size:12px;float:right">View all →</a></h3>
+  <div class="card"><h3 style="margin-top:0">{% icon 'cash' %} Outstanding credit (highest first) <a class="link" href="/customers/" style="font-size:12px;float:right">View all →</a></h3>
     <div class="tw"><table class="t mini">
       <thead><tr><th>Customer</th><th>Due</th><th>Since</th><th></th></tr></thead>
       {% for r in ov.credit_rows %}<tr><td>{{ r.name }}{% if r.phone %}<br><small style="color:var(--mute)">{{ r.phone }}</small>{% endif %}{% if r.over %} <span class="badge red">Over limit</span>{% endif %}</td>
-        <td><b>₹{{ r.balance|floatformat:2 }}</b></td><td>{{ r.days }} days</td><td><a class="btn ghost sm" href="/customers/{{ r.pk }}/ledger/">Ledger</a> <a class="btn ghost sm" href="{{ r.wa }}" target="_blank" rel="noopener" title="Send a credit reminder on WhatsApp">💬</a></td></tr>
-      {% empty %}<tr><td class="empty" colspan="4">No customer has outstanding credit 👍</td></tr>{% endfor %}
+        <td><b>₹{{ r.balance|floatformat:2 }}</b></td><td>{{ r.days }} days</td><td><a class="btn ghost sm" href="/customers/{{ r.pk }}/ledger/">Ledger</a> <a class="btn ghost sm" href="{{ r.wa }}" target="_blank" rel="noopener" title="Send a credit reminder on WhatsApp">{% icon 'message' %}</a></td></tr>
+      {% empty %}<tr><td class="empty" colspan="4">No customer has outstanding credit {% icon 'thumbs-up' %}</td></tr>{% endfor %}
     </table></div></div>
-  <div class="card"><h3 style="margin-top:0">🏭 Payable to suppliers <a class="link" href="/suppliers/" style="font-size:12px;float:right">View all →</a></h3>
+  <div class="card"><h3 style="margin-top:0">{% icon 'factory' %} Payable to suppliers <a class="link" href="/suppliers/" style="font-size:12px;float:right">View all →</a></h3>
     <div class="tw"><table class="t mini">
       <thead><tr><th>Supplier</th><th>Due</th></tr></thead>
       {% for r in ov.payable_rows %}<tr><td>{{ r.name }}{% if r.phone %}<br><small style="color:var(--mute)">{{ r.phone }}</small>{% endif %}</td><td><b>₹{{ r.balance|floatformat:2 }}</b></td></tr>
-      {% empty %}<tr><td class="empty" colspan="2">No payments due 👍</td></tr>{% endfor %}
+      {% empty %}<tr><td class="empty" colspan="2">No payments due {% icon 'thumbs-up' %}</td></tr>{% endfor %}
     </table></div></div>
 </div>
 
 <div class="two" style="margin-bottom:14px">
-  <div class="card"><h3 style="margin-top:0">🛒 Items to reorder <a class="link" href="/purchase_orders/new/" style="font-size:12px;float:right">+ Purchase Order</a></h3>
+  <div class="card"><h3 style="margin-top:0">{% icon 'cart' %} Items to reorder <a class="link" href="/purchase_orders/new/" style="font-size:12px;float:right">+ Purchase Order</a></h3>
     <div class="tw"><table class="t mini">
       <thead><tr><th>Medicine</th><th>Current stock</th><th>Order qty</th></tr></thead>
       {% for r in ov.reorder_rows %}<tr><td>{{ r.name }}</td><td>{{ r.stock }}</td><td><b>{{ r.need }}</b> {{ r.unit }}</td></tr>
-      {% empty %}<tr><td class="empty" colspan="3">Everything looks good 👍</td></tr>{% endfor %}
+      {% empty %}<tr><td class="empty" colspan="3">Everything looks good {% icon 'thumbs-up' %}</td></tr>{% endfor %}
     </table></div>
     <small style="color:var(--mute)">Suggestion: order up to twice the reorder level (in base units).</small></div>
-  <div class="card"><h3 style="margin-top:0">⏳ Expire Soon</h3>
+  <div class="card"><h3 style="margin-top:0">{% icon 'hourglass' %} Expire Soon</h3>
     <div class="tw"><table class="t mini">
       <thead><tr><th>Medicine</th><th>Batch</th><th>Qty</th><th>Expiry</th></tr></thead>
       {% for p, b, q, e in exp_rows %}<tr><td>{{ p }}</td><td>{{ b }}</td><td>{{ q }}</td><td>{{ e }}</td></tr>
-      {% empty %}<tr><td class="empty" colspan="4">No batches expiring soon 👍</td></tr>{% endfor %}
+      {% empty %}<tr><td class="empty" colspan="4">No batches expiring soon {% icon 'thumbs-up' %}</td></tr>{% endfor %}
     </table></div></div>
 </div>
 
 <div class="two" style="margin-bottom:14px">
-  <div class="card"><h3 style="margin-top:0">⚠️ Low Stock</h3>
+  <div class="card"><h3 style="margin-top:0">{% icon 'alert' %} Low Stock</h3>
     <div class="tw"><table class="t mini">
       <thead><tr><th>Medicine</th><th>Stock</th><th>Status</th></tr></thead>
       {% for n, s, b in low_rows %}<tr><td>{{ n }}</td><td>{{ s }}</td><td>{{ b }}</td></tr>
-      {% empty %}<tr><td class="empty" colspan="3">Everything looks good 👍</td></tr>{% endfor %}
+      {% empty %}<tr><td class="empty" colspan="3">Everything looks good {% icon 'thumbs-up' %}</td></tr>{% endfor %}
     </table></div></div>
-  <div class="card"><h3 style="margin-top:0">💊 Today's Schedule H/H1/X sales <a class="link" href="/drug_register/" style="font-size:12px;float:right">Register →</a></h3>
+  <div class="card"><h3 style="margin-top:0">{% icon 'pill' %} Today's Schedule H/H1/X sales <a class="link" href="/drug_register/" style="font-size:12px;float:right">Register →</a></h3>
     <div class="tw"><table class="t mini">
       <thead><tr><th>Bill</th><th>Medicine</th><th>Sch.</th><th>Patient / Doctor</th></tr></thead>
       {% for r in ov.schedule_rows %}<tr><td>{{ r.inv }}</td><td>{{ r.product }}</td><td><span class="badge amber">{{ r.schedule }}</span></td><td>{{ r.patient|default:"-" }}<br><small style="color:var(--mute)">Dr. {{ r.doctor|default:"-" }}</small></td></tr>
@@ -239,8 +240,8 @@
     </table></div></div>
 </div>
 
-<div class="card"><h3 style="margin-top:0">🕒 Recent activity</h3>
-  {% for a in ov.activity %}<a class="act" href="{{ a.url }}"><span>{{ a.icon }}</span><span>{{ a.text }}<small>{{ a.date|date:"d M Y" }}</small></span></a>
+<div class="card"><h3 style="margin-top:0">{% icon 'clock' %} Recent activity</h3>
+  {% for a in ov.activity %}<a class="act" href="{{ a.url }}"><span>{% icon a.icon %}</span><span>{{ a.text }}<small>{{ a.date|date:"d M Y" }}</small></span></a>
   {% empty %}<div class="empty">No activity yet.</div>{% endfor %}
 </div>
 {% endblock %}

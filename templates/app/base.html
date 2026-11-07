@@ -1,4 +1,4 @@
-{% load static %}<!doctype html>
+{% load icons static %}<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -29,7 +29,10 @@ a{color:inherit;text-decoration:none}
 .side details summary::-webkit-details-marker{display:none}
 .side details summary::after{content:"▾";transition:transform .2s}
 .side details:not([open]) summary::after{transform:rotate(-90deg)}
-.side a>span{flex:none;width:20px;text-align:center}      /* same icon box for every emoji, so all the labels start at one x */
+.side a>span{flex:none;width:20px;display:inline-flex;justify-content:center}      /* same icon box for every icon, so all the labels start at one x */
+.ic{width:1.15em;height:1.15em;vertical-align:-.2em;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.side a>span .ic{width:18px;height:18px;vertical-align:0}
+.msg{display:flex;align-items:flex-start;gap:9px}.msg .msg-ic{margin-top:.12em;width:1.2em;height:1.2em}.msg.success .msg-ic{color:var(--green)}.msg.error .msg-ic{color:var(--red)}.msg.warning .msg-ic{color:var(--amber)}.msg.info .msg-ic{color:var(--pri)}
 .side .me{margin-top:auto;position:sticky;bottom:-18px;background:var(--side);display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 6px 4px;border-top:1px solid #ffffff1f;color:var(--sidetxt);font-size:13px}
 .side .me .u{min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}   /* a long e-mail is cut with ... instead of making the panel scroll sideways */
 .side .me .r{display:flex;align-items:center;gap:6px;flex:none}.side .me a{padding:4px 8px}.side .me form{margin:0}
@@ -114,25 +117,26 @@ img,video{max-width:100%;height:auto}
 }
 @media(max-width:480px){.main{padding:10px}.stats{grid-template-columns:1fr 1fr;gap:10px}.stat small{font-size:11px}.head h1{flex:1 1 auto;min-width:0}.head .btn{flex:0 0 auto;text-align:center}}
 </style>
+{% icons_js %}
 </head>
 <body>
 <div id="nprog"></div>
 <aside class="side" id="side">
   <h2 style="display:flex;align-items:center;gap:10px">{% include "app/logo.html" with size=30 %}Symaso</h2>
-  {% if platform_url %}<a href="{{ platform_url }}" class="plat"><span>🏬</span>Platform panel</a>{% endif %}
+  {% if platform_url %}<a href="{{ platform_url }}" class="plat"><span>{% icon 'store' %}</span>Platform panel</a>{% endif %}
   {% regroup nav by group as menu_groups %}
   {% for g in menu_groups %}
     {% if g.grouper %}
     <details{% for n in g.list %}{% if n.key == active %} open{% endif %}{% endfor %}>
       <summary>{{ g.grouper }}</summary>
-      {% for n in g.list %}<a href="{{ n.url }}" class="{% if n.key == active %}on{% endif %}"><span>{{ n.icon }}</span>{{ n.label }}</a>{% endfor %}
+      {% for n in g.list %}<a href="{{ n.url }}" class="{% if n.key == active %}on{% endif %}"><span>{% icon n.icon %}</span>{{ n.label }}</a>{% endfor %}
     </details>
     {% else %}
-      {% for n in g.list %}<a href="{{ n.url }}" class="{% if n.key == active %}on{% endif %}"><span>{{ n.icon }}</span>{{ n.label }}</a>{% endfor %}
+      {% for n in g.list %}<a href="{{ n.url }}" class="{% if n.key == active %}on{% endif %}"><span>{% icon n.icon %}</span>{{ n.label }}</a>{% endfor %}
     {% endif %}
   {% endfor %}
-  <div class="me"><span class="u" title="{{ user.get_username }}">👤 {{ user.get_username }}</span>
-    <span class="r">{% if user.is_staff %}<a href="/admin/" title="Admin panel">⚙️</a>{% endif %}
+  <div class="me"><span class="u" title="{{ user.get_username }}">{% icon 'user' %} {{ user.get_username }}</span>
+    <span class="r">{% if user.is_staff %}<a href="/admin/" title="Admin panel">{% icon 'settings' %}</a>{% endif %}
     <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn ghost sm">Logout</button></form></span>
   </div>
 </aside>
@@ -161,12 +165,12 @@ img,video{max-width:100%;height:auto}
 })();
 </script>
 <main class="main">
-  <div class="top"><button class="burger" onclick="document.getElementById('side').classList.toggle('open')">☰</button><b style="display:flex;align-items:center;gap:8px">{% include "app/logo.html" with size=24 %}Symaso</b></div>
+  <div class="top"><button class="burger" onclick="document.getElementById('side').classList.toggle('open')">{% icon 'menu' %}</button><b style="display:flex;align-items:center;gap:8px">{% include "app/logo.html" with size=24 %}Symaso</b></div>
   {% if support_unread %}<div class="msg info">You have {{ support_unread }} new repl{{ support_unread|pluralize:"y,ies" }} from Symaso support. <a href="/support/">Read it</a></div>{% endif %}
-  {% if maintenance_banner %}<div class="msg info" role="status">🛠️ {{ maintenance_banner }}</div>{% endif %}
+  {% if maintenance_banner %}<div class="msg info" role="status">{% icon 'wrench' %} {{ maintenance_banner }}</div>{% endif %}
   {% if platform_notice %}<div class="msg info">{{ platform_notice }}</div>{% endif %}
   {% if shop_note %}<div class="msg info">{{ shop_note }} <a href="/plan/">Plan and payments</a></div>{% endif %}
-  {% for m in messages %}<div class="msg {{ m.tags }}">{{ m }}</div>{% endfor %}
+  {% for m in messages %}<div class="msg {{ m.tags }}">{% if 'success' in m.tags %}{% icon 'check-circle' 'msg-ic' %}{% elif 'error' in m.tags %}{% icon 'x-circle' 'msg-ic' %}{% elif 'warning' in m.tags %}{% icon 'alert' 'msg-ic' %}{% else %}{% icon 'info' 'msg-ic' %}{% endif %}<span>{{ m }}</span></div>{% endfor %}
   {% block content %}{% endblock %}
 </main>
 <dialog id="app-dlg" class="dlg msgdlg" aria-labelledby="app-dlg-title">
