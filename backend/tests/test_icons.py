@@ -67,7 +67,7 @@ class NoEmojiOnScreenTests(TestCase):
     def test_a_message_gets_its_status_icon(self):
         r = self.client.post('/categories/new/', {'name': 'Syrups'}, follow=True)
         html = r.content.decode()
-        self.assertIn('msg success', html)
+        self.assertIn('msg msg-row success', html)
         self.assertIn('msg-ic', html)
         self.assertIsNone(EMOJI.search(html))
 
