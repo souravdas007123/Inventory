@@ -11,9 +11,15 @@ LOCK_SECONDS = 15 * 60
 
 def client_ip(request):
     if os.environ.get('DJANGO_BEHIND_PROXY', '').strip().lower() in ('1', 'true', 'yes', 'on'):
-        fwd = request.META.get('HTTP_X_FORWARDED_FOR', '')
-        if fwd:
-            return fwd.split(',')[0].strip()
+        # The proxy adds the address it saw to the END of the list. Everything before it was written by the visitor, so the first
+        # entry can be anything (that would let one person dodge the sign-in lock). Count from the end, past our own proxies.
+        parts = [x.strip() for x in request.META.get('HTTP_X_FORWARDED_FOR', '').split(',') if x.strip()]
+        if parts:
+            try:
+                hops = max(1, int(os.environ.get('DJANGO_PROXY_HOPS', '1') or 1))
+            except ValueError:
+                hops = 1
+            return parts[-hops] if len(parts) >= hops else parts[0]
     return request.META.get('REMOTE_ADDR', '')
 
 

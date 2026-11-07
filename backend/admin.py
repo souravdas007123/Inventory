@@ -441,7 +441,7 @@ class ShopProfileAdmin(admin.ModelAdmin):
     list_display = ('name', 'gstin', 'drug_license', 'phone')
 
     def has_add_permission(self, request):
-        return not ShopProfile.objects.exists()
+        return super().has_add_permission(request) and not ShopProfile.objects.exists()
 
 
 # ======================================================

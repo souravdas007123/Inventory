@@ -194,6 +194,10 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Admin import / export of a list needs the 'add' / 'view' permission of that list (by default any staff user could do both)
+IMPORT_EXPORT_IMPORT_PERMISSION_CODE = 'add'
+IMPORT_EXPORT_EXPORT_PERMISSION_CODE = 'view'
+
 LOGIN_URL = '/login/'
 PASSWORD_RESET_TIMEOUT = 24 * 60 * 60        # 'forgot password' links work for 24 hours (and only once)
 LOGIN_REDIRECT_URL = '/'
