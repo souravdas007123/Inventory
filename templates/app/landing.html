@@ -109,6 +109,7 @@ section.p{background:var(--paper);border-block:1px solid var(--line)}
 .bt{display:block;aspect-ratio:16/9;overflow:hidden;border-radius:8px;margin-bottom:14px;background:var(--deep)}
 .bt svg,.bt img{display:block;width:100%;height:100%;object-fit:cover}
 .grid>div{padding:20px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);margin:0 -1px -1px 0}
+#why .grid{grid-template-columns:repeat(3,1fr)}@media(max-width:900px){#why .grid{grid-template-columns:1fr}}
 .grid h3,.sm{font-size:16px;margin-bottom:4px}.sm{display:block;line-height:1.3}
 .grid p{margin:0;font-size:14.5px;color:var(--mut);line-height:1.5}
 .guard{columns:2;column-gap:44px;margin:0;padding:0;list-style:none}
@@ -208,6 +209,17 @@ footer .legal{grid-column:1/-1;font-size:14px}
 <div><span class="w7">Daily backup</span><span>Taken every day, and the latest one is actually opened and checked.</span></div>
 <div><span class="w7">Private to your shop</span><span>Every shop has its own space. Nobody else can see your data.</span></div>
 </div></div>
+
+<section id="why"><div class="w">
+<div class="head"><h2>Built for how medical stores really work</h2><p>Things a busy chemist runs into every week, handled inside Symaso. All of them are in the application today.</p></div>
+<div class="grid">
+<div><span class="w7 sm">Keep billing when the internet drops</span><p>Open New Bill once with internet and the medicine list is kept on your device. If the connection goes, keep billing: each bill waits on the device and is sent when the internet is back. Every bill carries a one-time key, so it can never be saved twice.</p></div>
+<div><span class="w7 sm">GSTR-2B check</span><p>Upload the GSTR-2B file you download from the GST portal. Symaso compares it with your purchases and shows what matches, what is missing and what differs, so you can sort it out with the supplier before filing and keep your input credit.</p></div>
+<div><span class="w7 sm">The owner hears about risky changes</span><p>When a staff member deletes a record, edits a bill, makes a return, writes stock off or applies a stock count, the owner gets an e-mail. Everything is also in the audit log, and every sign-in is recorded with its IP address.</p></div>
+<div><span class="w7 sm">Reminders that are ready to use</span><p>Refill list: customers who buy BP, sugar or thyroid medicines regularly and are about to run out. Payment reminders: who owes you and for how long, with a WhatsApp message already written for each.</p></div>
+<div><span class="w7 sm">The salt is always in sight</span><p>The salt is shown under every row while you bill. Out of stock? Symaso shows the same salt that is in stock, cheapest first, and adds it in one tap. Medicine Finder lists every brand of one salt.</p></div>
+<div><span class="w7 sm">Scan with a phone camera</span><p>On a phone whose browser supports it (for example Chrome on Android) the camera reads barcodes, so no scanner is needed. Add Symaso to the home screen and it opens like an app.</p></div>
+</div></div></section>
 
 <section id="day"><div class="w">
 <div class="head"><h2>A day in your shop, with Symaso</h2><p>It follows the way a chemist's day really goes, from the first look at the shelves to the last backup.</p></div>
@@ -341,6 +353,10 @@ footer .legal{grid-column:1/-1;font-size:14px}
 <div><span class="w7 sm">Invoices and notes</span><p>Printable invoices, credit notes and debit notes.</p></div>
 <div><span class="w7 sm">Expenses and salary</span><p>Record running costs so profit and loss is the true figure.</p></div>
 <div><span class="w7 sm">Roles</span><p>Owner, billing and purchase staff each see their own pages.</p></div>
+<div><span class="w7 sm">Fast and dead stock</span><p>See what sells quickly and what only sits on the shelf.</p></div>
+<div><span class="w7 sm">Medicine Finder</span><p>Type a name or a salt and see every medicine with the same composition, in stock first.</p></div>
+<div><span class="w7 sm">Live search</span><p>Product lists, the finder and supplier prices show matches as you type.</p></div>
+<div><span class="w7 sm">2-step sign-in</span><p>After the password, a 6-digit code by e-mail, with recovery codes if you cannot reach your e-mail.</p></div>
 </div></div></section>
 
 <section id="safe"><div class="w">
