@@ -559,6 +559,7 @@ class TwoFactorAdmin(admin.ModelAdmin):
 
 # Look and feel of the admin panel (names, sections, summary cards)
 from . import admin_site  # noqa: E402,F401
+from . import permission_picker  # noqa: E402,F401
 
 
 @admin.register(BlogPost)
