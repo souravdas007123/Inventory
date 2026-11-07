@@ -181,3 +181,49 @@ class LiveSearchTests(StockMixin, TestCase):
             self.assertIn('data-live="live-region"', page, url)
             self.assertIn('id="live-region"', page, url)
             self.assertIn("form[data-live]", page, url)                       # the script is on the page
+
+
+from backend.models import ProductUnit, Unit                         # noqa: E402
+
+
+@override_settings(**SAFE)
+class StockTotalNoteTests(StockMixin, TestCase):
+    """The Products list shows the stock in packs and, under it, the total in the base unit."""
+
+    def setUp(self):
+        super().setUp()
+        self.c = Client()
+        self.c.force_login(get_user_model().objects.create_superuser('boss', 'b@x.com', 'pw'))
+        self.tab = Unit.objects.create(name='TabletX')
+        self.strip10 = Unit.objects.create(name='StripX')
+        self.p = Product.objects.create(name='Multi Pack', unit=self.tab)
+        ProductUnit.objects.create(product=self.p, unit=self.strip10, factor=10)
+
+    def test_note_for_a_pack_and_a_loose_remainder(self):
+        Product.objects.filter(pk=self.p.pk).update(stock_qty=214)
+        p = Product.objects.get(pk=self.p.pk)
+        self.assertEqual(p.stock_display(), '21 StripX 4 TabletX')
+        self.assertEqual(p.stock_total_note(), 'Total 214 TabletX')
+        Product.objects.filter(pk=self.p.pk).update(stock_qty=124000)
+        self.assertEqual(Product.objects.get(pk=self.p.pk).stock_total_note(), 'Total 124,000 TabletX')
+
+    def test_no_note_when_it_would_only_repeat_the_stock(self):
+        p = Product.objects.get(pk=self.p.pk)
+        self.assertEqual(p.stock_total_note(), '')                    # nothing in stock
+        Product.objects.filter(pk=self.p.pk).update(stock_qty=3)
+        self.assertEqual(Product.objects.get(pk=self.p.pk).stock_total_note(), '')          # only loose tablets
+        single = Product.objects.create(name='Single', unit=self.tab, stock_qty=50)
+        self.assertEqual(single.stock_total_note(), '')               # a product with one unit only
+
+    def test_products_list_shows_the_note_without_extra_queries(self):
+        Product.objects.filter(pk=self.p.pk).update(stock_qty=214)
+        page = self.c.get('/products/', {'q': 'Multi'}).content.decode()
+        self.assertIn('21 StripX 4 TabletX', page)
+        self.assertIn('Total 214 TabletX', page)
+        for i in range(8):
+            Product.objects.create(name=f'Bulk {i}', unit=self.tab, stock_qty=40)
+        def count(q):
+            with CaptureQueriesContext(connection) as c:
+                self.c.get('/products/', {'q': q, 'per': 100})
+            return len(c)
+        self.assertLessEqual(count('Bulk'), count('Multi') + 1)       # the note reads the products' prefetched units: no query per row

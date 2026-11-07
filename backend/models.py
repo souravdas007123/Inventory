@@ -261,6 +261,17 @@ class Product(models.Model):
             parts.append(f"{remaining} {base}")
         return " ".join(parts)
 
+    def stock_total_note(self, qty=None):
+        """The stock as one number of the base unit, e.g. "Total 214 Tablet", for lists that show the stock in packs
+        ('21 Strip 4 Tablet'). Empty when the pack text already says the same (only the base unit, or nothing in stock)."""
+        total = self.stock_qty if qty is None else qty
+        if not total:
+            return ''
+        base = self.unit.name if self.unit_id else "unit"
+        if self.stock_display(total) == f"{total} {base}":
+            return ''
+        return f"Total {total:,} {base}"
+
     def get_next_batch(self):
         """FEFO: the batch that expires first (non-expired)."""
         today = timezone.localdate()

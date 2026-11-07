@@ -265,7 +265,7 @@ CONFIG = {
               ('Stock', lambda o: o.stock_display()), ('Pick Batch (FEFO)', pick_batch_txt),
               ('Status', stock_badge), ('Alternative', alt_txt)],
         # The screen shows fewer, multi-line columns (no side scroll); the Excel / CSV export keeps every column above.
-        list_cols=[('Product', product_cell), ('Stock', lambda o: stack(o.stock_display(), stock_badge(o), f"Reorder at {o.reorder_level}")),
+        list_cols=[('Product', product_cell), ('Stock', lambda o: stack(o.stock_display(), o.stock_total_note(), stock_badge(o), f"Reorder at {o.reorder_level}")),
                    ('Price', product_price_cell), ('Supplier', product_supplier_cell),
                    ('Place / sell first', product_place_cell), ('Other', product_extra_cell)],
         prepare=prepare_products,
