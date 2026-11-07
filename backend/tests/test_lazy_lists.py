@@ -8,7 +8,8 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 
 from backend import fastwidgets
-from backend.models import Bill, Product, Purchase
+from django.test import Client
+from backend.models import Bill, Product, Purchase, PurchaseItem
 from backend.models_extra import Customer
 from backend.tests.helpers import StockMixin, today
 
@@ -114,3 +115,34 @@ class LazyListTests(StockMixin, TestCase):
         data['items-0-product'] = 'abc'
         with self.lazy():
             self.assertEqual(self.client.post('/purchases/new/', data).status_code, 200)       # a junk id never breaks the page
+
+
+from django.db import connection                                    # noqa: E402
+from django.test.utils import CaptureQueriesContext                 # noqa: E402
+
+
+@override_settings(**SAFE)
+class SharedChoicesTests(StockMixin, TestCase):
+    """Rows of a formset share one read of each drop-down list (it was one identical query per row)."""
+
+    def setUp(self):
+        super().setUp()
+        self.c = Client()
+        self.c.force_login(get_user_model().objects.create_superuser('boss', 'b@x.com', 'pw'))
+
+    def test_edit_page_query_count_does_not_grow_with_rows(self):
+        purchase, item = self.buy(qty=4, invoice='S-1')
+        def count():
+            with CaptureQueriesContext(connection) as q:
+                self.c.get('/purchases/%d/' % purchase.pk)
+            return len(q)
+        few = count()
+        for _ in range(8):
+            PurchaseItem.objects.create(purchase=purchase, product=self.product, qty=2, unit=self.strip,
+                                        purchase_price='100.00', expire_date=item.expire_date)
+        self.assertLessEqual(count(), few + 4)                        # a few more for the rows themselves, not 2 per row
+
+    def test_the_saved_choice_is_still_selected(self):
+        purchase, item = self.buy(qty=4, invoice='S-2')
+        page = self.c.get('/purchases/%d/' % purchase.pk).content.decode()
+        self.assertRegex(page, r'<option value="%d" selected>' % self.strip.pk)

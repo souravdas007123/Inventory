@@ -98,7 +98,25 @@ def lazy_long_lists(form, formset=None):
             if counts[kind] > LAZY_MIN:
                 make_lazy(field, kind)
                 made = True
+    share_choices(all_forms)
     return made
+
+
+def share_choices(all_forms):
+    """Every row of a formset would otherwise ask the database for the same drop-down list again (10 rows = 10 identical
+    queries per list). Read each list once and hand the same options to every row. Saving still checks the value against the
+    queryset, so nothing about validation changes."""
+    lists = {}
+    for f in all_forms:
+        for field in f.fields.values():
+            if not isinstance(field, forms.ModelChoiceField) or isinstance(field.widget, LazySelect) \
+                    or not isinstance(field.widget, forms.Select) or field.widget.allow_multiple_selected:
+                continue
+            key = (field.queryset.model, str(field.queryset.query), field.empty_label)
+            if key not in lists:
+                options = [(obj.pk, field.label_from_instance(obj)) for obj in field.queryset]
+                lists[key] = ([('', field.empty_label)] if field.empty_label is not None else []) + options
+            field.widget.choices = lists[key]
 
 
 def keep_empty_form(FormSet):
