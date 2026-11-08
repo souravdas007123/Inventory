@@ -167,3 +167,30 @@ class HoldBillTests(StockMixin, TestCase):
         for _ in range(30):
             HeldBill.objects.create(label='x', items_count=1, payload=[])
         self.assertEqual(self.hold(self.fields()).status_code, 400)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False, SESSION_COOKIE_SECURE=False, CSRF_COOKIE_SECURE=False)
+class LookupSellableStockTests(StockMixin, TestCase):
+    """The bill screen must show only the stock that can be sold, never the expired part."""
+
+    def setUp(self):
+        super().setUp()
+        self.owner = get_user_model().objects.create_superuser('owner2', 'o2@example.com', 'pw-12345')
+        self.client.force_login(self.owner)
+        self.p = Product.objects.create(name='Zedex 10', composition='Zedex', unit=self.tablet, gst_rate=Decimal('12.00'), mrp=Decimal('3.00'))
+        self.buy(qty=5, invoice='Z-1', product=self.p, unit='tablet', price='1.00')
+        self.buy(qty=3, invoice='Z-2', product=self.p, unit='tablet', price='1.00')
+        b = Batch.objects.filter(product=self.p).order_by('pk').first()
+        Batch.objects.filter(pk=b.pk).update(expire_date=today().replace(year=today().year - 1))
+
+    def row(self):
+        r = self.client.get(reverse('product_lookup'), {'q': 'Zedex'}).json()['results'][0]
+        return r
+
+    def test_shown_stock_leaves_out_the_expired_batch(self):
+        Product.objects.get(pk=self.p.pk)
+        r = self.row()
+        self.assertEqual(r['stock_qty'], 8)                 # the shelf total is still there for other screens
+        self.assertEqual(r['available_qty'], 3)
+        self.assertTrue(r['stock'].startswith('3 '), r['stock'])
+        self.assertNotIn('8', r['stock'])

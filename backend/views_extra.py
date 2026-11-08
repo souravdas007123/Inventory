@@ -740,7 +740,7 @@ def _lookup_dict(p, extra=None):
     return dict(id=p.pk, name=p.name or str(p), composition=p.composition or '', barcode=p.barcode or '',
                 mrp=str(p.mrp) if p.mrp is not None else '', rate1=_bill_rate(p), factors=_unit_factors(p),
                 unit_id=p.unit_id, units=_unit_list(p),
-                stock=p.stock_display(), stock_qty=p.stock_qty, available_qty=p.available_qty(), schedule=p.schedule,
+                stock=p.stock_display(p.available_qty()), stock_qty=p.stock_qty, available_qty=p.available_qty(), schedule=p.schedule,
                 unit_name=p.unit.name if p.unit_id else '', **(extra or {}))
 
 
