@@ -254,7 +254,8 @@ class ListSellableStockTests(StockMixin, TestCase):
         html = self.page()
         self.assertIn('3 Tablet', html)
         self.assertIn('5 Tablet expired - do not sell', html)
-        self.assertNotIn('8 Tablet', html)
+        row = html.split('Zedlist', 1)[1]
+        self.assertNotIn('<div>8 Tablet</div>', row)          # the list cell no longer shows the shelf total as the stock
 
     def test_only_expired_stock_is_out_of_stock(self):
         from backend.models import Batch
@@ -268,3 +269,12 @@ class ListSellableStockTests(StockMixin, TestCase):
         html = self.page()
         self.assertNotIn('expired - do not sell', html)
         self.assertIn('8 Tablet', html)
+
+    def test_preview_badge_follows_the_sellable_stock(self):
+        from backend.billview import product_preview_data
+        from backend.models import Batch
+        Batch.objects.filter(product=self.p).update(expire_date=today().replace(year=today().year - 1))
+        p = Product.objects.prefetch_related('batches', 'unit_conversions__unit').get(pk=self.p.pk)
+        d = product_preview_data(p, today())
+        self.assertEqual(d['status'], 'Out of stock')
+        self.assertEqual(d['expired'], '8 Tablet')
