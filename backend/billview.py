@@ -103,7 +103,7 @@ def product_preview_data(product, today, edit_url='', prices_url='', warn_days=9
         rows.append(dict(batch=b.batch_number or '-', exp=exp.strftime('%m-%y') if exp else '-', flag=flag,
                          qty=pack_text(b.qty, convs, base), supplier=(b.supplier.company if b.supplier_id else '') or '-',
                          place=place or '-'))
-    avail = p.available_qty()            # same number as the list and the bill screen (the whole stock if it has no batch record)
+    avail = sellable if list(p.batches.all()) else p.stock_qty      # as on the list and the bill screen: the whole stock if there is no batch record
     status = ('Out of stock', 'red') if avail == 0 else (('Low stock', 'amber') if avail <= p.reorder_level else ('In stock', 'green'))      # from what can be sold, as on the list
     facts = [('Brand', p.brand), ('Category', p.category), ('HSN', p.hsn_code), ('GST', f"{format(Decimal(p.gst_rate or 0).normalize(), 'f')}%"),
              ('MRP', f"{money(p.mrp)} per {base}" if p.mrp is not None else None), ('SKU', p.sku), ('Barcode', p.barcode),
