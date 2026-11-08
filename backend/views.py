@@ -120,12 +120,34 @@ def rs(x):
     return f"₹{(x or 0):,.2f}"
 
 
-def stock_badge(p):
-    if p.stock_qty == 0:
+def stock_badge(p, qty=None):
+    qty = p.stock_qty if qty is None else qty
+    if qty == 0:
         return badge('Out of stock', 'red')
-    if p.stock_qty <= p.reorder_level:
+    if qty <= p.reorder_level:
         return badge('Low stock', 'amber')
     return badge('In stock', 'green')
+
+
+def sellable_stock(p):
+    """Stock that can really be sold (expired batches left out), the same number the bill screen uses."""
+    return p.available_qty()
+
+
+def expired_note(p):
+    """A red line for the Products list when part of the stock is expired (empty otherwise)."""
+    exp = p.expired_qty()
+    return badge(f"{p.stock_display(exp)} expired - do not sell", 'red') if exp > 0 else ''
+
+
+def p_exp(p):
+    exp = p.expired_qty()
+    return p.stock_display(exp) if exp > 0 else '-'
+
+
+def product_stock_cell(p):
+    ok = sellable_stock(p)
+    return stack(p.stock_display(ok), p.stock_total_note(ok), stock_badge(p, ok), expired_note(p), f"Reorder at {p.reorder_level}")
 
 
 def pick_batch_txt(p):
@@ -262,10 +284,10 @@ CONFIG = {
               ('Unit', lambda o: o.unit or '-'), ('GST', gst_txt),
               ('MRP (per unit)', lambda o: rs(o.mrp) if o.mrp is not None else '-'),
               ('Schedule', lambda o: '-' if o.schedule == 'NONE' else badge(o.schedule, 'amber')),
-              ('Stock', lambda o: o.stock_display()), ('Pick Batch (FEFO)', pick_batch_txt),
-              ('Status', stock_badge), ('Alternative', alt_txt)],
+              ('Stock', lambda o: o.stock_display(sellable_stock(o))), ('Expired', lambda o: p_exp(o)), ('Pick Batch (FEFO)', pick_batch_txt),
+              ('Status', lambda o: stock_badge(o, sellable_stock(o))), ('Alternative', alt_txt)],
         # The screen shows fewer, multi-line columns (no side scroll); the Excel / CSV export keeps every column above.
-        list_cols=[('Product', product_cell), ('Stock', lambda o: stack(o.stock_display(), o.stock_total_note(), stock_badge(o), f"Reorder at {o.reorder_level}")),
+        list_cols=[('Product', product_cell), ('Stock', product_stock_cell),
                    ('Price', product_price_cell), ('Supplier', product_supplier_cell),
                    ('Place / sell first', product_place_cell), ('Other', product_extra_cell)],
         prepare=prepare_products,

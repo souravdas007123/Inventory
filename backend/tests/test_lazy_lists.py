@@ -227,3 +227,44 @@ class StockTotalNoteTests(StockMixin, TestCase):
                 self.c.get('/products/', {'q': q, 'per': 100})
             return len(c)
         self.assertLessEqual(count('Bulk'), count('Multi') + 1)       # the note reads the products' prefetched units: no query per row
+
+
+@override_settings(**SAFE)
+class ListSellableStockTests(StockMixin, TestCase):
+    """The Products list counts only stock that can be sold; expired stock is a separate red line."""
+
+    def setUp(self):
+        super().setUp()
+        self.c = Client()
+        self.c.force_login(get_user_model().objects.create_superuser('boss2', 'b2@x.com', 'pw'))
+        self.p = Product.objects.create(name='Zedlist', unit=self.tablet, gst_rate=Decimal('12.00'), mrp=Decimal('3.00'))
+        self.buy(qty=5, invoice='L-1', product=self.p, unit='tablet', price='1.00')
+        self.buy(qty=3, invoice='L-2', product=self.p, unit='tablet', price='1.00')
+
+    def expire_first(self):
+        from backend.models import Batch
+        b = Batch.objects.filter(product=self.p).order_by('pk').first()
+        Batch.objects.filter(pk=b.pk).update(expire_date=today().replace(year=today().year - 1))
+
+    def page(self):
+        return self.c.get('/products/', {'q': 'Zedlist'}).content.decode()
+
+    def test_expired_part_is_not_counted_and_is_shown_apart(self):
+        self.expire_first()
+        html = self.page()
+        self.assertIn('3 Tablet', html)
+        self.assertIn('5 Tablet expired - do not sell', html)
+        self.assertNotIn('8 Tablet', html)
+
+    def test_only_expired_stock_is_out_of_stock(self):
+        from backend.models import Batch
+        Batch.objects.filter(product=self.p).update(expire_date=today().replace(year=today().year - 1))
+        html = self.page()
+        self.assertIn('Out of stock', html)
+        self.assertNotIn('green">In stock', html)
+        self.assertIn('expired - do not sell', html)
+
+    def test_no_expired_line_when_nothing_expired(self):
+        html = self.page()
+        self.assertNotIn('expired - do not sell', html)
+        self.assertIn('8 Tablet', html)
