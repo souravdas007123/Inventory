@@ -51,16 +51,16 @@ def build(days=DEFAULT_PERIOD, today=None):
     products = list(Product.objects.exclude(is_active=False).filter(stock_qty__gt=0).select_related('unit')
                     .prefetch_related('unit_conversions__unit'))
     value, expiry, arrived = {}, {}, {}
-    for b in (Batch.objects.filter(product_id__in=[p.pk for p in products], qty__gt=0)
-              .select_related('purchase_item', 'purchase_item__purchase')):
-        item = b.purchase_item
-        if item is not None and item.rate:
-            value[b.product_id] = value.get(b.product_id, Decimal('0')) + Decimal(item.rate) * b.qty
-        if b.expire_date and (b.product_id not in expiry or b.expire_date < expiry[b.product_id]):
-            expiry[b.product_id] = b.expire_date
-        when = item.purchase.invoice_date if item is not None and item.purchase_id else None
-        if when is not None and (b.product_id not in arrived or when < arrived[b.product_id]):
-            arrived[b.product_id] = when
+    # plain tuples, not model objects: thousands of batches would otherwise each build three model instances
+    for pid, qty, exp, rate, when in (Batch.objects.filter(product_id__in=[p.pk for p in products], qty__gt=0)
+                                      .values_list('product_id', 'qty', 'expire_date', 'purchase_item__rate',
+                                                   'purchase_item__purchase__invoice_date')):
+        if rate:
+            value[pid] = value.get(pid, Decimal('0')) + Decimal(rate) * qty
+        if exp and (pid not in expiry or exp < expiry[pid]):
+            expiry[pid] = exp
+        if when is not None and (pid not in arrived or when < arrived[pid]):
+            arrived[pid] = when
     rows, totals = [], {c: dict(count=0, value=Decimal('0')) for c in CLASSES}
     for p in products:
         s = int(sold.get(p.pk) or 0)

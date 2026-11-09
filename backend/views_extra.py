@@ -506,21 +506,21 @@ def _bill_rate(p):
     return str((Decimal(p.mrp) / (1 + Decimal(p.gst_rate or 0) / 100)).quantize(Decimal('0.0001')))
 
 
-def _unit_factors(p):
+def _unit_factors(p, convs=None):
     """{unit id: how many base units} for the base unit and every pack unit of the product."""
-    factors = {str(c.unit_id): c.factor for c in p.unit_conversions.all()}
+    factors = {str(c.unit_id): c.factor for c in (p.unit_conversions.all() if convs is None else convs)}
     if p.unit_id:
         factors[str(p.unit_id)] = 1
     return factors
 
 
-def _unit_list(p):
+def _unit_list(p, convs=None):
     """The units this product can be sold in, base unit first, then its packs (smallest pack first):
     [{id, name, factor}]. The billing screen shows only these, with the base unit pre-selected."""
     if not p.unit_id:
         return []
     out = [dict(id=p.unit_id, name=p.unit.name, factor=1)]
-    packs = sorted((c for c in p.unit_conversions.all() if c.unit_id != p.unit_id and c.factor and c.factor > 1), key=lambda c: c.factor)
+    packs = sorted((c for c in (p.unit_conversions.all() if convs is None else convs) if c.unit_id != p.unit_id and c.factor and c.factor > 1), key=lambda c: c.factor)
     out += [dict(id=c.unit_id, name=c.unit.name, factor=c.factor) for c in packs]
     return out
 
@@ -747,10 +747,12 @@ def _batch_info(product_ids):
 
 def _lookup_dict(p, extra=None):
     """One medicine as the bill screen needs it (the same shape for the live lookup and for the offline copy)."""
+    convs = list(p.unit_conversions.all())            # read once (a product is built thousands of times for the offline copy)
+    avail = p.available_qty()
     return dict(id=p.pk, name=p.name or str(p), composition=p.composition or '', barcode=p.barcode or '',
-                mrp=str(p.mrp) if p.mrp is not None else '', rate1=_bill_rate(p), factors=_unit_factors(p),
-                unit_id=p.unit_id, units=_unit_list(p),
-                stock=p.stock_display(p.available_qty()), stock_qty=p.stock_qty, available_qty=p.available_qty(), schedule=p.schedule,
+                mrp=str(p.mrp) if p.mrp is not None else '', rate1=_bill_rate(p), factors=_unit_factors(p, convs),
+                unit_id=p.unit_id, units=_unit_list(p, convs),
+                stock=p.stock_display(avail), stock_qty=p.stock_qty, available_qty=avail, schedule=p.schedule,
                 unit_name=p.unit.name if p.unit_id else '', **(extra or {}))
 
 
