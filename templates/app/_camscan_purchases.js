@@ -49,6 +49,7 @@
     input.value = code;
     input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}));
     status.textContent = 'Scanned ' + code + '. Scan the next one, or press Done.';
+    setTimeout(() => { const np = document.getElementById('np-dialog'); if (np && np.open && dlg.open) dlg.close(); }, 1200);      // an unknown barcode opens the "new product" window: the camera steps aside
   }
   btn.addEventListener('click', () => { if (!dlg.open) dlg.showModal(); start(); });
   dlg.querySelector('#cam-done').addEventListener('click', () => dlg.close());

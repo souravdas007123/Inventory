@@ -135,3 +135,16 @@ def _svg8(c, height, text):
         out.append('</g>')
     out.append('</svg>')
     return ''.join(out)
+
+
+def variants(raw):
+    """The ways one scanned code may be stored: a phone camera reads a UPC-A (12 digits) as an EAN-13 with a leading 0,
+    a USB scanner as the 12 digits. Both must find the same product."""
+    c = str(raw or '').strip()
+    out = [c]
+    if c.isdigit():
+        if len(c) == 13 and c[0] == '0':
+            out.append(c[1:])
+        elif len(c) == 12:
+            out.append('0' + c)
+    return out

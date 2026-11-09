@@ -31,7 +31,8 @@ def find(q):
     if not q:
         return []
     from django.db.models import Q
-    qs = (Product.objects.exclude(is_active=False).filter(Q(name__icontains=q) | Q(composition__icontains=q) | Q(barcode=q))
+    from . import barcode
+    qs = (Product.objects.exclude(is_active=False).filter(Q(name__icontains=q) | Q(composition__icontains=q) | Q(barcode__in=barcode.variants(q)))
           .select_related('unit').prefetch_related('batches', 'unit_conversions__unit').order_by('name')[:MAX_MATCHES])
     out = []
     for p in qs:

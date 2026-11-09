@@ -422,13 +422,14 @@ async function lookup(q, enter) {
   const data = await r.json();
   if (enter && (data.exact || data.results.length === 1)) {
     // a barcode scan keeps the cursor in the scan box (scan the next item); a typed name jumps to the qty
-    const one = data.results.find(x => x.barcode === q) || data.results[0];
+    const one = data.results.find(x => x.id === data.exact_id) || data.results.find(x => x.barcode === q) || data.results[0];
     if (isOut(one)) { showOut(one); return; }                      // not added: the substitutes are shown instead
     addProduct(one, !data.exact);
     scan.value = ''; resBox.textContent = ''; return;
   }
   showResults(data.results);
-  if (enter && !data.results.length) resBox.textContent = 'No product found.';
+  scan.dataset.last = data.results.length ? 'found' : 'none';
+  if (enter && !data.results.length) resBox.textContent = /^\d{8,14}$/.test(q) ? 'No product has the barcode ' + q + '. Open Products, edit the medicine and type this number in its Barcode field.' : 'No product found.';
 }
 // ---- Keyboard: F2 = search box, F9 / Ctrl+Enter = save, Enter in the items table = next field (never submits by accident) ----
 document.addEventListener('keydown', e => {
@@ -602,7 +603,7 @@ new MutationObserver(() => { clearTimeout(window.__igstT); window.__igstT = setT
 let scanTimer;
 if (scan) {
   scan.addEventListener('input', () => { clearTimeout(scanTimer); scanTimer = setTimeout(() => lookup(scan.value.trim(), false), 250); });
-  scan.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); lookup(scan.value.trim(), true); } });
+  scan.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(scanTimer); lookup(scan.value.trim(), true); } });      // Enter cancels the pending as-you-type search, which would wipe this answer
 }
 {% include 'app/_camscan_bills.js' %}
 </script>{% endif %}{% if key == 'purchases' %}
@@ -853,12 +854,15 @@ if (scan) {
       if (!d || !d.ok) { showErr((d && d.error) || 'Could not save the product.', d && d.existing); return; }
       npDlg.close(); useProduct(d.id, d.label);
     }
-    openNewProduct = name => {
+    openNewProduct = (name, code) => {
       touched.clear(); err.style.display = 'none'; existingBox.textContent = '';
       Object.keys(el).forEach(k => { el[k].value = ''; });
       el.schedule.value = 'NONE'; note.textContent = '';
-      el.name.value = name || '';
-      npDlg.showModal(); (name ? el.gst : el.name).focus(); suggest();
+      el.name.value = name || ''; el.barcode.value = code || '';
+      const codeNote = code ? 'The barcode ' + code + ' is filled in. Type the medicine name; the next scan of this barcode will find it.' : '';
+      note.textContent = codeNote;
+      npDlg.showModal(); (name ? el.gst : el.name).focus();
+      suggest().then(() => { if (codeNote) note.textContent = codeNote + (note.textContent ? ' ' + note.textContent : ''); });
     };
     npBtn.addEventListener('click', () => openNewProduct(''));
     el.name.addEventListener('change', () => { if (el.name.value.trim().length >= 3) suggest(); });
@@ -878,7 +882,8 @@ if (scan) {
       b.onclick = fn; pqRes.appendChild(b);
     };
     const pqPick = p => { pq.value = ''; pqRes.textContent = ''; useProduct(p.id, p.label); };
-    const pqCreate = name => { pq.value = ''; pqRes.textContent = ''; openNewProduct(name); };
+    const isCode = t => /^\d{8,14}$/.test(t);       // a scanned barcode is never a product name
+    const pqCreate = name => { pq.value = ''; pqRes.textContent = ''; if (isCode(name)) openNewProduct('', name); else openNewProduct(name); };
     async function pqFind(enter) {
       const q = pq.value.replace(/\s+/g, ' ').trim();
       pqRes.textContent = '';
@@ -891,7 +896,7 @@ if (scan) {
       if (enter && (exact || list.length === 1)) { pqPick(exact || list[0]); return; }
       if (enter && !list.length && openNewProduct) { pqCreate(q); return; }
       list.forEach(p => pqBtn(p.label, () => pqPick(p), false, p.composition));
-      if (openNewProduct && !exact) pqBtn('+ Create "' + q + '" as a new product', () => pqCreate(q), true);
+      if (openNewProduct && !exact) pqBtn(isCode(q) ? '+ New product with barcode ' + q : '+ Create "' + q + '" as a new product', () => pqCreate(q), true);
       if (!list.length && !openNewProduct) { const m = document.createElement('small'); m.textContent = 'No product found. Ask the owner to add it in Products.'; pqRes.appendChild(m); }
     }
     pq.addEventListener('input', () => { clearTimeout(pqTimer); pqTimer = setTimeout(() => pqFind(false), 250); });

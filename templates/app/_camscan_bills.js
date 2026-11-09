@@ -46,9 +46,10 @@
     if (!code || (code === last && now - lastAt < 2500)) return;      // the same code in front of the camera is read once
     last = code; lastAt = now;
     if (navigator.vibrate) navigator.vibrate(60);
-    input.value = code;
+    input.value = code; delete input.dataset.last;
     input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}));
     status.textContent = 'Scanned ' + code + '. Scan the next one, or press Done.';
+    setTimeout(() => { if (input.dataset.last === 'none') status.textContent = 'No product has the barcode ' + code + '. Add it to the medicine in Products, then scan again.'; }, 1500);
   }
   btn.addEventListener('click', () => { if (!dlg.open) dlg.showModal(); start(); });
   dlg.querySelector('#cam-done').addEventListener('click', () => dlg.close());

@@ -26,6 +26,7 @@ from .models import (
     Batch, Bill, Brand, Category, Customer, Employee, Expense, InvoiceItem, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
     HeldBill, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SalesReturn, Supplier, Unit, SalesReturnItem, ShopProfile, StockAudit, StockAuditItem, StockWriteOff,
 )
+from . import barcode as barcode_codes
 from . import gstin as gstin_check
 from .models import GST_STATE_CODES
 from .imports import GST_ALLOWED, _fk, table_download
@@ -630,11 +631,12 @@ def product_find(request):
     if len(q) < 2:
         return JsonResponse({'results': []})
     qs = (Product.objects.exclude(is_active=False)
-          .filter(Q(name__icontains=q) | Q(composition__icontains=q) | Q(barcode=q) | Q(sku__iexact=q))
+          .filter(Q(name__icontains=q) | Q(composition__icontains=q) | Q(barcode__in=barcode_codes.variants(q)) | Q(sku__iexact=q))
           .select_related('unit').order_by('name')[:8])
     low = q.lower()
+    same = set(barcode_codes.variants(q))
     results = [dict(id=p.pk, label=str(p), composition=p.composition or '', unit=p.unit.name if p.unit_id else '',
-                    exact=(p.name or '').strip().lower() == low or (p.barcode or '') == q or (p.sku or '').lower() == low)
+                    exact=(p.name or '').strip().lower() == low or (p.barcode or '') in same or (p.sku or '').lower() == low)
                for p in qs]
     return JsonResponse({'results': results})
 
@@ -797,7 +799,7 @@ def product_lookup(request):
     if pid.isdecimal():
         qs = base.filter(pk=int(pid))                      # exact product (used when a product is picked from the list)
     elif q:
-        qs = base.filter(Q(barcode=q) | Q(sku__iexact=q) | Q(name__icontains=q) | Q(composition__icontains=q))
+        qs = base.filter(Q(barcode__in=barcode_codes.variants(q)) | Q(sku__iexact=q) | Q(name__icontains=q) | Q(composition__icontains=q))
     else:
         return JsonResponse({'results': [], 'exact': False})
     qs = qs.select_related('unit').prefetch_related('unit_conversions__unit', 'batches').order_by('name')[:8]
@@ -808,8 +810,9 @@ def product_lookup(request):
         results[0]['alts'] = [dict(id=a.pk, name=a.name or str(a), stock=a.stock_display(a.available_qty()), available_qty=a.available_qty(),
                                    mrp=str(a.mrp) if a.mrp is not None else '', unit_name=a.unit.name if a.unit_id else '',
                                    schedule=a.schedule) for a in products[0].get_alternatives(limit=5)]
-    exact = any(r['barcode'] == q for r in results)
-    return JsonResponse({'results': results, 'exact': exact})
+    same = set(barcode_codes.variants(q))
+    hit = next((r for r in results if r['barcode'] and r['barcode'] in same), None)
+    return JsonResponse({'results': results, 'exact': bool(hit), 'exact_id': hit['id'] if hit else None})
 
 
 MAX_ID = 2 ** 62          # a database id is never this big; a bigger typed-in number must be ignored (it would crash the database call)

@@ -233,3 +233,55 @@ class LabelPageDarkModeTests(StockMixin, TestCase):
         html = c.get(f'/labels/?ids={p.pk}').content.decode()
         self.assertIn('.lab-warn td{background:rgba(', html)
         self.assertNotIn('#fff7e6', html)
+
+
+class VariantTests(SimpleTestCase):
+    def test_upca_and_ean13_forms_match(self):
+        self.assertEqual(barcode.variants('036000291452'), ['036000291452', '0036000291452'])
+        self.assertEqual(barcode.variants('0036000291452'), ['0036000291452', '036000291452'])
+        self.assertEqual(barcode.variants('4006381333931'), ['4006381333931'])          # a real EAN-13 has no other form
+        self.assertEqual(barcode.variants('ABC-123'), ['ABC-123'])
+        self.assertEqual(barcode.variants(None), [''])
+
+
+@override_settings(**SAFE)
+class ScanMatchTests(StockMixin, TestCase):
+    """A phone camera reads a UPC-A as 13 digits; the product is stored with 12. Scanning must still find it."""
+
+    def setUp(self):
+        super().setUp()
+        self.c = Client()
+        self.c.force_login(get_user_model().objects.create_superuser('scan', 'sc@x.com', 'pw'))
+        self.p = Product.objects.create(name='Upc Medicine', unit=self.tablet, barcode='036000291452')
+        self.q = Product.objects.create(name='Ean Medicine', unit=self.tablet, barcode='4006381333931')
+
+    def lookup(self, q):
+        return self.c.get('/api/products/lookup/', {'q': q}).json()
+
+    def test_billing_lookup_finds_both_forms(self):
+        for code in ('036000291452', '0036000291452'):
+            d = self.lookup(code)
+            self.assertTrue(d['exact'], code)
+            self.assertEqual(d['exact_id'], self.p.pk)
+            self.assertEqual([r['name'] for r in d['results']], ['Upc Medicine'])
+        d = self.lookup('4006381333931')
+        self.assertEqual((d['exact'], d['exact_id']), (True, self.q.pk))
+
+    def test_unknown_barcode_is_not_exact(self):
+        d = self.lookup('5901234123457')
+        self.assertEqual((d['results'], d['exact'], d['exact_id']), ([], False, None))
+
+    def test_purchase_find_and_finder_find_both_forms(self):
+        for code in ('036000291452', '0036000291452'):
+            d = self.c.get('/api/product_find/', {'q': code}).json()['results']
+            self.assertEqual([(r['label'], r['exact']) for r in d], [('Upc Medicine', True)], code)
+            page = self.c.get('/finder/', {'q': code}).content.decode()
+            self.assertIn('Upc Medicine', page, code)
+
+    def test_screens_have_the_new_scan_messages(self):
+        bill = self.c.get('/bills/new/').content.decode()
+        self.assertIn('Open Products, edit the medicine and type this number in its Barcode field', bill)
+        self.assertIn("scan.dataset.last", bill)
+        pur = self.c.get('/purchases/new/').content.decode()
+        self.assertIn('New product with barcode', pur)
+        self.assertIn("openNewProduct('', name)", pur)

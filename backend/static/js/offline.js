@@ -155,8 +155,9 @@
       if (id) { const p = all.find(x => String(x.id) === id); return p ? json({results: [Object.assign({alts: []}, p)], exact: false}) : json({results: [], exact: false}); }
       if (!q) return json({results: [], exact: false});
       const low = q.toLowerCase();
-      const hits = all.filter(p => p.barcode === q || (p.name || '').toLowerCase().includes(low) || (p.composition || '').toLowerCase().includes(low)).slice(0, 8);
-      return json({results: hits, exact: hits.some(p => p.barcode === q)});
+      const codes = [q]; if (/^\d+$/.test(q)) { if (q.length === 13 && q[0] === '0') codes.push(q.slice(1)); else if (q.length === 12) codes.push('0' + q); }
+      const hits = all.filter(p => (p.barcode && codes.includes(p.barcode)) || (p.name || '').toLowerCase().includes(low) || (p.composition || '').toLowerCase().includes(low)).slice(0, 8);
+      const hit = hits.find(p => p.barcode && codes.includes(p.barcode)); return json({results: hits, exact: !!hit, exact_id: hit ? hit.id : null});
     }
     const realFetch = window.fetch.bind(window);
     window.fetch = async function (input, init) {
