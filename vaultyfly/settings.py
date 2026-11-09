@@ -209,7 +209,12 @@ if env_bool('DJANGO_HTTPS', False):
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = 3600
+    # Browsers are told to use only https for this long. 30 days (it was 1 hour). Set DJANGO_HSTS_SECONDS=31536000 for a year
+    # once you are sure every address of the site works over https; 0 switches it off.
+    try:
+        SECURE_HSTS_SECONDS = max(0, int(os.environ.get('DJANGO_HSTS_SECONDS', '2592000') or 0))
+    except ValueError:
+        SECURE_HSTS_SECONDS = 2592000            # a typo in the setting must not stop the site from starting
     if env_bool('DJANGO_BEHIND_PROXY', False):  # behind a proxy such as nginx/Render/Heroku
         SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
