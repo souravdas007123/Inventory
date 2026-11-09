@@ -2,7 +2,7 @@ from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.urls import path
 
-from . import blog, helpviews, landing, legal, passwordreset, pwa, security, twofactor, views, views_extra, views_import, views_new
+from . import blog, helpviews, landing, legal, passwordreset, pwa, security, twofactor, views, views_extra, views_import, views_labels, views_new
 
 # NOTE: specific paths must always come BEFORE the generic '<str:key>/...' patterns below.
 urlpatterns = [
@@ -72,6 +72,8 @@ urlpatterns = [
     path('reorder/', views_extra.reorder_view, name='reorder'),
     path('movement/', views_new.movement_view, name='movement'),
     path('finder/', views_new.finder_view, name='finder'),
+    path('labels/', views_labels.labels, name='labels'),
+    path('labels/codes/', views_labels.label_codes, name='label_codes'),
     path('history/', views_new.history_view, name='history'),
     path('api/customer_history/', views_new.customer_history, name='customer_history'),
     path('reminders/', views_new.reminders_view, name='reminders'),

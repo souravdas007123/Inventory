@@ -295,7 +295,7 @@ CONFIG = {
                 'schedule', 'default_supplier', 'location', 'rack', 'row', 'is_active'],
         inline=dict(model=ProductUnit, fields=['unit', 'factor'],
                     title='Unit conversions (e.g. 1 Strip = 15 Tablet)'),
-        actions=lambda o: [dict(label='⚖ Prices', url=f'/supplier_prices/{o.pk}/')],
+        actions=lambda o: [dict(label='⚖ Prices', url=f'/supplier_prices/{o.pk}/'), dict(label='🏷 Label', url=f'/labels/?ids={o.pk}')],
     ),
     'suppliers': dict(
         title='Suppliers', one='Supplier', model=Supplier, order=['company'],
@@ -319,7 +319,7 @@ CONFIG = {
               ('Taxable', lambda o: rs(o.taxable)), ('GST', lambda o: rs(o.gst_total)),
               ('Total', lambda o: rs(o.total))],
         fields=['supplier', 'invoice_number', 'invoice_date'],
-        actions=lambda o: [dict(label='↩ Return', url=f"/purchases/{o.pk}/return/")],
+        actions=lambda o: [dict(label='↩ Return', url=f"/purchases/{o.pk}/return/"), dict(label='🏷 Labels', url=f"/labels/?purchase={o.pk}")],
         inline=dict(model=PurchaseItem, title='Invoice items',
                     fields=['product', 'qty', 'unit', 'purchase_price', 'selling_price', 'manufacture_date',
                             'expire_date', 'rack', 'row', 'location', 'composition']),

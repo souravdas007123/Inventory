@@ -1,0 +1,56 @@
+{% extends "app/base.html" %}
+{% load icons %}
+{% block title %}Barcode labels{% endblock %}
+{% block content %}
+<style>
+#sheet{display:flex;flex-wrap:wrap;gap:0;align-content:flex-start;background:#fff;color:#000;padding:0}
+#sheet .lab{box-sizing:border-box;width:{{ dim.1|stringformat:"s" }}mm;height:{{ dim.2|stringformat:"s" }}mm;padding:1.6mm 2mm;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;align-items:center;text-align:center;break-inside:avoid;border:1px dashed #c9d2d0;font-family:Arial,Helvetica,sans-serif}
+#sheet .lab .nm{font-size:{% if size == 'roll' %}2.6{% else %}3.1{% endif %}mm;font-weight:700;line-height:1.15;flex:0 0 auto;width:100%;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+#sheet .lab .mp{font-size:2.8mm;line-height:1;flex:0 0 auto}
+#sheet .lab svg{width:92%;flex:1 1 auto;min-height:0;max-height:{{ dim.2|stringformat:"s" }}mm}
+.lab-warn td{background:var(--amb-bg,#fff7e6)}
+@media print{
+  @page{margin:0;size:{% if size == 'roll' %}50mm 25mm{% else %}A4{% endif %}}
+  html,body{background:#fff!important;margin:0!important;padding:0!important;height:auto!important;min-height:0!important}
+  .side,.top,.msg,.lab-hide{display:none!important}
+  .main{margin:0!important;padding:0!important;max-width:none!important;width:auto!important;min-height:0!important;height:auto!important}
+  .lab-wrap{padding:0!important;margin:0!important;background:#fff!important;border:0!important;box-shadow:none!important;overflow:visible!important}
+  #sheet{width:{% if size == 'roll' %}50mm{% else %}210mm{% endif %}}
+  #sheet .lab{border:0!important;{% if size == 'roll' %}page-break-after:always;{% endif %}}
+}
+</style>
+<div class="head lab-hide"><h1>{% icon 'tag' %} Barcode labels</h1></div>
+{% if not rows %}
+<div class="msg info lab-hide">Choose a medicine to print labels for: open <b>Products</b> and press <b>Label</b> next to it, or open a purchase and press <b>Labels</b>.</div>
+{% else %}
+{% if missing %}
+<div class="msg warn">{{ missing }} medicine{% if missing > 1 %}s have{% else %} has{% endif %} no barcode yet, so no label can be printed for {{ missing|pluralize:"it,them" }}.
+  {% if can_make %}<form method="post" action="{% url 'label_codes' %}" style="display:inline;margin-left:8px">{% csrf_token %}
+    <input type="hidden" name="ids" value="{{ keep }}">
+    <input type="hidden" name="next" value="{{ here }}">
+    <button class="btn sm">{% icon 'plus' %} Create a shop barcode for {{ missing|pluralize:"it,them" }}</button></form>{% endif %}</div>
+{% endif %}
+<form method="get" class="card lab-hide" style="margin-bottom:14px">
+  {% if purchase %}<input type="hidden" name="purchase" value="{{ purchase }}">{% else %}<input type="hidden" name="ids" value="{{ keep }}">{% endif %}
+  <div class="tw"><table class="t stack" id="lab-table">
+    <thead><tr><th>Medicine</th><th>Barcode</th><th style="width:110px">Labels</th></tr></thead>
+    <tbody>
+    {% for r in rows %}<tr{% if r.state != 'ok' %} class="lab-warn"{% endif %}>
+      <td data-label="Medicine"><b>{{ r.p.name }}</b>{% if r.p.mrp is not None %} <small class="sub">MRP ₹{{ r.p.mrp|floatformat:2 }}</small>{% endif %}</td>
+      <td data-label="Barcode">{% if r.state == 'ok' %}{{ r.code }}{% elif r.state == 'none' %}<span class="badge amber">No barcode</span>{% else %}<span class="badge amber">{{ r.code }}</span> <small class="sub">Only valid EAN-13, UPC-A (12 digits) and EAN-8 barcodes can be drawn here. This one has another length or a wrong check digit.</small>{% endif %}</td>
+      <td data-label="Labels">{% if r.state == 'ok' %}<input type="number" name="n{{ r.p.pk }}" value="{{ r.n }}" min="0" max="200" style="width:90px" aria-label="Number of labels for {{ r.p.name }}">{% else %}-{% endif %}</td></tr>{% endfor %}
+    </tbody></table></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:12px">
+    <div class="fld" style="margin:0"><label for="size">Label size</label>
+      <select id="size" name="size">{% for k, v in sizes.items %}<option value="{{ k }}"{% if k == size %} selected{% endif %}>{{ v.0 }}</option>{% endfor %}</select></div>
+    <button class="btn ghost">{% icon 'refresh' %} Update</button>
+    {% if total %}<button type="button" class="btn" id="lab-print">{% icon 'printer' %} Print {{ total }} label{{ total|pluralize }}</button>{% endif %}
+  </div>
+  <p class="sub" style="margin:10px 0 0">Press <b>Update</b> after changing the number of labels or the size. In the print window choose <b>margins: none</b> and <b>scale 100%</b>. Labels from a roll printer: choose the roll size above.</p>
+</form>
+{% if total %}<h3 class="lab-hide" style="margin:6px 0">Preview</h3>
+<div class="tw lab-wrap" style="padding:8px;background:var(--card)"><div id="sheet">{% for l in sheet %}<div class="lab"><div class="nm">{{ l.name }}</div>{{ l.svg|safe }}{% if l.mrp %}<div class="mp">MRP ₹{{ l.mrp }}</div>{% endif %}</div>{% endfor %}</div></div>
+<script>document.getElementById('lab-print').addEventListener('click', function () { window.print(); });</script>
+{% endif %}
+{% endif %}
+{% endblock %}
