@@ -278,3 +278,32 @@ class ListSellableStockTests(StockMixin, TestCase):
         d = product_preview_data(p, today())
         self.assertEqual(d['status'], 'Out of stock')
         self.assertEqual(d['expired'], '8 Tablet')
+
+
+@override_settings(**SAFE)
+class AdminListQueryTests(StockMixin, TestCase):
+    """The admin lists of Bills, Purchases and Products must not run queries per row."""
+
+    def setUp(self):
+        super().setUp()
+        self.c = Client()
+        self.c.force_login(get_user_model().objects.create_superuser('adm', 'a@x.com', 'pw'))
+
+    def count(self, url):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+        self.c.get(url)
+        with CaptureQueriesContext(connection) as q:
+            r = self.c.get(url)
+        self.assertEqual(r.status_code, 200)
+        return len(q)
+
+    def test_lists_do_not_grow_with_the_rows(self):
+        urls = ['/admin/backend/bill/', '/admin/backend/purchase/', '/admin/backend/product/']
+        small = {u: self.count(u) for u in urls}
+        for i in range(8):
+            p = Product.objects.create(name=f'Row {i}', unit=self.tablet, gst_rate=Decimal('12.00'))
+            self.buy(qty=2, invoice=f'Q-{i}', product=p, unit='tablet', price='5.00')
+            self.new_bill(invoice_number=f'B-{i}')
+        for u in urls:
+            self.assertLessEqual(self.count(u), small[u] + 2, u)

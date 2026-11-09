@@ -165,6 +165,9 @@ class ProductAdmin(ImportExportModelAdmin):
     list_select_related = ('brand', 'category', 'unit')
     list_per_page = 10
 
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('unit_conversions__unit', 'batches')    # the stock / batch columns read these
+
     def stock_status(self, obj):
         qty = obj.stock_qty
         if qty == 0:
@@ -263,6 +266,9 @@ class PurchaseAdmin(SafeDeleteMixin, admin.ModelAdmin):
     date_hierarchy = 'invoice_date'
     list_per_page = 10
 
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('items')      # the list's item totals read the items: one query, not one per row
+
 
 # ======================================================
 # SALE / ORDER
@@ -303,7 +309,11 @@ class BillAdmin(SafeDeleteMixin, admin.ModelAdmin):
     list_filter = ('status', 'payment_mode', 'invoice_mode')
     autocomplete_fields = ['customer']
     inlines = [InvoiceItemInline]
+    list_select_related = ('order',)
     list_per_page = 10
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('items')      # the list's item totals read the items: one query, not one per row
 
     class Media:
         js = ('js/invoice_toggle.js',)
