@@ -221,3 +221,15 @@ class MakeCodeTests(StockMixin, TestCase):
         self.assertEqual(c.post('/labels/codes/', {'ids': str(self.a.pk)}).status_code, 403)       # view only: cannot create codes
         self.a.refresh_from_db()
         self.assertIsNone(self.a.barcode)
+
+
+@override_settings(**SAFE)
+class LabelPageDarkModeTests(StockMixin, TestCase):
+    def test_highlighted_row_does_not_use_a_fixed_light_colour(self):
+        """A light fixed background made the (light) text unreadable in dark mode: the highlight must be see-through."""
+        c = Client()
+        c.force_login(get_user_model().objects.create_superuser('dm', 'dm@x.com', 'pw'))
+        p = Product.objects.create(name='No Code Dark', unit=self.tablet)
+        html = c.get(f'/labels/?ids={p.pk}').content.decode()
+        self.assertIn('.lab-warn td{background:rgba(', html)
+        self.assertNotIn('#fff7e6', html)
