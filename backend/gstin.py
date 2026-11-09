@@ -44,3 +44,17 @@ def changed(instance, value):
         return True
     old = type(instance).objects.filter(pk=instance.pk).values_list('gstin', flat=True).first()
     return normalise(old) != normalise(value)
+
+
+def state_code(raw, state_codes):
+    """The 2-digit GST state code of a GSTIN, or '' when the GSTIN is blank / not the right shape / not a state."""
+    g = normalise(raw)
+    m = SHAPE.match(g) if len(g) == 15 else None
+    return m.group(1) if m and m.group(1) in state_codes else ''
+
+
+def is_inter_state(shop_gstin, party_gstin, state_codes):
+    """True when the shop and the other party are in different states (IGST applies). If either GSTIN is missing or
+    not usable, the answer is False: a normal counter sale stays CGST + SGST and nothing is guessed."""
+    a, b = state_code(shop_gstin, state_codes), state_code(party_gstin, state_codes)
+    return bool(a and b and a != b)

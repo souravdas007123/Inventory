@@ -483,7 +483,7 @@ if (holdBtn) holdBtn.addEventListener('click', async () => {
   for (const [name, value] of pairs) {
     if (skip.test(name)) continue;
     const f = form.querySelector('[name="' + name.replace(/"/g, '\\"') + '"]'); if (!f) continue;
-    if (f.type === 'checkbox') f.checked = value === '1';
+    if (f.type === 'checkbox') { f.checked = value === '1'; if (/-is_igst$/.test(name)) f.dataset.manual = '1'; }      // a held bill keeps its own IGST ticks
     else if (f.type === 'radio') { const r = form.querySelector('[name="' + name + '"][value="' + value + '"]'); if (r) r.checked = true; }
     else f.value = value;
     if (f.tagName === 'SELECT') later.push(f);
@@ -493,6 +493,19 @@ if (holdBtn) holdBtn.addEventListener('click', async () => {
 })();
 {% if not form.instance.pk %}if (scan && !document.getElementById('held-resume')) scan.focus();{% endif %}
 
+// ---- IGST follows the customer's state: another state than the shop => every row gets "Apply IGST" ticked ----
+// A row the cashier ticked / unticked by hand is never changed again. Saved bills and held bills keep what they had.
+let AUTO_IGST = false;
+function applyIgst() {
+  if (!NEW_BILL) return;
+  rowsBody.querySelectorAll('tr').forEach(tr => {
+    const b = rowField(tr, 'is_igst');
+    if (b && b.dataset.manual !== '1' && b.checked !== AUTO_IGST) { b.checked = AUTO_IGST; b.dispatchEvent(new Event('change', {bubbles: true})); }
+  });
+}
+function setAutoIgst(on) { AUTO_IGST = !!on; applyIgst(); }
+rowsBody.addEventListener('change', e => { if (e.isTrusted && /-is_igst$/.test(e.target.name || '')) e.target.dataset.manual = '1'; });
+new MutationObserver(() => { clearTimeout(window.__igstT); window.__igstT = setTimeout(applyIgst, 30); }).observe(rowsBody, {childList: true});
 // ---- Customer: type the phone number to pick the customer and see the credit due ----
 (function () {
   const custSel = document.getElementById('id_customer'), nameBox = document.getElementById('id_customer_name');
@@ -546,10 +559,17 @@ if (holdBtn) holdBtn.addEventListener('click', async () => {
     info.appendChild(b);
   };
   const money = v => '₹' + (+v).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  function more(text, cls) {
+    const b = document.createElement('span'); b.className = 'badge ' + (cls || 'grey'); setLabel(b, text);
+    b.style.cssText = 'white-space:normal;font-weight:500;font-size:12px;padding:3px 10px;margin:4px 0 0 6px;display:inline-block';
+    info.appendChild(b);
+  }
   function show(c) {
     if (c.over) say('Credit due ' + money(c.balance) + ' · over the limit of ' + money(c.limit), 'red');
     else if (+c.balance > 0) say('Credit due ' + money(c.balance) + (+c.limit > 0 ? ' · limit ' + money(c.limit) : ''), 'amber');
     else say('No credit due', 'green');
+    if (NEW_BILL && c.igst) more('Other-state customer (' + c.state + ') · IGST applied', 'blue');
+    else if (NEW_BILL && c.state && !c.shop_gstin) more('Add your shop GSTIN in Shop Profile so IGST can be set automatically', 'amber');
   }
   async function get(qs) {
     try { const r = await fetch('/api/customer_lookup/?' + qs, {credentials: 'same-origin'}); return r.ok ? await r.json() : null; }
@@ -559,6 +579,7 @@ if (holdBtn) holdBtn.addEventListener('click', async () => {
     custSel.value = String(c.id);
     if (!nameBox.value.trim() || nameBox.value.trim() === 'Cash' || nameBox.value === autoName) { nameBox.value = c.name; autoName = c.name; }
     show(c);
+    setAutoIgst(c.igst);
     if (histFor !== String(c.id)) loadHistory(c.id);
   }
   let timer;
@@ -572,7 +593,7 @@ if (holdBtn) holdBtn.addEventListener('click', async () => {
     }, 250);
   });
   custSel.addEventListener('change', async () => {
-    if (!custSel.value) { say(''); histFor = ''; hist.textContent = ''; hist.style.display = 'none'; return; }
+    if (!custSel.value) { say(''); setAutoIgst(false); histFor = ''; hist.textContent = ''; hist.style.display = 'none'; return; }
     const c = await get('id=' + encodeURIComponent(custSel.value));
     if (c && c.found && custSel.value === String(c.id)) pick(c);
   });

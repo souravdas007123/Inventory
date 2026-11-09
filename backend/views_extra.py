@@ -26,6 +26,8 @@ from .models import (
     Batch, Bill, Brand, Category, Customer, Employee, Expense, InvoiceItem, Product, ProductUnit, Purchase, PurchaseItem, PurchaseOrder,
     HeldBill, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SalesReturn, Supplier, Unit, SalesReturnItem, ShopProfile, StockAudit, StockAuditItem, StockWriteOff,
 )
+from . import gstin as gstin_check
+from .models import GST_STATE_CODES
 from .imports import GST_ALLOWED, _fk, table_download
 from .views import page, post_recurring
 
@@ -540,9 +542,15 @@ def customer_lookup(request):
     if not customer:
         return JsonResponse({'found': False})
     balance, limit = customer.balance(), customer.credit_limit or Decimal('0')
+    shop_gstin = ShopProfile.get().gstin
+    party_state = gstin_check.state_code(customer.gstin, GST_STATE_CODES)
     return JsonResponse({'found': True, 'id': customer.pk, 'name': customer.name, 'phone': customer.phone or '',
                          'balance': str(balance.quantize(Decimal('0.01'))), 'limit': str(limit),
-                         'over': bool(limit > 0 and balance >= limit)})
+                         'over': bool(limit > 0 and balance >= limit),
+                         # IGST applies when this customer's GSTIN is in another state than the shop's
+                         'igst': gstin_check.is_inter_state(shop_gstin, customer.gstin, GST_STATE_CODES),
+                         'state': GST_STATE_CODES.get(party_state, ''),
+                         'shop_gstin': bool(gstin_check.state_code(shop_gstin, GST_STATE_CODES))})
 
 
 # ======================================================
