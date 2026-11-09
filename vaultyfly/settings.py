@@ -33,7 +33,8 @@ def _load_env_file(path):
         os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
-_load_env_file(BASE_DIR / '.env')
+if os.environ.get('DJANGO_NO_ENV_FILE') != '1':           # the tests set this so that a developer's own .env cannot change what they check
+    _load_env_file(BASE_DIR / '.env')
 
 
 def env_bool(name, default=False):

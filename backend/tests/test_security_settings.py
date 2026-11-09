@@ -16,7 +16,7 @@ def settings_with(**env):
             "print(json.dumps(dict(ssl=s.SECURE_SSL_REDIRECT, sess=s.SESSION_COOKIE_SECURE, csrf=s.CSRF_COOKIE_SECURE, "
             "hsts=s.SECURE_HSTS_SECONDS, debug=s.DEBUG)))")
     base = {k: v for k, v in os.environ.items() if not k.startswith('DJANGO_')}
-    base.update({'DJANGO_SECRET_KEY': 'x' * 60, 'DJANGO_ALLOWED_HOSTS': 'example.com', 'PYTHONPATH': os.pathsep.join(sys.path)})
+    base.update({'DJANGO_NO_ENV_FILE': '1', 'DJANGO_SECRET_KEY': 'x' * 60, 'DJANGO_ALLOWED_HOSTS': 'example.com', 'PYTHONPATH': os.pathsep.join(sys.path)})
     base.update(env)
     done = subprocess.run([sys.executable, '-c', code], cwd=ROOT, env=base, capture_output=True, text=True, timeout=120)
     assert done.returncode == 0, done.stderr[-600:]
@@ -43,7 +43,7 @@ class ProductionSettingsTests(SimpleTestCase):
     def test_no_secret_key_stops_a_production_start(self):
         code = "import os; os.environ['DJANGO_SETTINGS_MODULE']='vaultyfly.settings'; from django.conf import settings; settings.SECRET_KEY"
         base = {k: v for k, v in os.environ.items() if not k.startswith('DJANGO_')}
-        base['PYTHONPATH'] = os.pathsep.join(sys.path)
+        base.update({'DJANGO_NO_ENV_FILE': '1', 'PYTHONPATH': os.pathsep.join(sys.path)})
         done = subprocess.run([sys.executable, '-c', code], cwd=ROOT, env=base, capture_output=True, text=True, timeout=120)
         self.assertNotEqual(done.returncode, 0)
         self.assertIn('DJANGO_SECRET_KEY', done.stderr)
